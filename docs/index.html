@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131d">
+  <meta name="description" content="Convert2File helps turn learning materials into structured study documents, reviewers, and quizzes.">
+  <title>Convert2File — Study smarter from your files</title>
+  <style>
+    :root { color-scheme: dark; --ink:#f5f6fb; --muted:#a9afc1; --line:rgba(255,255,255,.11); --panel:rgba(255,255,255,.055); --aqua:#83ead4; --violet:#b8a4ff; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; color:var(--ink); background:radial-gradient(ellipse at 82% 9%,rgba(103,83,192,.24),transparent 34%),radial-gradient(ellipse at 8% 55%,rgba(46,183,161,.12),transparent 32%),#10131d; font:16px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    a { color:inherit; }
+    .wrap { width:min(1100px,calc(100% - 40px)); margin:auto; }
+    header { display:flex; align-items:center; justify-content:space-between; padding:24px 0; border-bottom:1px solid var(--line); }
+    .brand { display:flex; align-items:center; gap:12px; font-weight:750; letter-spacing:-.03em; }
+    .brand img { width:42px; height:42px; object-fit:contain; border-radius:13px; }
+    .badge { border:1px solid var(--line); color:#d7d4e7; border-radius:999px; padding:7px 12px; font-size:12px; }
+    main { padding:82px 0 70px; }
+    .hero { display:grid; grid-template-columns:1.25fr .75fr; gap:56px; align-items:center; }
+    .eyebrow { color:var(--aqua); text-transform:uppercase; font-size:12px; letter-spacing:.18em; font-weight:800; }
+    h1 { max-width:680px; margin:16px 0; font-size:clamp(42px,7vw,76px); line-height:1.04; letter-spacing:-.065em; }
+    h1 span { color:var(--aqua); }
+    .lead { max-width:600px; color:var(--muted); font-size:18px; }
+    .actions { display:flex; flex-wrap:wrap; gap:12px; margin:28px 0 12px; }
+    .button { display:inline-flex; align-items:center; justify-content:center; min-height:50px; padding:0 20px; border-radius:14px; font-weight:750; text-decoration:none; transition:transform .18s,opacity .18s; }
+    .button:hover { transform:translateY(-2px); }
+    .primary { color:#10131d; background:linear-gradient(120deg,var(--aqua),#b4f2db); box-shadow:0 10px 35px rgba(105,224,196,.16); }
+    .primary[aria-disabled="true"] { opacity:.48; cursor:not-allowed; }
+    .secondary { border:1px solid var(--line); background:var(--panel); }
+    .hint { color:var(--muted); font-size:12px; }
+    .preview { position:relative; padding:26px; border:1px solid var(--line); border-radius:28px; background:linear-gradient(145deg,rgba(255,255,255,.09),rgba(255,255,255,.025)); box-shadow:0 28px 80px rgba(0,0,0,.3); }
+    .preview::before { position:absolute; content:""; inset:-1px; z-index:-1; border-radius:29px; background:linear-gradient(145deg,rgba(131,234,212,.4),transparent 45%,rgba(184,164,255,.3)); filter:blur(17px); opacity:.5; }
+    .preview-top { display:flex; justify-content:space-between; align-items:center; color:#d8daea; font-size:13px; }
+    .dots { display:flex; gap:5px; }.dots i { width:7px;height:7px;border-radius:50%;background:#858aa0; }
+    .paper { margin-top:20px; padding:22px; min-height:270px; border:1px solid rgba(255,255,255,.09); border-radius:18px; background:rgba(15,18,28,.75); }
+    .paper small { color:var(--aqua); font-size:10px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .paper h2 { margin:8px 0 18px; font-size:21px; letter-spacing:-.04em; }
+    .line { height:8px; margin:10px 0; border-radius:9px; background:rgba(255,255,255,.1); }.line.short { width:63%; }
+    .mini-card { display:flex; align-items:center; gap:12px; margin-top:18px; padding:12px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.035); }
+    .mini-icon { display:grid; place-items:center; width:34px;height:34px;border-radius:11px;background:rgba(131,234,212,.13);color:var(--aqua);font-weight:800; }
+    .mini-card strong { display:block; font-size:12px; }.mini-card span { color:var(--muted); font-size:11px; }
+    .features { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:75px; }
+    .feature { padding:21px; border:1px solid var(--line); border-radius:18px; background:var(--panel); }
+    .feature b { display:block; margin:10px 0 5px; }.feature p { margin:0; color:var(--muted); font-size:14px; }
+    .symbol { color:var(--aqua); font-size:20px; }
+    footer { padding:22px 0 32px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+    @media (max-width:760px) { main { padding:54px 0; }.hero { grid-template-columns:1fr; gap:34px; }.preview { max-width:520px; }.features { grid-template-columns:1fr; margin-top:48px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand"><img src="../assets/images/convert2file_logo_v2.png" alt=""><span>Convert2File</span></div>
+      <span class="badge">Android app · Academic tools</span>
+    </header>
+    <main>
+      <section class="hero" aria-labelledby="headline">
+        <div>
+          <div class="eyebrow">From course files to study tools</div>
+          <h1 id="headline">Make your study materials <span>work harder.</span></h1>
+          <p class="lead">Convert2File helps organize learning materials into structured documents, study guides, and quiz drafts—all from one Android app.</p>
+          <div class="actions">
+            <a class="button primary" id="download" href="#download" aria-disabled="true">Get the Android app</a>
+            <a class="button secondary" href="https://github.com/jomariebernales3-cell/convert2file">View project source</a>
+          </div>
+          <div class="hint" id="download-hint">APK download link will be added here.</div>
+        </div>
+        <div class="preview" aria-label="Illustration of a study guide preview">
+          <div class="preview-top"><span>YOUR STUDY WORKSPACE</span><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="paper">
+            <small>Study guide · Preview</small>
+            <h2>Ideas, organized for learning.</h2>
+            <div class="line"></div><div class="line"></div><div class="line short"></div>
+            <div class="mini-card"><div class="mini-icon">✦</div><div><strong>Build from your materials</strong><span>PDF · DOCX · PPTX</span></div></div>
+            <div class="mini-card"><div class="mini-icon">✓</div><div><strong>Review before you export</strong><span>Study guides · Quiz drafts</span></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="features" aria-label="App features">
+        <article class="feature"><span class="symbol">↗</span><b>Start with your files</b><p>Use supported learning materials such as PDF, DOCX, and PPTX as a starting point.</p></article>
+        <article class="feature"><span class="symbol">✦</span><b>Create study resources</b><p>Prepare structured documents, study guides, or editable quiz drafts.</p></article>
+        <article class="feature"><span class="symbol">▤</span><b>Preview your work</b><p>Review generated sections before saving or sharing your output.</p></article>
+      </section>
+    </main>
+    <footer>Convert2File · A student project built with Flutter.</footer>
+  </div>
+  <script>
+    // Add the APK's Google Drive share URL here before publishing this page.
+    const apkUrl = "";
+    const download = document.getElementById("download");
+    const hint = document.getElementById("download-hint");
+    if (apkUrl) {
+      download.href = apkUrl;
+      download.target = "_blank";
+      download.rel = "noopener noreferrer";
+      download.removeAttribute("aria-disabled");
+      hint.textContent = "Download the Android APK from Google Drive.";
+    } else {
+      download.addEventListener("click", event => event.preventDefault());
+    }
+  </script>
+</body>
+</html>
