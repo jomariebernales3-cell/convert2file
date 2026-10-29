@@ -1,0 +1,15 @@
+Convert2File Admin Note
+
+Do not show admin credentials inside the app UI.
+
+Local seeded admin records:
+- admin@smarttemplate.app
+- dbzadmin@fconvert
+
+Supabase/Auth passwords cannot be recovered from the app or from password
+hashes. If you forget the admin password, reset it in Supabase Authentication
+or create a new admin account there, then log in again from the app.
+
+Personal reminder:
+- Keep your real admin password in your own password manager or private notes.
+- Do not commit or share this file if you later publish the project.

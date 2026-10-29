@@ -1,0 +1,205 @@
+Information Management 1 | Final Project Instructions & Documentation Guide
+Academic Year 2025
+
+2026 � Prepared by the Course Instructor
+"
+State the filename and its purpose
+Paste a key code snippet (no more than 20 lines)
+" Explain what the code does in plain language
+" Project 1  SQL export file (.sql) with table structure and sample data " Project 1  Documentation (this guide, with all sections filled in) " Project 2  All PHP source files and project folder " Project 2  SQL export file (.sql) for the chosen project " Project 2  Documentation (Sections 2 and 3 of this guide) " Presentation slides (if applicable)
+Criteria Excellent (90  100%) Satisfactory
+(75
+ 89%) Needs Improvement
+(<75%)
+Formula detection note: This line looks mathematical, but the formula parser could not fully confirm it. Please review the exact expression.
+Score
+Member demonstrates actual understanding. reading comments. Documentation All required sections complete, source properly cited, screenshots included. Most sections present; citation or screenshots missing. Documentation is largely incomplete. Presentation & Q&A All members present confidently. Questions answered correctly and clearly. Presentation is adequate; some questions partially answered. Members unable to explain their own work or answer basic questions.
+INFORMATION MANAGEMENT 1
+ your section code Date Submitted Actual date of submission
+ your section code Submission Date Date both projects are submitted Presentation Date Scheduled date and time of presentation Presentation Mode Online (video call) or Face
+-
+Face
+Final Project Instructions
+Two (2)
+Projects per Group | Academic Year 2025
+
+2026
+Group Composition:
+3 members per group � Both projects done and presented by the
+Same team
+Project 1: Data Modeling & CRUD System
+Design a data model, then build a working PHP
+-
+Based CRUD application
+50%
+Design a Complete Data Model
+Cover all three levels: Conceptual (entities & relationships), Logical (attributes & keys), and
+Physical (tables, data types, constraints).
+Implement as a Functional Web System
+Build a working PHP application that supports all four basic CRUD operations: Create, Read,
+Update, and Delete.
+Choose a PHP Coding Approach
+Object
+-
+Oriented (OOP), PDO, or Procedural (Preferred). Procedural PHP is recommended for this course level, but other approaches are also accepted. Prepare Documentation Include your ER diagram and a brief explanation of design decisions showing the relationship between your data model and the system.
+Project 2: Open
+Source PHP Project Customization
+Find, study, customize, and present an existing PHP project
+Find a Suitable PHP Project
+Source from any reputable free repository. Suggested site: www.sourcecodester.com/php
+Formula detection note: This line looks mathematical, but the formula parser could not fully confirm it. Please review the exact expression.
+ any other available open
+-
+Source PHP repository.
+Study the Project Thoroughly
+Understand its code structure, database design, and how each module works before presenting it.
+Customize or Enhance the Project
+Add UI improvements, a new feature or module, or adapt the system to a new use case. The group must demonstrate understanding, not just run the original source.
+Cite the Original Source
+Include the project title, author (if available), and URL clearly in your documentation and during your presentation.
+General Requirements (Both Projects)
+Rules that apply to both projects " Each group must have exactly 3 members. Both projects are submitted and presented by the same team. " Presentation may be done online or face
+-
+Face on the instructor
+Assigned date. Each group must be ready to demo both projects live. " Projects must run on a local server environment (e.g., XAMPP, WAMP, or Laragon) using a MySQL or MariaDB database. " Submit all project files, database SQL files, and complete group documentation on or before the presentation date. " All members must be able to explain and answer questions about both projects. Individual understanding will be part of the evaluation.
+What to Include in Your Submission
+This guide explains the expected contents, format, and structure of each section of your group documentation.
+Section 1: Project 1
+
+Data Model Documentation
+Show your understanding of data design before writing a single line of code
+1.1 Cover Page
+Project Title Name of the system you built (e.g., Student Record Management System)
+Group Name / Number
+Your assigned group name or number Members Full name of each member and their assigned role Course & Section
+Your assigned group designation Course & Section
+1.2 System Overview
+Write a short paragraph (3 
+1.3 Data Model
+Required diagrams and descriptions " Conceptual Model  Entity
+-
+Relationship Diagram (ERD) showing all entities and their relationships. Label cardinality (one
+Many, many
+Many, etc.). " Logical Model  Refined ERD with all attributes, primary keys (PK), and foreign keys (FK) identified. " Physical Model 
+Actual database schema showing table names, column names, data types
+(INT, VARCHAR, DATE, etc.), constraints (NOT NULL, UNIQUE, DEFAULT), and indexes. " Brief narrative  
+2 paragraphs explaining your design decisions (why you chose those
+Entities, how relationships are structured).
+1.4 CRUD Functionality Description
+For each module in your system, describe the four CRUD operations. Use the table format below as a guide:
+Module / Table
+Create Read Update Delete e.g., Students Add new student View student list Edit student info Remove student (add more rows)
+1.5 Screenshots
+Include at least one screenshot per CRUD operation (minimum 4 screenshots). Label each screenshot
+Clearly, e.g., "Figure 1: Add New Student Form."
+1.6 Database SQL File
+Attach or embed your exported SQL file (.sql). It must include both the CREATE TABLE statements and sample INSERT data so the evaluator can restore and test the system.
+Section 2: Project 2
+
+Source Code Documentation
+Demonstrate that your group understands the project you chose, not just downloaded it
+2.1 Project Information
+Project Title Exact title of the PHP project you chose
+Source / URL
+Formula detection note: This line looks mathematical, but the formula parser could not fully confirm it. Please review the exact expression.
+Full URL where the project was downloaded from Original Author Name of the original developer (if available)
+e.g., Inventory System, Hospital Management, Library System
+Technologies Used PHP version, MySQL, libraries, frameworks (if any) Customizations Made Brief summary of what your group changed or added
+2.2 System Overview
+Summarize what the system does in 3 
+5 sentences. Describe its main purpose and intended users. Then
+Explain why your group chose this particular project.
+2.3 Module / Feature Walkthrough
+For each major module or feature of the project, provide: "
+Module name (e.g., User Login, Product Management, Report Generation)
+" Short description of what it does " Screenshot showing the module in action " Explanation of any customization or enhancement your group made to this module
+2.4 Database Structure
+Provide the ER Diagram or list of tables from the project's database. Include table names, column names,
+And key fields. Even if you did not design it, you must understand and explain it.
+2.5 Code Explanation
+Pick two (2) important PHP files from the project. For each file:
+2.6 Customization / Enhancement Summary
+Describe what your group changed or added, including: " What feature or improvement was added "
+Why you made this change (purpose / benefit)
+Formula detection note: This line looks mathematical, but the formula parser could not fully confirm it. Please review the exact expression.
+" Before
+-
+And
+After screenshots if applicable " Any challenges encountered and how you solved them
+Section 3: Group & Member Contributions
+Transparency in workload distribution is required for both projects
+3.2 Member Contribution Table
+List every members name and their specific contributions to each project. Be specific  do not just write coding or presentation. Member Name
+Member 1 (Full Name)
+E.g., ERD design, database creation, login module e.g., Setup, module walkthrough, documentation
+Member 2 (Full Name)
+E.g., CRUD forms (Create & Update), UI layout e.g., Customization of inventory module, screenshots
+Member 3 (Full Name)
+E.g., Read & Delete functions, testing, SQL export e.g., Code explanation section, presentation slides
+3.3 File Submission Checklist
+Make sure your submission folder or ZIP file includes all of the following: " Project 1  All PHP source files and project folder
+Section 4: Presentation Guide & Grading Rubric
+Criteria used to evaluate both projects during your final presentation
+4.1 Presentation Format
+Duration 
+30 minutes per group (both projects combined)
+Mode
+Online (Google Meet / Zoom) or Face
+-
+Face Who Presents All 3 members must participate and speak during the presentation Demo Required Yes  live demo of both systems is required
+Q&A
+
+10 minutes of questions; each member may be asked
+Individually Language
+English, Filipino, or Bisaya
+ as instructed by your teacher
+Introduction (2
+
+3 min)
+Introduce your group, state your group name, and briefly introduce both projects. Project 1 Demo & Explanation (8 
+10 min)
+Present your data model (ERD), walk through the system, and demonstrate each CRUD operation live. Project 2 Demo & Explanation (8 
+Present the chosen open
+-
+Source project, explain its structure, highlight your customizations, and demo the system.
+Answer questions from the instructor. Any member may be asked about any part of either project.
+Q&A and Wrap
+-
+Up (5 
+4.3 Grading Rubric
+ Project 1 (Data Modeling & CRUD)
+Data Model Quality (Conceptual,
+Logical, Physical) All three models are complete, accurate, and clearly labeled. Relationships and keys are correct. Two out of three models are present with minor errors. Only one model present or major errors in design. CRUD Functionality All four operations (Create, Read, Update, Delete) work correctly without errors. Three operations work; minor bugs present. Two or fewer operations work or system fails to run. Code Quality Code is clean, well
+-
+Structured, and follows the chosen approach
+(OOP / PDO /
+Procedural) consistently. Code works but lacks structure or consistency. Code is disorganized, hard to follow, or copied without understanding. Documentation All required sections are complete, clear, and professionally presented. Most sections present; some are incomplete or vague. Documentation is missing major sections. Presentation & Q&A All members present confidently. Questions answered correctly and clearly. Presentation is adequate; some questions partially answered. Members unable to explain their own work or answer basic questions.
+4.4 Grading Rubric
+ Project 2 (Open
+-
+Source Customization) Criteria Excellent (90  100%) Satisfactory
+(75
+ 89%) Needs Improvement
+(<75%)
+Formula detection note: This line looks mathematical, but the formula parser could not fully confirm it. Please review the exact expression.
+Score System Understanding All members can explain the systems structure, modules, and database clearly. Basic understanding demonstrated; some parts unclear. Members cannot explain the system beyond surface level.
+Customization / Enhancement
+Formula detection note: This line looks mathematical, but the formula parser could not fully confirm it. Please review the exact expression.
+Meaningful feature or improvement added. Changes are functional and purposeful.
+Minor UI or
+Cosmetic changes only; limited value added. No customization made; original project presented
+-
+Is. Code Explanation Selected code snippets are well
+Explained. Explanation is partial or relies on Cannot explain chosen code sections.
+4.5 Grading Summary
+Component Weight Max Points
+50 pts
+Project 2: Open
+-
+Source PHP Customization
+40%
+40 pts
+Group Documentation (combined) 10%
+10 pts
+TOTAL
+100%
