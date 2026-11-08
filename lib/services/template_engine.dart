@@ -356,7 +356,7 @@ class TemplateEngine {
         }
 
         if (type == 'table') {
-          final rows = <List<String>>[];
+          var rows = <List<String>>[];
           for (final row in item['rows'] as List? ?? []) {
             final normalizedRow = (row as List)
                 .map((e) => e.toString().trim())
@@ -364,7 +364,11 @@ class TemplateEngine {
                 .toList();
             if (normalizedRow.isNotEmpty) rows.add(normalizedRow);
           }
-          if (summarize) rows.take(6).toList();
+          var tableWasSummarized = false;
+          if (summarize && rows.length > 7) {
+            rows = [rows.first, ...rows.skip(1).take(6)];
+            tableWasSummarized = true;
+          }
           if (rows.isEmpty) continue;
           final key = 'table:${rows.toString().toLowerCase()}';
           if (seen.containsKey(key)) continue;
@@ -372,7 +376,8 @@ class TemplateEngine {
           items.add({
             'type': 'table',
             'rows': rows,
-            if ((item['source_table_xml'] as String?)?.isNotEmpty == true)
+            if (!tableWasSummarized &&
+                (item['source_table_xml'] as String?)?.isNotEmpty == true)
               'source_table_xml': item['source_table_xml'],
           });
           continue;

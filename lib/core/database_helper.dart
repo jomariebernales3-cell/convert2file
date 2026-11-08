@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 6,
+      version: 7,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -49,12 +49,8 @@ class DatabaseHelper {
     if (oldVersion < 5) {
       await _createStudySetsTable(db);
     }
-    if (oldVersion < 6) {
-      // The former local-only seed accounts are no longer administrators.
-      // Administrator access is now restricted to the Supabase admin account.
-      await db.execute(
-        "UPDATE users SET role = 'user' WHERE email IN ('admin@smarttemplate.app', 'dbzadmin@fconvert')",
-      );
+    if (oldVersion < 7) {
+      await db.execute("UPDATE users SET role = 'user' WHERE role = 'admin'");
     }
   }
 
@@ -154,19 +150,6 @@ class DatabaseHelper {
     ''');
 
     await _createStudySetsTable(db);
-
-    // Legacy local records. These are regular users; Supabase controls the
-    // actual administrator identity.
-    await db.execute('''
-      INSERT INTO users (name, email, password_hash, role, status, created_at, updated_at)
-      VALUES ('System Administrator', 'admin@smarttemplate.app', '\$2y\$10\$JZPnZAe36pGH9GLlmYS.MO4nPzeQM04kQTuDXRcZT/9oVWb1Rp5Sy', 'user', 'active', datetime('now'), datetime('now'))
-    ''');
-
-    // Legacy local record.
-    await db.execute('''
-      INSERT INTO users (name, email, password_hash, role, status, created_at, updated_at)
-      VALUES ('DBZ Admin', 'dbzadmin@fconvert', '\$2y\$10\$v1Qm4JfZgXvH5jY0bYx8pGxE2z8nXG7wq6oGxgqkGfYv9r0tGJt7u', 'user', 'active', datetime('now'), datetime('now'))
-    ''');
   }
 
   Future<void> _createStudySetsTable(Database db) async {

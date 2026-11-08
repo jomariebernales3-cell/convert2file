@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -53,7 +54,7 @@ class _SplashScreenState extends State<SplashScreen>
     if (!mounted) return;
     final auth = AuthService();
     Navigator.of(context).pushReplacementNamed(
-      auth.isLoggedIn ? (auth.isAdmin ? '/admin' : '/home') : '/login',
+      auth.isLoggedIn ? '/home' : '/login',
     );
   }
 
@@ -66,21 +67,17 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
 
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF081521),
-              Color(0xFF0B2744),
-              Color(0xFF071018),
-            ],
+            colors: [colors.background, colors.surface, colors.background],
           ),
         ),
         child: SafeArea(
@@ -101,15 +98,15 @@ class _SplashScreenState extends State<SplashScreen>
                           height: 164,
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.06),
+                            color: colors.surface2,
                             borderRadius: BorderRadius.circular(34),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.14),
+                              color: colors.line,
                             ),
                             boxShadow: [
                               BoxShadow(
                                 color:
-                                    colorScheme.primary.withValues(alpha: 0.26),
+                                    colors.accent.withValues(alpha: 0.26),
                                 blurRadius: 36,
                                 spreadRadius: 4,
                               ),
@@ -127,10 +124,10 @@ class _SplashScreenState extends State<SplashScreen>
                     ),
                   ),
                   const SizedBox(height: 28),
-                  const Text(
+                  Text(
                     'Convert2File',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: colors.text,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                     ),
@@ -139,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen>
                   Text(
                     'Preparing your workspace',
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.68),
+                      color: colors.muted,
                       fontSize: 13,
                     ),
                   ),
@@ -150,8 +147,8 @@ class _SplashScreenState extends State<SplashScreen>
                       value: 0.35 + (_progressAnimation.value * 0.55),
                       minHeight: 5,
                       borderRadius: BorderRadius.circular(99),
-                      color: colorScheme.primary,
-                      backgroundColor: Colors.white.withValues(alpha: 0.14),
+                      color: colors.accent,
+                      backgroundColor: colors.line,
                     ),
                   ),
                 ],

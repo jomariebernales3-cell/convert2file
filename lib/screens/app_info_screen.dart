@@ -151,11 +151,9 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
       date: 'May 26, 2026',
       features: [
         'Added password reset support to the former account screen.',
-        'Restored the former admin console exit action as an icon-only top-bar button.',
       ],
       fixes: [
         'Fixed the password reset cancel crash caused by the reset email field controller lifecycle.',
-        'Removed the duplicate text exit button beside the former admin console header.',
       ],
     ),
     _ReleaseNote(
@@ -164,7 +162,6 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
       features: [
         'Improved DOCX output formatting to better match the original system output style.',
         'Added preview image/table edit regeneration controls.',
-        'Added admin and history pagination, history open/download/share actions, and admin date-range file deletion.',
         'Added History search, date filtering, result count, and sort controls for saved files.',
         'Added complaint mode selection with required bug report file attachments.',
       ],
@@ -461,7 +458,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
           content: Text('Share failed: $e'),
         ),
       );

@@ -1,10 +1,10 @@
 import 'dart:io';
 
-import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 class FileDownload {
-  /// Copies [sourcePath] into the app's downloads folder (platform-appropriate).
-  /// Returns the destination path.
+  /// Opens the platform save dialog and writes the file bytes there.
+  /// Returns an empty string if the user cancels.
   static Future<String> copyToDownloadsFolder(
     String sourcePath, {
     String? fileName,
@@ -18,37 +18,24 @@ class FileDownload {
       throw FileSystemException('File not found', sourcePath);
     }
 
-    // Use a stable explicit downloads path on Android so that tools like ZArchiver
-    // can see the file under /storage/emulated/0/download.
-    //
-    // Note: For non-Android platforms, we fall back to the platform downloads directory.
     final resolvedFileName = (fileName != null && fileName.trim().isNotEmpty)
         ? _sanitizeFileName(fileName)
         : sourceFile.uri.pathSegments.isNotEmpty
             ? sourceFile.uri.pathSegments.last
             : 'downloaded-file';
 
-    String? destDirPath;
-    if (Platform.isAndroid) {
-      destDirPath = '/storage/emulated/0/download';
-    } else {
-      final downloadsDir = await getDownloadsDirectory();
-      destDirPath = downloadsDir?.path;
+    try {
+      return await FilePicker.saveFile(
+            fileName: resolvedFileName,
+            bytes: await sourceFile.readAsBytes(),
+          ) ??
+          '';
+    } catch (_) {
+      throw FileSystemException(
+        'Could not save the file. Please try again.',
+        sourcePath,
+      );
     }
-
-    if (destDirPath == null || destDirPath.isEmpty) {
-      throw FileSystemException('Downloads directory unavailable');
-    }
-
-    final destPath = '$destDirPath/$resolvedFileName';
-
-    final destFile = File(destPath);
-    if (await destFile.exists()) {
-      await destFile.delete();
-    }
-
-    await sourceFile.copy(destPath);
-    return destPath;
   }
 
   static String _sanitizeFileName(String value) {

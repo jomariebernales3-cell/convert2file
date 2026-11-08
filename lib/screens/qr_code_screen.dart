@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../widgets/figma_app_chrome.dart';
+import '../theme/app_colors.dart';
 
 class QrCodeScreen extends StatefulWidget {
   const QrCodeScreen({super.key});
@@ -216,7 +217,15 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
 
   void _showMessage(String value, {bool error = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(value), backgroundColor: error ? Colors.red : null),
+      SnackBar(
+        backgroundColor: error ? Theme.of(context).colorScheme.errorContainer : null,
+        content: Text(
+          value,
+          style: error
+              ? TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)
+              : null,
+        ),
+      ),
     );
   }
 
@@ -232,29 +241,25 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
   @override
   Widget build(BuildContext context) {
     return FigmaAppShell(
-      title: 'QR Code',
+      title: 'QR code',
       subtitle: 'Scan, read, and create QR codes',
       selectedIndex: 1,
       showBack: true,
+      showProfile: false,
+      referenceHeader: true,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            LayoutBuilder(
-              builder: (context, constraints) => SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: SegmentedButton<int>(
-                  showSelectedIcon: false,
-                  segments: [
-                    ButtonSegment(value: 0, icon: const Icon(Icons.qr_code_scanner), label: constraints.maxWidth < 350 ? null : const Text('Scan')),
-                    ButtonSegment(value: 1, icon: const Icon(Icons.image_search_outlined), label: constraints.maxWidth < 350 ? null : const Text('Upload')),
-                    ButtonSegment(value: 2, icon: const Icon(Icons.qr_code_2), label: constraints.maxWidth < 350 ? null : const Text('Create')),
-                  ],
-                  selected: {_tab},
-                  onSelectionChanged: (value) => _selectTab(value.first),
-                ),
-              ),
+            FigmaSegmentControl<int>(
+              options: const [
+                FigmaSegmentOption(value: 0, label: 'Scan', icon: Icons.qr_code_scanner),
+                FigmaSegmentOption(value: 1, label: 'Image', icon: Icons.image_search_outlined),
+                FigmaSegmentOption(value: 2, label: 'Create', icon: Icons.qr_code_2),
+              ],
+              selected: _tab,
+              onChanged: _selectTab,
             ),
             const SizedBox(height: 18),
             if (_tab == 0) _buildScanner(),
@@ -288,63 +293,86 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
       );
     }
     return FigmaCard(
-        padding: const EdgeInsets.all(12),
-        child: Column(children: [
+      padding: EdgeInsets.zero,
+      child: Column(
+        children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: AspectRatio(
-              aspectRatio: 1,
-              child: MobileScanner(
-                controller: _scanner,
-                onDetect: (capture) {
-                  if (_handledScan) return;
-                  for (final barcode in capture.barcodes) {
-                    if (barcode.format == BarcodeFormat.qrCode &&
-                        barcode.rawValue != null) {
-                      _setResult(barcode.rawValue!);
-                      break;
-                    }
-                  }
-                },
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: SizedBox(
+              height: 300,
+              width: double.infinity,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: MobileScanner(
+                      controller: _scanner,
+                      onDetect: (capture) {
+                        if (_handledScan) return;
+                        for (final barcode in capture.barcodes) {
+                          if (barcode.format == BarcodeFormat.qrCode && barcode.rawValue != null) {
+                            _setResult(barcode.rawValue!);
+                            break;
+                          }
+                        }
+                      },
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: ColoredBox(
+                      color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.27),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: _QrScannerFramePainter(
+                          color: FigmaAppColors.primary(context),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 10),
-          const Text('Point your camera at a QR code.', style: TextStyle(fontWeight: FontWeight.w600)),
-        ]),
-      );
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 18),
+            child: Text('Point your camera at a QR code.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14)),
+          ),
+        ],
+      ),
+    );
   }
-
   Widget _buildImageUpload() => FigmaCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Icon(Icons.image_search_outlined, size: 34),
+          Icon(Icons.image_search_outlined, size: 32, color: Theme.of(context).colorScheme.primary),
           const SizedBox(height: 10),
-          const Text('Read QR from Image', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text('Read QR from image', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('Choose an image containing one clear QR code. Images without a QR code are rejected.'),
+          const Text('Choose an image with one clear QR code. Images without a QR code are rejected.'),
           const SizedBox(height: 14),
           ElevatedButton.icon(
             onPressed: _isReadingImage ? null : _pickQrImage,
             icon: _isReadingImage ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.upload),
-            label: const Text('Choose QR Image'),
+            label: const Text('Choose QR image'),
           ),
         ]),
       );
 
   Widget _buildCreator() => FigmaCard(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Create QR Code', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const Text('Create QR code', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          const Text('Use a link or plain text. QR codes are readable by anyone who scans them—do not use this for unencrypted secrets.'),
+          const Text('Use a link or plain text. Anyone who scans the code can read it, so don’t use it for secrets.'),
           const SizedBox(height: 14),
           TextField(
             controller: _createController,
-            minLines: 3,
+            minLines: 4,
             maxLines: 7,
-            decoration: const InputDecoration(labelText: 'Link or text', alignLabelWithHint: true),
+            decoration: const InputDecoration(hintText: 'Link or text', alignLabelWithHint: true),
           ),
           const SizedBox(height: 12),
-          FigmaPrimaryButton(label: 'Create QR Code', icon: Icons.qr_code_2, onPressed: _createQr),
+          FigmaPrimaryButton(label: 'Create QR code', onPressed: _createQr),
         ]),
       );
 
@@ -359,17 +387,16 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE5E7EB)),
+                border: Border.all(color: FigmaAppColors.border(context)),
               ),
               child: QrImageView(
                 data: _result!,
                 size: 220,
-                backgroundColor: Colors.white,
+                backgroundColor: AppColors.of(context).background,
                 errorCorrectionLevel: QrErrorCorrectLevel.M,
-                eyeStyle: const QrEyeStyle(color: Colors.black),
-                dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
+                eyeStyle: QrEyeStyle(color: AppColors.of(context).text),
+                dataModuleStyle: QrDataModuleStyle(color: AppColors.of(context).text),
               ),
             ),
           ),
@@ -432,6 +459,46 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
       ),
     );
   }
+}
+
+class _QrScannerFramePainter extends CustomPainter {
+  final Color color;
+
+  const _QrScannerFramePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final frame = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: (size.width - 120).clamp(80.0, size.width - 24).toDouble(),
+      height: (size.height - 120).clamp(80.0, size.height - 24).toDouble(),
+    );
+    const cornerLength = 44.0;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final path = Path()
+      ..moveTo(frame.left, frame.top + cornerLength)
+      ..lineTo(frame.left, frame.top)
+      ..lineTo(frame.left + cornerLength, frame.top)
+      ..moveTo(frame.right - cornerLength, frame.top)
+      ..lineTo(frame.right, frame.top)
+      ..lineTo(frame.right, frame.top + cornerLength)
+      ..moveTo(frame.left, frame.bottom - cornerLength)
+      ..lineTo(frame.left, frame.bottom)
+      ..lineTo(frame.left + cornerLength, frame.bottom)
+      ..moveTo(frame.right - cornerLength, frame.bottom)
+      ..lineTo(frame.right, frame.bottom)
+      ..lineTo(frame.right, frame.bottom - cornerLength);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _QrScannerFramePainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _QrInterpretation {

@@ -105,39 +105,120 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
     };
   }
 
-  void _message(String text, {bool error = false}) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text), backgroundColor: error ? Colors.red : null));
+  void _message(String text, {bool error = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: error ? Theme.of(context).colorScheme.errorContainer : null,
+          content: Text(
+            text,
+            style: error
+                ? TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)
+                : null,
+          ),
+        ),
+      );
 
   @override
   Widget build(BuildContext context) => FigmaAppShell(
-    title: 'Text to File', subtitle: 'Turn pasted text into a document', selectedIndex: 1, showBack: true,
-    child: Stack(children: [
-      Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-      TextField(controller: _title, decoration: const InputDecoration(labelText: 'File title (optional)', prefixIcon: Icon(Icons.title))),
-      const SizedBox(height: 12),
-      Row(children: [
-        Text('Document text', style: TextStyle(fontWeight: FontWeight.w800, color: FigmaAppColors.text(context))),
-        const Spacer(),
-        TextButton.icon(onPressed: _pasteText, icon: const Icon(Icons.content_paste_outlined, size: 18), label: const Text('Paste')),
-        TextButton(onPressed: _text.text.isEmpty ? null : () => _text.clear(), child: const Text('Clear')),
-      ]),
-      Expanded(child: TextField(controller: _text, expands: true, maxLines: null, minLines: null, textAlignVertical: TextAlignVertical.top, decoration: const InputDecoration(labelText: 'Paste or type your text', alignLabelWithHint: true, hintText: 'Use blank lines to separate paragraphs.'))),
-      const SizedBox(height: 8),
-      Align(alignment: Alignment.centerLeft, child: Text('${_text.text.length} characters', style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 12))),
-      const SizedBox(height: 12),
-      LayoutBuilder(builder: (context, constraints) => constraints.maxWidth < 360
-        ? Column(children: [_formatPicker(), const SizedBox(height: 10), _stylePicker()])
-        : Row(children: [Expanded(child: _formatPicker()), const SizedBox(width: 12), Expanded(child: _stylePicker())])),
-      const SizedBox(height: 14),
-      FigmaPrimaryButton(label: _isConverting ? 'Converting...' : 'Convert Text', icon: Icons.transform_rounded, onPressed: _isConverting ? null : _convert),
-      ])),
-      if (_isConverting) _buildConversionLoadingOverlay(),
-    ]),
-  );
+        title: 'Text to file',
+        subtitle: 'Turn pasted text into a document',
+        selectedIndex: 1,
+        showBack: true,
+        showProfile: false,
+        referenceHeader: true,
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextField(
+                    controller: _title,
+                    decoration: const InputDecoration(
+                      hintText: 'File title (optional)',
+                      prefixIcon: Icon(Icons.title),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Text(
+                        'Document text',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: FigmaAppColors.text(context),
+                        ),
+                      ),
+                      const Spacer(),
+                      TextButton(style: TextButton.styleFrom(minimumSize: const Size(0, 40), padding: const EdgeInsets.symmetric(horizontal: 8), tapTargetSize: MaterialTapTargetSize.shrinkWrap), onPressed: _pasteText, child: const Text('Paste')),
+                      TextButton(
+                        onPressed: _text.text.isEmpty ? null : () => _text.clear(),
+                        style: TextButton.styleFrom(foregroundColor: Theme.of(context).hintColor, minimumSize: const Size(0, 40), padding: const EdgeInsets.symmetric(horizontal: 8), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                        child: const Text('Clear'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  SizedBox(
+                    height: 220,
+                    child: TextField(
+                      controller: _text,
+                      minLines: null,
+                      maxLines: null,
+                      expands: true,
+                      textAlignVertical: TextAlignVertical.top,
+                      decoration: const InputDecoration(
+                        hintText: 'Paste or type your text',
+                        alignLabelWithHint: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _text.text.length.toString() + ' characters',
+                    style: TextStyle(
+                      color: FigmaAppColors.subtext(context),
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  LayoutBuilder(
+                    builder: (context, constraints) =>
+                        constraints.maxWidth < 360
+                            ? Column(
+                                children: [
+                                  _formatPicker(),
+                                  const SizedBox(height: 10),
+                                  _stylePicker(),
+                                ],
+                              )
+                            : Row(
+                                children: [
+                                  Expanded(child: _formatPicker()),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: _stylePicker()),
+                                ],
+                              ),
+                  ),
+                  const SizedBox(height: 18),
+                  FigmaPrimaryButton(
+                    label: _isConverting ? 'Converting...' : 'Convert text',
+                    onPressed: _isConverting ? null : _convert,
+                  ),
+                ],
+              ),
+            ),
+            if (_isConverting) _buildConversionLoadingOverlay(),
+          ],
+        ),
+      );
 
   Widget _buildConversionLoadingOverlay() {
     final percentage = (_conversionProgress * 100).round();
     return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.68),
+      color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.68),
       child: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -181,7 +262,129 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
     );
   }
 
-  Widget _formatPicker() => DropdownButtonFormField<String>(initialValue: _format, decoration: const InputDecoration(labelText: 'Format'), items: const [DropdownMenuItem(value: 'docx', child: Text('DOCX')), DropdownMenuItem(value: 'pdf', child: Text('PDF')), DropdownMenuItem(value: 'html', child: Text('HTML')), DropdownMenuItem(value: 'txt', child: Text('TXT'))], onChanged: (value) => setState(() => _format = value!));
+  Widget _formatPicker() => _buildChoicePicker(
+        label: 'Format',
+        currentValue: _format,
+        options: const {
+          'DOCX': 'docx',
+          'PDF': 'pdf',
+          'HTML': 'html',
+          'TXT': 'txt',
+        },
+        onSelected: (value) => setState(() => _format = value),
+      );
 
-  Widget _stylePicker() => DropdownButtonFormField<String>(initialValue: _style, decoration: const InputDecoration(labelText: 'Style'), items: const [DropdownMenuItem(value: 'modern', child: Text('Modern document')), DropdownMenuItem(value: 'clean', child: Text('Clean')), DropdownMenuItem(value: 'academic', child: Text('Academic')), DropdownMenuItem(value: 'module', child: Text('Notes'))], onChanged: (value) => setState(() => _style = value!));
+  Widget _stylePicker() => _buildChoicePicker(
+        label: 'Style',
+        currentValue: _style,
+        options: const {
+          'Modern': 'modern',
+          'Clean': 'clean',
+          'Academic': 'academic',
+          'Notes': 'module',
+        },
+        onSelected: (value) => setState(() => _style = value),
+      );
+
+  Widget _buildChoicePicker({
+    required String label,
+    required String currentValue,
+    required Map<String, String> options,
+    required ValueChanged<String> onSelected,
+  }) {
+    final currentLabel =
+        options.entries.firstWhere((entry) => entry.value == currentValue).key;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: FigmaAppColors.subtext(context),
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: 6),
+        InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: () => _showChoiceSheet(
+            label: label,
+            currentValue: currentValue,
+            options: options,
+            onSelected: onSelected,
+          ),
+          child: Container(
+            height: 52,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: FigmaAppColors.fill(context),
+              border: Border.all(color: FigmaAppColors.border(context)),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    currentLabel,
+                    style: TextStyle(
+                      color: FigmaAppColors.text(context),
+                      fontSize: 15,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.expand_more_rounded,
+                  color: FigmaAppColors.subtext(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showChoiceSheet({
+    required String label,
+    required String currentValue,
+    required Map<String, String> options,
+    required ValueChanged<String> onSelected,
+  }) async {
+    final value = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              for (final option in options.entries)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(option.key),
+                  trailing: option.value == currentValue
+                      ? Icon(
+                          Icons.check_rounded,
+                          color: FigmaAppColors.primary(sheetContext),
+                        )
+                      : null,
+                  onTap: () => Navigator.of(sheetContext).pop(option.value),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (value != null) onSelected(value);
+  }
 }

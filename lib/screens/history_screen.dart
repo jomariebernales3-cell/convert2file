@@ -11,10 +11,12 @@ import '../widgets/figma_app_chrome.dart';
 
 class HistoryScreen extends StatefulWidget {
   final bool savedFilesMode;
+  final String initialSection;
 
   const HistoryScreen({
     super.key,
     this.savedFilesMode = false,
+    this.initialSection = 'files',
   });
 
   @override
@@ -29,7 +31,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   bool _isLoading = true;
   String _filterKind = 'all';
   String _sortMode = 'newest';
-  String _savedSection = 'materials';
+  String _savedSection = 'files';
   DateTime? _startDate;
   DateTime? _endDate;
 
@@ -41,6 +43,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   void initState() {
     super.initState();
+    _savedSection = widget.initialSection;
     _loadFiles();
   }
 
@@ -53,10 +56,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Future<void> _loadFiles() async {
     setState(() => _isLoading = true);
     try {
-      final files = _authService.isAdmin
-          ? await DatabaseHelper.instance.queryAllFiles()
-          : await DatabaseHelper.instance
-              .queryFilesByUser(await _historyOwnerId());
+      final files = await DatabaseHelper.instance
+          .queryFilesByUser(await _historyOwnerId());
+
       final studySets = await DatabaseHelper.instance
           .queryStudySetsByUser(await _historyOwnerId());
       setState(() {
@@ -117,9 +119,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text(
-              'DELETE',
-              style: TextStyle(color: Colors.red),
+            child: Text('DELETE', style: TextStyle(color: Theme.of(context).colorScheme.error),
             ),
           ),
         ],
@@ -164,14 +164,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Colors.red, content: Text(message)),
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.errorContainer,
+        content: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+      ),
     );
   }
 
   List<Map<String, dynamic>> get _filteredFiles {
     Iterable<Map<String, dynamic>> results = _files;
 
-    if (widget.savedFilesMode && _savedSection == 'study') return const [];
+    if (widget.savedFilesMode) {
+      if (_savedSection == 'sets') return const [];
+      if (_savedSection == 'outputs') {
+        results = results
+            .where((f) => (f['kind'] as String? ?? '').startsWith('output_'))
+            .toList();
+      } else {
+        results = results
+            .where((f) => !(f['kind'] as String? ?? '').startsWith('output_'))
+            .toList();
+      }
+    }
 
     if (_filterKind == 'output') {
       results = results
@@ -247,6 +261,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   List<Map<String, dynamic>> get _pagedFiles {
     final filtered = _filteredFiles;
+    if (widget.savedFilesMode) return filtered;
     final start = _currentPage * _pageSize;
     if (start >= filtered.length) return const [];
     final end = (start + _pageSize).clamp(0, filtered.length);
@@ -262,18 +277,22 @@ class _HistoryScreenState extends State<HistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return FigmaAppShell(
-      title: widget.savedFilesMode ? 'Materials' : 'History',
-      subtitle: 'Your local files, outputs, and study materials',
+      title: widget.savedFilesMode ? 'My materials' : 'History',
+      subtitle: widget.savedFilesMode
+          ? ''
+          : 'Your local files, outputs, and study materials',
       selectedIndex: -1,
       showBack: true,
+      referenceHeader: widget.savedFilesMode,
+      showProfile: !widget.savedFilesMode,
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
                 Material(
                   color: FigmaAppColors.bg(context),
-                  elevation: 3,
-                  shadowColor: Colors.black.withValues(alpha: 0.12),
+                  elevation: widget.savedFilesMode ? 0 : 3,
+                  shadowColor: Theme.of(context).shadowColor.withValues(alpha: 0.12),
                   child: Column(
                     children: [
                       if (_isMultiSelectMode) _buildListToolbar(),
@@ -287,8 +306,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     child: _buildScrollableResults(),
                   ),
                 ),
-                if (!(widget.savedFilesMode && _savedSection == 'study'))
-                  _buildPaginationControls(),
+                if (!widget.savedFilesMode) _buildPaginationControls(),
               ],
             ),
     );
@@ -297,7 +315,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
   /// The controls above and page footer below remain fixed; this is the only
   /// section that scrolls.
   Widget _buildScrollableResults() {
-    if (widget.savedFilesMode && _savedSection == 'study') {
+    if (widget.savedFilesMode && _savedSection == 'sets') {
       return _buildStudySetHistory();
     }
     if (_filteredFiles.isEmpty) {
@@ -308,7 +326,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
           SizedBox(
             height: 280,
             child: _buildEmptyState(
-              message: _files.isEmpty ? 'No files yet' : 'No matching files',
+              message: widget.savedFilesMode && _savedSection == 'outputs'
+                  ? 'No outputs yet'
+                  : (_files.isEmpty ? 'No files yet' : 'No matching files'),
             ),
           ),
         ],
@@ -380,8 +400,28 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 
   Widget _buildSearchAndFilters() {
+    if (widget.savedFilesMode) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+        child: FigmaSegmentControl<String>(
+          options: const [
+            FigmaSegmentOption(value: 'files', label: 'Files'),
+            FigmaSegmentOption(value: 'sets', label: 'Study sets'),
+            FigmaSegmentOption(value: 'outputs', label: 'Outputs'),
+          ],
+          selected: _savedSection,
+          onChanged: (value) {
+            setState(() {
+              _savedSection = value;
+              _currentPage = 0;
+              _filterKind = 'all';
+            });
+          },
+        ),
+      );
+    }
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
       color: FigmaAppColors.bg(context),
       child: Column(
         children: [
@@ -389,14 +429,19 @@ class _HistoryScreenState extends State<HistoryScreen> {
             SegmentedButton<String>(
               segments: const [
                 ButtonSegment(
-                  value: 'materials',
-                  icon: Icon(Icons.auto_awesome),
-                  label: Text('Materials'),
+                  value: 'files',
+                  icon: Icon(Icons.description_outlined),
+                  label: Text('Files'),
                 ),
                 ButtonSegment(
-                  value: 'study',
-                  icon: Icon(Icons.school),
-                  label: Text('Study'),
+                  value: 'sets',
+                  icon: Icon(Icons.school_outlined),
+                  label: Text('Study sets'),
+                ),
+                ButtonSegment(
+                  value: 'outputs',
+                  icon: Icon(Icons.task_alt_outlined),
+                  label: Text('Outputs'),
                 ),
               ],
               selected: {_savedSection},
@@ -404,6 +449,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                 setState(() {
                   _savedSection = selection.first;
                   _currentPage = 0;
+                  _filterKind = 'all';
                 });
               },
             ),
@@ -430,14 +476,17 @@ class _HistoryScreenState extends State<HistoryScreen> {
                         _filterKind = value;
                         _currentPage = 0;
                       }),
-                      itemBuilder: (context) => const [
-                        PopupMenuItem(value: 'all', child: Text('All Files')),
-                        PopupMenuItem(
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                            value: 'all', child: Text('All Files')),
+                        const PopupMenuItem(
                             value: 'template_upload',
                             child: Text('Uploaded Materials')),
-                        PopupMenuItem(
+                        const PopupMenuItem(
                             value: 'data_upload', child: Text('Data Sources')),
-                        PopupMenuItem(value: 'output', child: Text('Outputs')),
+                        if (!widget.savedFilesMode)
+                          const PopupMenuItem(
+                              value: 'output', child: Text('Outputs')),
                       ],
                     ),
                     if (_hasActiveSearchFilters)
@@ -497,7 +546,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             child: Padding(
               padding: const EdgeInsets.only(top: 1),
               child: Text(
-                widget.savedFilesMode && _savedSection == 'study'
+                widget.savedFilesMode && _savedSection == 'sets'
                     ? '${_filteredStudySets.length} study quiz(zes) found'
                     : '${_filteredFiles.length} file(s) found',
                 style: TextStyle(
@@ -571,7 +620,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
               Border(top: BorderSide(color: Theme.of(context).dividerColor)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
+              color: Theme.of(context).shadowColor.withValues(alpha: 0.06),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -623,16 +672,16 @@ class _HistoryScreenState extends State<HistoryScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.folder_open, size: 64, color: Colors.grey.shade600),
+          Icon(Icons.folder_open, size: 64, color: FigmaAppColors.subtext(context)),
           const SizedBox(height: 16),
           Text(
             message,
-            style: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+            style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 16),
           ),
           const SizedBox(height: 8),
           Text(
             'Generated documents will appear here',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+            style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 14),
           ),
         ],
       ),
@@ -675,9 +724,26 @@ class _HistoryScreenState extends State<HistoryScreen> {
   Widget _buildStudySetHistory() {
     final sets = _filteredStudySets;
     if (sets.isEmpty) {
-      return _buildEmptyState(message: 'No saved study quizzes');
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+        children: [
+          FigmaCard(
+            padding: const EdgeInsets.fromLTRB(16, 28, 16, 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('No study sets yet', textAlign: TextAlign.center, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                Text('Create a study guide or quiz from one of your files.', textAlign: TextAlign.center, style: TextStyle(color: FigmaAppColors.subtext(context), height: 1.5)),
+                const SizedBox(height: 16),
+                SizedBox(height: 52, child: ElevatedButton(onPressed: () => Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false), child: const Text('Back to actions'))),
+              ],
+            ),
+          ),
+        ],
+      );
     }
-
     return ListView.builder(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -691,55 +757,98 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final count = questions is List ? questions.length : 0;
     final lastScore = set['last_score'];
     final lastTotal = set['last_total'];
+    final updatedAt = set['updated_at'] as String? ?? '';
+    final details = [
+      '$count questions',
+      if (lastScore != null && lastTotal != null)
+        'Last score: $lastScore/$lastTotal',
+      if (updatedAt.isNotEmpty) _libraryDateLabel(updatedAt),
+    ].join(' · ');
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: FigmaCard(
-        padding: EdgeInsets.zero,
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.18),
-            child: const Icon(Icons.school),
-          ),
-          title: Text(
-            set['title'] as String? ?? 'Untitled study quiz',
-            style: const TextStyle(fontWeight: FontWeight.w700),
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: Text(
-            [
-              '$count question(s)',
-              if (lastScore != null && lastTotal != null)
-                'Last score: $lastScore/$lastTotal',
-              set['updated_at'] as String? ?? '',
-            ].where((item) => item.isNotEmpty).join(' • '),
-          ),
-          trailing: PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') {
-                Navigator.of(context).pushNamed(
-                  '/study-builder',
-                  arguments: set,
-                );
-              } else if (value == 'delete') {
-                _deleteStudySet(set['id'] as int);
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit')),
-              PopupMenuItem(value: 'delete', child: Text('Delete')),
-            ],
-          ),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
           onTap: () => Navigator.of(context).pushNamed(
             '/study-builder',
             arguments: set,
+          ),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 64),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: FigmaAppColors.card(context),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: FigmaAppColors.border(context)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.school_outlined,
+                    color: Theme.of(context).colorScheme.primary, size: 22),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        set['title'] as String? ?? 'Untitled study quiz',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        details,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: FigmaAppColors.subtext(context),
+                            fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      Navigator.of(context).pushNamed(
+                        '/study-builder',
+                        arguments: set,
+                      );
+                    } else if (value == 'delete') {
+                      _deleteStudySet(set['id'] as int);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+  String _libraryFileMetadata(String kind, String extension, int size, String createdAt) {
+    final ext = extension.replaceFirst('.', '').toUpperCase();
+    final date = _libraryDateLabel(createdAt);
+    if (kind.startsWith('output_')) return 'Converted · $ext · $date';
+    return '$ext · ${FileStorage.formatFileSize(size)} · $date';
+  }
 
+  String _libraryDateLabel(String raw) {
+    final date = DateTime.tryParse(raw);
+    if (date == null) return raw;
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[date.month - 1]} ${date.day}';
+  }
   Widget _buildFileCard(Map<String, dynamic> file) {
     final kind = file['kind'] as String? ?? 'unknown';
     final ext = file['extension'] as String? ?? '';
@@ -754,11 +863,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
     switch (kind) {
       case 'template_upload':
         iconData = Icons.description_outlined;
-        iconColor = Colors.blue;
+        iconColor = Theme.of(context).colorScheme.secondary;
         break;
       case 'data_upload':
         iconData = Icons.upload_file;
-        iconColor = Colors.green;
+        iconColor = Theme.of(context).colorScheme.primary;
         break;
       case 'output_docx':
       case 'output_pdf':
@@ -769,10 +878,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         break;
       default:
         iconData = Icons.insert_drive_file;
-        iconColor = Colors.grey;
+        iconColor = Theme.of(context).colorScheme.onSurfaceVariant;
     }
 
-    Widget card = Padding(
+    Widget historyCard = Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: FigmaCard(
         padding: EdgeInsets.zero,
@@ -801,11 +910,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
             children: [
               Text(
                 '$ext • ${FileStorage.formatFileSize(size)}',
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+                style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 12),
               ),
               Text(
                 createdAt,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 11),
+                style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 11),
               ),
             ],
           ),
@@ -829,6 +938,51 @@ class _HistoryScreenState extends State<HistoryScreen> {
       ),
     );
 
+
+    if (widget.savedFilesMode) iconColor = Theme.of(context).colorScheme.primary;
+
+    Widget card = widget.savedFilesMode
+        ? Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Material(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(16),
+                onTap: _isMultiSelectMode ? () => _toggleSelection(fileId) : () => _showFileOptions(file),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 64),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: FigmaAppColors.card(context),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: FigmaAppColors.border(context)),
+                  ),
+                  child: Row(
+                    children: [
+                      if (_isMultiSelectMode)
+                        Checkbox(value: _selectedFileIds.contains(fileId), onChanged: (_) => _toggleSelection(fileId))
+                      else
+                        Icon(iconData, color: Theme.of(context).colorScheme.primary, size: 22),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(originalName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(_libraryFileMetadata(kind, ext, size, createdAt), maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          )
+        : historyCard;
     if (_isMultiSelectMode) return card;
 
     return Dismissible(
@@ -838,10 +992,10 @@ class _HistoryScreenState extends State<HistoryScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 20),
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: Theme.of(context).colorScheme.errorContainer,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Icon(Icons.delete, color: Colors.white),
+        child: Icon(Icons.delete, color: Theme.of(context).colorScheme.onErrorContainer),
       ),
       onDismissed: (_) => _deleteFile(fileId),
       child: card,
@@ -894,9 +1048,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete, color: Colors.red),
+                  leading: Icon(Icons.delete, color: Theme.of(context).colorScheme.error),
                   title:
-                      const Text('Delete', style: TextStyle(color: Colors.red)),
+                      Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   onTap: () {
                     Navigator.pop(context);
                     _deleteFile(file['id'] as int);
@@ -934,6 +1088,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     final path = file['path'] as String? ?? '';
     try {
       final destPath = await FileDownload.copyToDownloadsFolder(path);
+      if (destPath.isEmpty) return;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Downloaded to: $destPath')),
@@ -996,7 +1151,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             width: 80,
             child: Text(
               '$label:',
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+              style: TextStyle(color: FigmaAppColors.subtext(context), fontSize: 13),
             ),
           ),
           Expanded(

@@ -14,6 +14,15 @@ class DocxBuilder {
     final media = await _collectMedia(mapping);
     final documentXml =
         _buildDocumentXml(templateModel, mapping, options, media);
+    final styleProfile = _resolvedProfile(options.styleProfile);
+    final documentFont = _resolveFont(
+      options.fontFamily,
+      styleProfile['font'] as String,
+    );
+    final stylesXml = _stylesXml(
+      documentFont,
+      _halfPoints(styleProfile['body_size'] as double),
+    );
     final archive = Archive();
 
     archive.addFile(ArchiveFile('[Content_Types].xml',
@@ -27,7 +36,7 @@ class DocxBuilder {
         _documentRelationshipsXml(media).length,
         _documentRelationshipsXml(media).codeUnits));
     archive.addFile(ArchiveFile(
-        'word/styles.xml', _stylesXml().length, _stylesXml().codeUnits));
+        'word/styles.xml', stylesXml.length, stylesXml.codeUnits));
     archive.addFile(ArchiveFile('word/numbering.xml', _numberingXml().length,
         _numberingXml().codeUnits));
     archive.addFile(ArchiveFile(
@@ -57,8 +66,18 @@ class DocxBuilder {
     List<_DocxMedia> media,
   ) {
     final mediaByPath = {for (final item in media) item.sourcePath: item};
-    final isModern = options.styleProfile == 'modern';
-    final documentFont = isModern ? 'Aptos' : 'Times New Roman';
+    final profile = _resolvedProfile(options.styleProfile);
+    final documentFont = _resolveFont(
+      options.fontFamily,
+      profile['font'] as String,
+    );
+    final titleSize = _halfPoints(profile['title_size'] as double);
+    final headingSize = _halfPoints(profile['heading_size'] as double);
+    final bodySize = _halfPoints(profile['body_size'] as double);
+    final titleColor = profile['title_color'] as String;
+    final headingColor = profile['heading_color'] as String;
+    final bodyColor = profile['body_color'] as String;
+    final lineSpacing = (240 * options.lineSpacing).round();
     final buffer = StringBuffer();
     buffer.write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>');
     buffer.write('<w:document '
@@ -77,8 +96,10 @@ class DocxBuilder {
       mapping['{{TITLE}}'] as String? ?? 'Generated Document',
       isBold: true,
       fontFamily: documentFont,
-      fontSize: isModern ? 44 : 40,
-      spacingAfter: isModern ? 300 : 280,
+      fontSize: titleSize,
+      textColor: titleColor,
+      spacingAfter: 280,
+      line: lineSpacing,
     ));
 
     final sections = _extractSections(mapping);
@@ -89,9 +110,11 @@ class DocxBuilder {
           heading,
           isBold: true,
           fontFamily: documentFont,
-          fontSize: isModern ? 32 : 28,
-          spacingBefore: isModern ? 260 : 240,
+          fontSize: headingSize,
+          textColor: headingColor,
+          spacingBefore: 240,
           spacingAfter: 120,
+          line: lineSpacing,
         ));
       }
 
@@ -105,12 +128,12 @@ class DocxBuilder {
             isItalic: item['italic'] == true,
             highlight: item['highlight'] == true,
             highlightColor: item['highlightColor'] as String? ?? 'FFF2A6',
-            textColor: item['textColor'] as String? ?? '111111',
+            textColor: item['textColor'] as String? ?? bodyColor,
             alignment: item['align'] as String? ?? 'left',
             fontFamily: documentFont,
-            fontSize: isModern ? 22 : 24,
-            spacingAfter: isModern ? 150 : 140,
-            line: isModern ? 276 : 360,
+            fontSize: bodySize,
+            spacingAfter: 140,
+            line: lineSpacing,
           ));
         } else if (type == 'formula') {
           final sourceFormulaXml =
@@ -123,22 +146,26 @@ class DocxBuilder {
           } else {
             final omml = item['formula_omml'] as String? ?? '';
             buffer.write(omml.isNotEmpty
-                ? _formulaParagraphXml(omml)
+                ? _formulaParagraphXml(omml, line: lineSpacing)
                 : _paragraphXml(
                     item['text'] as String? ?? '',
                     isBold: true,
-                    fontFamily: 'Cambria Math',
+                    fontFamily: documentFont,
+                    fontSize: bodySize,
+                    textColor: bodyColor,
                     spacingAfter: 80,
-                    line: 360,
+                    line: lineSpacing,
                   ));
           }
           final error = (item['error'] as String? ?? '').trim();
           if (error.isNotEmpty) {
             buffer.write(_paragraphXml(
               'Formula detection note: $error',
-              fontSize: 20,
+              fontSize: bodySize,
+              fontFamily: documentFont,
+              textColor: bodyColor,
               spacingAfter: 140,
-              line: 300,
+              line: lineSpacing,
             ));
           }
         } else if (type == 'list') {
@@ -146,14 +173,24 @@ class DocxBuilder {
             buffer.write(_paragraphXml(
               listItem.toString(),
               isBullet: true,
+              fontFamily: documentFont,
+              fontSize: bodySize,
+              textColor: bodyColor,
               spacingAfter: 80,
+              line: lineSpacing,
             ));
           }
         } else if (type == 'table') {
           final sourceTableXml = item['source_table_xml'] as String? ?? '';
           buffer.write(sourceTableXml.isNotEmpty
-              ? sourceTableXml
-              : _tableXml(item['rows'] as List? ?? []));
+              ? _removeSourceTableStyle(sourceTableXml)
+              : _tableXml(
+                  item['rows'] as List? ?? [],
+                  fontFamily: documentFont,
+                  fontSize: bodySize,
+                  textColor: bodyColor,
+                  line: lineSpacing,
+                ));
         } else if (type == 'image') {
           final imagePath = item['path'] as String? ?? '';
           final image = mediaByPath[imagePath];
@@ -166,8 +203,11 @@ class DocxBuilder {
             buffer.write(_paragraphXml(
               caption,
               isBold: true,
+              fontFamily: documentFont,
+              fontSize: bodySize,
+              textColor: bodyColor,
               spacingAfter: 140,
-              line: 360,
+              line: lineSpacing,
             ));
           }
         }
@@ -179,9 +219,12 @@ class DocxBuilder {
     // (If a header/footer is required by a blueprint template, it should be
     // explicitly defined there.)
     buffer.write('<w:sectPr>');
-    buffer.write('<w:pgSz w:orient="portrait" w:w="11906" w:h="16838"/>');
-    buffer.write('<w:pgMar w:top="1000" w:right="1000" w:bottom="1000" '
-        'w:left="1000" w:gutter="0"/>');
+    final pageSize = _pageDimensions(options);
+    buffer.write('<w:pgSz w:w="${pageSize.$1}" w:h="${pageSize.$2}"'
+        '${options.pageOrientation == 'landscape' ? ' w:orient="landscape"' : ''}/>');
+    final margin = (_marginPoints(options.marginPreset) * 20).round();
+    buffer.write('<w:pgMar w:top="$margin" w:right="$margin" '
+        'w:bottom="$margin" w:left="$margin" w:gutter="0"/>');
     buffer.write('<w:cols w:num="1" w:space="720"/>');
     buffer.write('</w:sectPr>');
 
@@ -242,13 +285,102 @@ class DocxBuilder {
     return RegExp(r'^[0-9A-F]{6}$').hasMatch(cleaned) ? cleaned : fallback;
   }
 
-  static String _formulaParagraphXml(String omml) {
+  static Map<String, dynamic> _resolvedProfile(String styleProfile) =>
+      switch (styleProfile) {
+        'modern' => {
+            'font': 'Aptos',
+            'title_size': 22.0,
+            'heading_size': 16.0,
+            'body_size': 11.0,
+            'title_color': '111827',
+            'heading_color': '1F2937',
+            'body_color': '374151',
+          },
+        'module' => {
+            'font': 'Arial',
+            'title_size': 20.0,
+            'heading_size': 14.0,
+            'body_size': 11.0,
+            'title_color': '153A5B',
+            'heading_color': '153A5B',
+            'body_color': '222222',
+          },
+        'clean' => {
+            'font': 'Calibri',
+            'title_size': 18.0,
+            'heading_size': 13.0,
+            'body_size': 11.0,
+            'title_color': '111111',
+            'heading_color': '111111',
+            'body_color': '111111',
+          },
+        _ => {
+            'font': 'Times New Roman',
+            'title_size': 20.0,
+            'heading_size': 14.0,
+            'body_size': 12.0,
+            'title_color': '111111',
+            'heading_color': '111111',
+            'body_color': '111111',
+          },
+      };
+
+  static String _resolveFont(String option, String profileFont) =>
+      switch (option.toLowerCase()) {
+        'aptos' => 'Aptos',
+        'times' => 'Times New Roman',
+        'arial' => 'Arial',
+        'arial_narrow' => 'Arial Narrow',
+        'calibri' => 'Calibri',
+        'cambria' => 'Cambria',
+        'garamond' => 'Garamond',
+        'georgia' => 'Georgia',
+        'book_antiqua' => 'Book Antiqua',
+        'palatino' => 'Palatino Linotype',
+        'tahoma' => 'Tahoma',
+        'verdana' => 'Verdana',
+        'trebuchet' => 'Trebuchet MS',
+        'century_gothic' => 'Century Gothic',
+        'courier_new' => 'Courier New',
+        _ => profileFont,
+      };
+
+  static int _halfPoints(double points) => (points * 2).round();
+
+  static (int, int) _pageDimensions(GenerationOptions options) {
+    final dimensions = switch (options.paperSize) {
+      'letter' => (12240, 15840),
+      'legal' => (12240, 20160),
+      _ => (11906, 16838),
+    };
+    return options.pageOrientation == 'landscape'
+        ? (dimensions.$2, dimensions.$1)
+        : dimensions;
+  }
+
+  static double _marginPoints(String preset) => switch (preset) {
+        'narrow' => 36,
+        'wide' => 90,
+        _ => 72,
+      };
+
+  static String _removeSourceTableStyle(String xml) => xml
+      .replaceAll(RegExp(r'<w:tblStyle\b[^>]*/\s*>'), '')
+      .replaceAll(RegExp(r'<w:tblStyle\b[^>]*>.*?</w:tblStyle>', dotAll: true), '');
+
+  static String _formulaParagraphXml(String omml, {required int line}) {
     return '<w:p><w:pPr><w:jc w:val="center"/>'
-        '<w:spacing w:after="120" w:line="360" w:lineRule="auto"/>'
+        '<w:spacing w:after="120" w:line="$line" w:lineRule="auto"/>'
         '</w:pPr>$omml</w:p>';
   }
 
-  static String _tableXml(List<dynamic> rows) {
+  static String _tableXml(
+    List<dynamic> rows, {
+    required String fontFamily,
+    required int fontSize,
+    required String textColor,
+    required int line,
+  }) {
     if (rows.isEmpty) return '';
 
     final buffer = StringBuffer();
@@ -278,8 +410,11 @@ class DocxBuilder {
         buffer.write(_paragraphXml(
           cell.toString(),
           isBold: isHeader,
+          fontFamily: fontFamily,
+          fontSize: fontSize,
+          textColor: textColor,
           spacingAfter: 0,
-          line: 0,
+          line: line,
         ));
         buffer.write('</w:tc>');
       }
@@ -409,14 +544,15 @@ class DocxBuilder {
 </Relationships>''';
   }
 
-  static String _stylesXml() {
+  static String _stylesXml(String fontFamily, int bodySize) {
+    final font = _escapeXml(fontFamily);
     return '''<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:styles xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:docDefaults>
     <w:rPrDefault>
       <w:rPr>
-        <w:rFonts w:ascii="Times New Roman" w:hAnsi="Times New Roman" w:eastAsia="Times New Roman" w:cs="Times New Roman"/>
-        <w:sz w:val="24"/><w:szCs w:val="24"/>
+        <w:rFonts w:ascii="$font" w:hAnsi="$font" w:eastAsia="$font" w:cs="$font"/>
+        <w:sz w:val="$bodySize"/><w:szCs w:val="$bodySize"/>
         <w:lang w:val="en-US"/>
       </w:rPr>
     </w:rPrDefault>

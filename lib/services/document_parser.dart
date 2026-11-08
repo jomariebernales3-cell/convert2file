@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:archive/archive.dart';
@@ -82,7 +83,9 @@ class DocumentParser {
       filesByName['word/_rels/document.xml.rels'],
     );
     final document = XmlDocument.parse(
-      _repairControlPunctuation(String.fromCharCodes(documentFile.content)),
+      _repairControlPunctuation(
+        utf8.decode(documentFile.content, allowMalformed: true),
+      ),
     );
     XmlElement? body;
     for (final element in document.descendants.whereType<XmlElement>()) {
@@ -174,7 +177,9 @@ class DocumentParser {
     if (relsFile == null) return const {};
     final relationships = <String, String>{};
     try {
-      final rels = XmlDocument.parse(String.fromCharCodes(relsFile.content));
+      final rels = XmlDocument.parse(
+        utf8.decode(relsFile.content, allowMalformed: true),
+      );
       for (final relationship in rels.descendants.whereType<XmlElement>()) {
         if (relationship.name.local != 'Relationship') continue;
         final id = _attributeValue(relationship, 'Id');
@@ -310,7 +315,7 @@ class DocumentParser {
     String? documentXml;
     for (final file in archive) {
       if (file.name == 'word/document.xml') {
-        documentXml = String.fromCharCodes(file.content);
+        documentXml = utf8.decode(file.content, allowMalformed: true);
         break;
       }
     }
@@ -522,6 +527,8 @@ class DocumentParser {
     }
   }
 
+  static String formulaToText(XmlElement node) => _ommlToLinearText(node);
+
   static String _ommlNaryOperator(XmlElement node) {
     for (final element in node.descendants.whereType<XmlElement>()) {
       if (element.name.local != 'chr') continue;
@@ -655,11 +662,20 @@ class DocumentParser {
     final Map<String, String> slideXml = {};
     for (final file in archive) {
       if (RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(file.name)) {
-        slideXml[file.name] = String.fromCharCodes(file.content);
+        slideXml[file.name] = utf8.decode(file.content, allowMalformed: true);
       }
     }
     
-    final sortedKeys = slideXml.keys.toList()..sort();
+    final sortedKeys = slideXml.keys.toList()
+      ..sort((a, b) {
+        final aNumber = int.parse(
+          RegExp(r'slide(\d+)\.xml$').firstMatch(a)!.group(1)!,
+        );
+        final bNumber = int.parse(
+          RegExp(r'slide(\d+)\.xml$').firstMatch(b)!.group(1)!,
+        );
+        return aNumber.compareTo(bNumber);
+      });
     final slides = <String>[];
     
     for (final key in sortedKeys) {
@@ -815,7 +831,7 @@ class DocumentParser {
     String? documentXml;
     for (final file in archive) {
       if (file.name == 'word/document.xml') {
-        documentXml = String.fromCharCodes(file.content);
+        documentXml = utf8.decode(file.content, allowMalformed: true);
         break;
       }
     }
@@ -846,7 +862,7 @@ class DocumentParser {
     for (final file in archive) {
       if (!RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(file.name)) continue;
       
-      final xml = String.fromCharCodes(file.content);
+      final xml = utf8.decode(file.content, allowMalformed: true);
       final tableMatches = RegExp(r'<a:tbl\b.*?>(.*?)<\/a:tbl>', dotAll: true).allMatches(xml);
       
       for (final tableMatch in tableMatches) {

@@ -65,6 +65,5 @@ class UserModel {
     );
   }
 
-  bool get isAdmin => role == 'admin';
   bool get isActive => status == 'active';
 }

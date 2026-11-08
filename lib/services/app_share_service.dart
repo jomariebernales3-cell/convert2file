@@ -7,7 +7,10 @@ class AppShareService {
   static const _channel = MethodChannel('convert2file/app_share');
 
   static Future<void> shareApp() async {
-    final apkPath = await _channel.invokeMethod<String>('getInstalledApkPath');
+    final installedApp = await _channel.invokeMapMethod<String, dynamic>(
+      'getInstalledApkPath',
+    );
+    final apkPath = installedApp?['path'] as String?;
     if (apkPath == null || apkPath.isEmpty) {
       throw StateError('Installed APK path is unavailable.');
     }
@@ -18,7 +21,11 @@ class AppShareService {
     }
 
     final tempDir = await getTemporaryDirectory();
-    final sharePath = '${tempDir.path}/Convert2File-installable.apk';
+    final versionName = (installedApp?['versionName'] as String?)?.trim();
+    final safeVersion = versionName == null || versionName.isEmpty
+        ? 'installed'
+        : versionName.replaceAll(RegExp(r'[^A-Za-z0-9._-]'), '_');
+    final sharePath = '${tempDir.path}/Convert2File-$safeVersion.apk';
     final shareApk = await sourceApk.copy(sharePath);
 
     await _channel.invokeMethod<bool>(

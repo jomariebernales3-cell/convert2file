@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:async';
+import 'dart:ui' show FontFeature;
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -11,6 +12,7 @@ import '../services/auth_service.dart';
 import '../services/data_extractor.dart';
 import '../services/document_parser.dart';
 import '../services/local_llama_service.dart';
+import '../services/offline_ai_task_service.dart';
 import '../widgets/figma_app_chrome.dart';
 
 enum StudyQuestionType {
@@ -67,13 +69,13 @@ class StudyBuilderScreen extends StatefulWidget {
   State<StudyBuilderScreen> createState() => _StudyBuilderScreenState();
 }
 
-class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
+class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBindingObserver {
   final _authService = AuthService();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _linkController = TextEditingController();
   final _topicController = TextEditingController();
-  final _totalQuestionsController = TextEditingController(text: '10');
+  final _totalQuestionsController = TextEditingController(text: '5');
   final List<_EditableQuestion> _questions = [];
 
   Map<String, dynamic>? _editingSet;
@@ -83,6 +85,15 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
   List<Map<String, dynamic>> _savedStudySets = [];
   bool _isLoading = true;
   bool _isAiGenerating = false;
+  String _aiProgressStatus = '';
+  Duration _aiElapsed = Duration.zero;
+  DateTime? _aiStartedAt;
+  Timer? _aiProgressTimer;
+  String? _aiGenerationError;
+  int _aiGenerationRunId = 0;
+  bool _appWasBackgrounded = false;
+  String? _pendingAiCompletion;
+  bool _pendingAiCompletionSuccess = false;
   bool _loadedRouteStudySet = false;
   PlatformFile? _studyGuideFile;
   String _studyGuideText = '';
@@ -102,6 +113,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.generateQuizOnly) {
       _builderMode = _StudyBuilderMode.ai;
       _autoFile = widget.initialQuizFile;
@@ -129,7 +141,14 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
     _linkController.dispose();
     _topicController.dispose();
     _totalQuestionsController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
     _aiHighlightTimer?.cancel();
+    _aiProgressTimer?.cancel();
+    if (_isAiGenerating) {
+      _aiGenerationRunId++;
+      unawaited(LocalLlamaService.instance.stop().catchError((_) {}));
+      unawaited(OfflineAiTaskService.cancel().catchError((_) {}));
+    }
     for (final question in _questions) {
       question.dispose();
     }
@@ -402,7 +421,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
   }
 
   Future<void> _generateWithOfflineAi() async {
-    final count = int.tryParse(_totalQuestionsController.text.trim()) ?? 10;
+    if (_isAiGenerating) return;
+    final count = int.tryParse(_totalQuestionsController.text.trim()) ?? 5;
     if (count < 1) {
       _showMessage('Question count must be at least 1.', isError: true);
       return;
@@ -415,18 +435,54 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
       return;
     }
 
-    setState(() => _isAiGenerating = true);
+    final runId = ++_aiGenerationRunId;
+    final initialStatus = switch (_autoSource) {
+      _AutoStudySource.file => 'Reading your file...',
+      _AutoStudySource.link => 'Reading the web page...',
+      _AutoStudySource.topic => 'Preparing your topic...',
+    };
+    _aiStartedAt = DateTime.now();
+    setState(() {
+      _isAiGenerating = true;
+      _aiProgressStatus = 'Starting Offline AI...';
+      _aiElapsed = Duration.zero;
+      _aiGenerationError = null;
+    });
+    _aiProgressTimer?.cancel();
+    _aiProgressTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_isCurrentAiRun(runId) || _aiStartedAt == null) return;
+      setState(() {
+        _aiElapsed = DateTime.now().difference(_aiStartedAt!);
+      });
+    });
+
     try {
-      final sourceText = await _loadAutoSourceText();
-      final generated = await llama.generateStudyQuestions(
-        sourceText: sourceText,
-        count: count.clamp(1, 10),
-      );
-      if (generated.isEmpty) {
-        _showMessage('AI did not return usable questions.', isError: true);
+      await Future<void>.delayed(Duration.zero);
+      await OfflineAiTaskService.start(title: 'Generating your quiz');
+      if (!_isCurrentAiRun(runId)) {
+        await OfflineAiTaskService.cancel();
         return;
       }
 
+      _updateAiProgress(runId, initialStatus);
+      final sourceText = await _loadAutoSourceText().timeout(
+        const Duration(minutes: 1),
+      );
+      if (!_isCurrentAiRun(runId)) return;
+
+      final generated = await llama
+          .generateStudyQuestions(
+            sourceText: sourceText,
+            count: count.clamp(1, 10),
+            onStatusChanged: (status) => _updateAiProgress(runId, status),
+          )
+          .timeout(const Duration(minutes: 5));
+      if (!_isCurrentAiRun(runId)) return;
+      if (generated.isEmpty) {
+        throw StateError('Offline AI did not return usable questions.');
+      }
+
+      _updateAiProgress(runId, 'Almost done...');
       _clearEditor();
       setState(() {
         _builderMode = _StudyBuilderMode.ai;
@@ -438,31 +494,130 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
           _descriptionController.text = 'AI-generated draft';
         }
       });
-      _showMessage('AI generated ${generated.length} editable question(s).');
+      await _finishAiTask(
+        success: true,
+        message: 'AI generated ' + generated.length.toString() + ' editable question(s).',
+      );
+    } on TimeoutException {
+      if (!_isCurrentAiRun(runId)) return;
+      try {
+        await llama.stop();
+      } catch (_) {}
+      const message =
+          'Offline AI took too long. Your previous draft is unchanged; try again with fewer questions or a shorter source.';
+      setState(() => _aiGenerationError = message);
+      await _finishAiTask(success: false, message: message);
     } catch (e) {
-      final message = e.toString();
-      if (message.contains('stopped')) {
-        _showMessage('Offline AI stopped.');
-      } else if (message.contains('usable study questions') ||
-          message.contains('format')) {
-        _showMessage(
-          'AI did not make usable questions. Try 1 to 3 questions or shorter text.',
-          isError: true,
-        );
-      } else {
-        _showMessage('Offline AI failed: $e', isError: true);
-      }
+      if (!_isCurrentAiRun(runId)) return;
+      final detail = e.toString().replaceFirst('Exception: ', '').trim();
+      final message = detail.contains('usable study questions') ||
+              detail.toLowerCase().contains('format')
+          ? 'Offline AI could not make usable questions. Try fewer questions or a shorter source.'
+          : 'Offline AI could not finish: $detail. Your previous draft is unchanged.';
+      setState(() => _aiGenerationError = message);
+      await _finishAiTask(success: false, message: message);
     } finally {
-      if (mounted) setState(() => _isAiGenerating = false);
+      if (runId == _aiGenerationRunId) {
+        _aiProgressTimer?.cancel();
+        _aiProgressTimer = null;
+        if (mounted) {
+          setState(() {
+            _isAiGenerating = false;
+            _aiStartedAt = null;
+            _aiProgressStatus = '';
+          });
+        }
+      }
     }
   }
 
-  Future<void> _stopOfflineAi() async {
-    await LocalLlamaService.instance.stop();
-    if (mounted) setState(() => _isAiGenerating = false);
-    _showMessage('Offline AI stopped.');
+  bool _isCurrentAiRun(int runId) =>
+      mounted && _isAiGenerating && runId == _aiGenerationRunId;
+
+  void _updateAiProgress(int runId, String status) {
+    if (!_isCurrentAiRun(runId)) return;
+    setState(() => _aiProgressStatus = status);
+    unawaited(OfflineAiTaskService.updateStatus(status).catchError((_) {}));
   }
 
+  Future<void> _finishAiTask({
+    required bool success,
+    required String message,
+  }) async {
+    try {
+      await OfflineAiTaskService.finish(success: success, message: message);
+    } catch (_) {}
+    if (!mounted) return;
+    if (_appWasBackgrounded) {
+      _pendingAiCompletion = message;
+      _pendingAiCompletionSuccess = success;
+      return;
+    }
+    _showMessage(message, isError: !success);
+  }
+
+  Future<void> _stopOfflineAi() async {
+    if (!_isAiGenerating) return;
+    _aiGenerationRunId++;
+    _aiProgressTimer?.cancel();
+    setState(() => _aiProgressStatus = 'Stopping safely...');
+    try {
+      await LocalLlamaService.instance.stop();
+    } catch (_) {}
+    try {
+      await OfflineAiTaskService.cancel();
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _isAiGenerating = false;
+      _aiStartedAt = null;
+      _aiElapsed = Duration.zero;
+      _aiProgressStatus = '';
+      _aiGenerationError = null;
+    });
+    _showMessage('Offline AI canceled. Your previous draft is unchanged.');
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      _appWasBackgrounded = true;
+      return;
+    }
+    if (state != AppLifecycleState.resumed) return;
+    _appWasBackgrounded = false;
+    final message = _pendingAiCompletion;
+    if (message == null) return;
+    final success = _pendingAiCompletionSuccess;
+    _pendingAiCompletion = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showAiCompletionAlert(message, success);
+    });
+  }
+
+  Future<void> _showAiCompletionAlert(String message, bool success) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(success ? 'Quiz ready' : 'Offline AI needs attention'),
+        content: Text(message),
+        actions: [
+          if (!success)
+            TextButton(
+              onPressed: () {
+                Navigator.of(dialogContext).pop();
+                _generateWithOfflineAi();
+              },
+              child: const Text('Retry'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
   Future<void> _improveDraftWithOfflineAi() async {
     final currentQuestions = _questions
         .map((question) => question.toJson())
@@ -663,8 +818,13 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : null,
+        backgroundColor: isError ? Theme.of(context).colorScheme.errorContainer : null,
+        content: Text(
+          message,
+          style: isError
+              ? TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)
+              : null,
+        ),
       ),
     );
   }
@@ -674,27 +834,30 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
     final hasEditorOpen = _questions.isNotEmpty || _editingSet != null;
 
     return FigmaAppShell(
-      title: widget.generateQuizOnly ? 'Generate Quiz' : 'Study',
+      title: widget.generateQuizOnly ? 'Generate quiz' : 'Study',
       subtitle: widget.generateQuizOnly
-          ? 'Create an editable quiz from your material'
+          ? 'Make an editable quiz from your material'
           : 'Create and manage your study guides',
       selectedIndex: 1,
       showBack: true,
+      showProfile: false,
+      referenceHeader: widget.generateQuizOnly,
       child: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (widget.generateQuizOnly) ...[
-                    _buildIntroPanel(isQuizGenerator: true),
-                    const SizedBox(height: 16),
                     _buildQuizCreationSelector(),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                     if (_builderMode == _StudyBuilderMode.ai) ...[
-                    _buildAiGenerator(),
-                    const SizedBox(height: 16),
+                      _buildAiGenerator(),
+                      const SizedBox(height: 16),
+                    ] else if (!hasEditorOpen) ...[
+                      _buildManualQuizPrompt(),
+                      const SizedBox(height: 16),
                     ],
                     if (hasEditorOpen) ...[
                       _buildEditor(),
@@ -710,58 +873,34 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
     );
   }
 
-  Widget _buildIntroPanel({required bool isQuizGenerator}) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
-      child: Row(
+  Widget _buildQuizCreationSelector() => FigmaSegmentControl<_StudyBuilderMode>(
+        options: const [
+          FigmaSegmentOption(value: _StudyBuilderMode.ai, label: 'AI generate', icon: Icons.auto_awesome_outlined),
+          FigmaSegmentOption(value: _StudyBuilderMode.manual, label: 'Create manually', icon: Icons.edit_note_outlined),
+        ],
+        selected: _builderMode,
+        onChanged: (value) => setState(() => _builderMode = value),
+      );
+  Widget _buildManualQuizPrompt() {
+    return FigmaCard(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(isQuizGenerator ? Icons.quiz_outlined : Icons.school),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              isQuizGenerator
-                  ? '1. Choose a file, link, or topic. 2. Set the number of questions. 3. Generate, review, edit, and save your quiz.'
-                  : 'Create your own reviewer or study guide manually, then save it for later practice.',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+          const Text(
+            'Write your own quiz',
+            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Add each question and its answers yourself, then save the quiz for practice.',
+            style: TextStyle(color: _mutedTextColor(context), height: 1.5),
+          ),
+          const SizedBox(height: 14),
+          FigmaPrimaryButton(
+            label: 'Add first question',
+            onPressed: _newStudySet,
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildQuizCreationSelector() {
-    return FigmaCard(
-      padding: const EdgeInsets.all(8),
-      child: SegmentedButton<_StudyBuilderMode>(
-        segments: const [
-          ButtonSegment(
-            value: _StudyBuilderMode.ai,
-            icon: Icon(Icons.auto_awesome_outlined),
-            label: Text('AI Generate'),
-          ),
-          ButtonSegment(
-            value: _StudyBuilderMode.manual,
-            icon: Icon(Icons.edit_note_outlined),
-            label: Text('Create Manually'),
-          ),
-        ],
-        selected: {_builderMode},
-        onSelectionChanged: (selection) {
-          final mode = selection.first;
-          if (mode == _StudyBuilderMode.manual && _questions.isEmpty) {
-            _newStudySet();
-          } else {
-            setState(() => _builderMode = mode);
-          }
-        },
       ),
     );
   }
@@ -789,17 +928,45 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildIntroPanel(isQuizGenerator: false),
-        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Theme.of(context).colorScheme.surfaceContainerHighest,
+                Theme.of(context).colorScheme.surface,
+              ],
+            ),
+            border: Border.all(color: Theme.of(context).dividerColor),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Build a study guide',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Create your own reviewer manually, or start from a file, then save it for later practice.',
+                style: TextStyle(color: _mutedTextColor(context), height: 1.5),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         FigmaPrimaryButton(
-          label: _isPreparingStudyGuide ? 'Preparing guide...' : 'Choose Study File',
+          label: _isPreparingStudyGuide ? 'Preparing guide...' : 'Choose study file',
           icon: Icons.upload_file_outlined,
           onPressed: _isPreparingStudyGuide ? null : _createStudyGuide,
         ),
         if (_studyGuideFile != null) ...[
           const SizedBox(height: 18),
           FigmaCard(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             child: Row(
               children: [
                 CircleAvatar(
@@ -827,7 +994,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
             ),
           ),
           const SizedBox(height: 16),
-          const SizedBox(height: 16),
+
           SegmentedButton<_StudyNoteDensity>(
             segments: const [
               ButtonSegment(value: _StudyNoteDensity.quick, icon: Icon(Icons.bolt_outlined), label: Text('Quick')),
@@ -878,6 +1045,24 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
             const SizedBox(height: 10),
           ],
         ],
+        const SizedBox(height: 22),
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Saved guides',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Refresh saved guides',
+              onPressed: _loadStudySets,
+              icon: const Icon(Icons.refresh),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        _buildSavedStudySets(),
       ],
     );
   }
@@ -1022,7 +1207,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
     }
     if (cursor < sentence.length) spans.add(TextSpan(text: sentence.substring(cursor)));
     return FigmaCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1096,101 +1281,163 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
   }
 
   Widget _buildAiGenerator() {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Theme.of(context).dividerColor),
-      ),
+    return FigmaCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            '1. Quiz Source & Settings',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Offline AI can be slow on phones. Start with 3 to 5 questions. You can choose each question type while reviewing the draft.',
-            style: TextStyle(color: _mutedTextColor(context)),
-          ),
+          const Text('Quiz source & settings', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          Text('Offline AI can be slow on phones. Start with 3 to 5 questions. You can pick each question type while reviewing the draft.', style: TextStyle(color: _mutedTextColor(context), height: 1.5)),
           const SizedBox(height: 14),
-          SegmentedButton<_AutoStudySource>(
-            segments: const [
-              ButtonSegment(
-                value: _AutoStudySource.file,
-                icon: Icon(Icons.upload_file),
-                label: Text('File'),
-              ),
-              ButtonSegment(
-                value: _AutoStudySource.link,
-                icon: Icon(Icons.link),
-                label: Text('Link'),
-              ),
-              ButtonSegment(
-                value: _AutoStudySource.topic,
-                icon: Icon(Icons.travel_explore),
-                label: Text('Topic'),
-              ),
-            ],
-            selected: {_autoSource},
-            onSelectionChanged: (selection) {
-              setState(() => _autoSource = selection.first);
-            },
+          AbsorbPointer(
+            absorbing: _isAiGenerating,
+            child: FigmaSegmentControl<_AutoStudySource>(
+              options: const [
+                FigmaSegmentOption(value: _AutoStudySource.file, label: 'File'),
+                FigmaSegmentOption(value: _AutoStudySource.link, label: 'Link'),
+                FigmaSegmentOption(value: _AutoStudySource.topic, label: 'Topic'),
+              ],
+              selected: _autoSource,
+              onChanged: (value) => setState(() => _autoSource = value),
+            ),
           ),
           const SizedBox(height: 12),
-          _buildAutoSourceInput(),
+          AbsorbPointer(absorbing: _isAiGenerating, child: _buildAutoSourceInput()),
           const SizedBox(height: 12),
-          TextField(
-            controller: _totalQuestionsController,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Number of questions',
-              prefixIcon: Icon(Icons.format_list_numbered),
+          Text('Number of questions', style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
+          const SizedBox(height: 6),
+          AbsorbPointer(
+            absorbing: _isAiGenerating,
+            child: TextField(
+              controller: _totalQuestionsController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(prefixIcon: Icon(Icons.format_list_numbered)),
             ),
           ),
           const SizedBox(height: 14),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isAiGenerating ? null : _generateWithOfflineAi,
-              icon: _isAiGenerating
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.memory),
-              label: Text(
-                _isAiGenerating
-                    ? 'Offline AI is working...'
-                    : 'Generate Quiz',
-              ),
-            ),
+          FigmaPrimaryButton(
+            label: _isAiGenerating ? 'Offline AI is working...' : 'Generate quiz',
+            onPressed: _isAiGenerating ? null : _generateWithOfflineAi,
           ),
           if (_isAiGenerating) ...[
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _stopOfflineAi,
-                icon: const Icon(Icons.stop_circle_outlined),
-                label: const Text('Stop AI Generation'),
-              ),
-            ),
+            const SizedBox(height: 12),
+            _buildAiGenerationProgress(),
+          ],
+          if (_aiGenerationError != null) ...[
+            const SizedBox(height: 12),
+            _buildAiGenerationError(),
           ],
         ],
       ),
     );
   }
+  Widget _buildAiGenerationProgress() {
+    final minutes = _aiElapsed.inMinutes.toString().padLeft(2, '0');
+    final seconds = (_aiElapsed.inSeconds % 60).toString().padLeft(2, '0');
+    return FigmaCard(
+      padding: const EdgeInsets.all(14),
+      color: FigmaAppColors.fill(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _aiProgressStatus,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ),
+              Text(
+                '$minutes:$seconds',
+                style: TextStyle(
+                  color: _mutedTextColor(context),
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const LinearProgressIndicator(minHeight: 5),
+          if (_aiElapsed.inSeconds >= 20) ...[
+            const SizedBox(height: 10),
+            Text(
+              'Still working. Offline AI can be slow on phones.',
+              style: TextStyle(color: _mutedTextColor(context), fontSize: 12),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _stopOfflineAi,
+              icon: const Icon(Icons.close_rounded),
+              label: const Text('Cancel'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildAiGenerationError() {
+    final colors = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.errorContainer,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: colors.error.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _aiGenerationError!,
+            style: TextStyle(color: colors.onErrorContainer, height: 1.4),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: _isAiGenerating ? null : _generateWithOfflineAi,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildAutoSourceInput() {
     return switch (_autoSource) {
-      _AutoStudySource.file => OutlinedButton.icon(
-          onPressed: _pickAutoFile,
-          icon: const Icon(Icons.attach_file),
-          label: Text(_autoFile?.name ?? 'Choose PDF, DOCX, TXT, PPTX'),
+      _AutoStudySource.file => InkWell(
+          onTap: _pickAutoFile,
+          borderRadius: BorderRadius.circular(18),
+          child: CustomPaint(
+            foregroundPainter: _QuizDropBorderPainter(color: Theme.of(context).dividerColor),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
+              decoration: BoxDecoration(color: FigmaAppColors.card(context), borderRadius: BorderRadius.circular(18)),
+              child: Column(
+                children: [
+                  Icon(Icons.attach_file_rounded, color: FigmaAppColors.primary(context), size: 26),
+                  const SizedBox(height: 8),
+                  Text(_autoFile?.name ?? 'Choose a file', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 3),
+                  Text(_autoFile == null ? 'PDF, DOCX, TXT or PPTX' : 'Tap to choose a different file', style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
+                ],
+              ),
+            ),
+          ),
         ),
       _AutoStudySource.link => TextField(
           controller: _linkController,
@@ -1209,13 +1456,12 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
         ),
     };
   }
-
   Widget _buildEditor() {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
@@ -1415,46 +1661,29 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return FigmaCard(
-      padding: const EdgeInsets.all(22),
-      child: const Column(
-        children: [
-          Icon(Icons.quiz_outlined, size: 42),
-          SizedBox(height: 10),
-          Text(
-            'No study sets yet',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          SizedBox(height: 4),
-          Text('Tap New Set to build your own reviewer.'),
-        ],
-      ),
-    );
-  }
-
   Widget _buildSavedStudySets() {
-    if (_savedStudySets.isEmpty) return _buildEmptyState();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
+    if (_savedStudySets.isEmpty) {
+      return FigmaCard(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
           children: [
-            const Expanded(
-              child: Text(
-                'Saved Study Quizzes',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
+            const Text(
+              'No study guides yet',
+              style: TextStyle(fontWeight: FontWeight.w800),
             ),
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: _loadStudySets,
-              icon: const Icon(Icons.refresh),
+            const SizedBox(height: 4),
+            Text(
+              'Your saved guides will show up here.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: _mutedTextColor(context)),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+      );
+    }
+
+    return Column(
+      children: [
         for (final set in _savedStudySets) ...[
           _buildStudySetCard(set),
           const SizedBox(height: 12),
@@ -1800,7 +2029,7 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
       selectedIndex: 1,
       showBack: true,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: _finished ? _buildResults() : _buildQuestion(),
       ),
     );
@@ -2014,4 +2243,23 @@ class _QuizAttemptResult {
     required this.correctAnswers,
     required this.isCorrect,
   });
+}
+
+class _QuizDropBorderPainter extends CustomPainter {
+  final Color color;
+  const _QuizDropBorderPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()..addRRect(RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(18)));
+    final paint = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.5;
+    for (final metric in path.computeMetrics()) {
+      for (var distance = 0.0; distance < metric.length; distance += 10) {
+        canvas.drawPath(metric.extractPath(distance, (distance + 5).clamp(0.0, metric.length).toDouble()), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _QuizDropBorderPainter oldDelegate) => oldDelegate.color != color;
 }

@@ -127,7 +127,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              backgroundColor: Colors.red, content: Text('Save failed: $e')),
+              backgroundColor: Theme.of(context).colorScheme.error, content: Text('Save failed: $e')),
         );
       }
     } finally {
@@ -158,6 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       title: 'Local Profile',
       subtitle: 'Your local system identity',
       selectedIndex: 2,
+      showBack: true,
       child: Stack(
         children: [
           SingleChildScrollView(
@@ -182,7 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           if (_isSaving)
             Container(
-              color: Colors.black45,
+              color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],
@@ -209,10 +210,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? null
                     : Text(
                         user.name.substring(0, 1).toUpperCase(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 30,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                         ),
                       ),
               ),

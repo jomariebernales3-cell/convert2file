@@ -5,11 +5,14 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/database_helper.dart';
+import 'dashboard_screen.dart';
 import '../services/auth_service.dart';
 import '../services/document_parser.dart';
 import '../services/file_storage.dart';
 import '../services/local_llama_service.dart';
 import '../widgets/figma_app_chrome.dart';
+import '../theme/app_colors.dart';
+import 'history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -52,6 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _studySets = [];
   int _totalFiles = 0;
   int _totalOutputs = 0;
+  static const int _actionInitialPage = 6000;
+  static const int _actionRecenterThreshold = 600;
+  PageController? _actionPageController;
+  int _focusedActionPage = _actionInitialPage;
+  int _actionRailIndex = 0;
 
   @override
   void initState() {
@@ -120,7 +128,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     title: const Text(
                       'I have read and agree to the Terms & Privacy Agreement.',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                      style:
+                          TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
                     ),
                   ),
                 ],
@@ -180,6 +189,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void dispose() {
     _chatController.dispose();
     _chatScrollController.dispose();
+    _actionPageController?.dispose();
     super.dispose();
   }
 
@@ -234,9 +244,18 @@ class _HomeScreenState extends State<HomeScreen> {
           await DatabaseHelper.instance.queryStudySetsByUser(ownerId);
       if (!mounted) return;
       setState(() {
-        _recentFiles = files.take(4).toList();
+        _recentFiles = files
+            .where(
+              (file) => !(file['kind'] as String? ?? '').startsWith('output_'),
+            )
+            .take(3)
+            .toList();
         _studySets = studySets;
-        _totalFiles = files.length;
+        _totalFiles = files
+            .where(
+              (file) => !(file['kind'] as String? ?? '').startsWith('output_'),
+            )
+            .length;
         _totalOutputs = files
             .where(
               (file) => (file['kind'] as String? ?? '').startsWith('output_'),
@@ -249,7 +268,7 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
           content: Text('Failed to load home data: $e'),
         ),
       );
@@ -260,18 +279,29 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return FigmaAppShell(
       title: 'Convert2File',
-      subtitle: 'Ready to create your next study material?',
+      subtitle: '',
       selectedIndex: 0,
+      showBack: false,
+      showProfile: false,
+      showBottomNav: false,
+      actions: [
+        FigmaIconButton(
+          icon: Icons.settings_outlined,
+          onPressed: () => Navigator.of(context).pushNamed('/settings'),
+        ),
+      ],
       child: RefreshIndicator(
         onRefresh: _loadHomeData,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
                   _buildWelcomeCard(),
-                  const SizedBox(height: 18),
-                  _buildOfflineAiChat(),
+                  const SizedBox(height: 22),
+                  _buildMainActions(),
+                  const SizedBox(height: 22),
+                  _buildOfflineAiEntry(),
                   const SizedBox(height: 22),
                   _buildProgressGrid(),
                   const SizedBox(height: 22),
@@ -283,30 +313,322 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildWelcomeCard() {
-    final userName = _authService.currentUser?.name ?? 'Jomarie';
-    return FigmaCard(
+    final userName = _authService.currentUser?.name ?? 'Guest User';
+    final colors = AppColors.of(context);
+
+    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [colors.surface, colors.surface2],
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: FigmaAppColors.border(context)),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Good day, $userName',
             style: TextStyle(
-              color: FigmaAppColors.text(context),
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
+              color: colors.text,
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 6),
           Text(
-            'Upload files, generate study materials, and keep your work saved locally on this device.',
-            style: TextStyle(
-              color: FigmaAppColors.subtext(context),
-              fontSize: 13,
-              height: 1.4,
-            ),
+            'Upload files, generate study materials, and keep your work saved on this device.',
+            style: TextStyle(color: colors.muted, fontSize: 14, height: 1.5),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMainActions() {
+    const cardWidth = 148.0;
+    const cardGap = 16.0;
+    final actions = [
+      _HomeAction(
+        'Convert file',
+        Icons.transform_outlined,
+        () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const DashboardScreen(conversionOnly: true),
+          ),
+        ),
+      ),
+      _HomeAction(
+        'Create study guide',
+        Icons.menu_book_outlined,
+        () => Navigator.of(context).pushNamed('/study-builder'),
+      ),
+      _HomeAction(
+        'Generate quiz',
+        Icons.quiz_outlined,
+        () => Navigator.of(context).pushNamed('/generate-quiz'),
+      ),
+      _HomeAction(
+        'QR code',
+        Icons.qr_code_scanner_outlined,
+        () => Navigator.of(context).pushNamed('/qr-code'),
+      ),
+      _HomeAction(
+        'Text to file',
+        Icons.text_snippet_outlined,
+        () => Navigator.of(context).pushNamed('/text-to-file'),
+      ),
+      _HomeAction(
+        'My materials',
+        Icons.folder_copy_outlined,
+        () => Navigator.of(context).pushNamed('/saved-files'),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionTitle('Main actions'),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final pageController = _actionPageController ??= PageController(
+              initialPage: _actionInitialPage,
+              viewportFraction: (cardWidth + cardGap) / constraints.maxWidth,
+            );
+            return NotificationListener<ScrollNotification>(
+              onNotification: (notification) {
+                if (notification is ScrollEndNotification &&
+                    notification.metrics.axis == Axis.horizontal &&
+                    pageController.hasClients) {
+                  final currentPage = _focusedActionPage;
+                  if ((currentPage - _actionInitialPage).abs() >=
+                      _actionRecenterThreshold) {
+                    final recenteredPage =
+                        _actionInitialPage + currentPage % actions.length;
+                    if (recenteredPage != currentPage) {
+                      pageController.jumpToPage(recenteredPage);
+                      setState(() {
+                        _focusedActionPage = recenteredPage;
+                        _actionRailIndex = recenteredPage % actions.length;
+                      });
+                    }
+                  }
+                }
+                return false;
+              },
+              child: SizedBox(
+                height: 184,
+                child: PageView.builder(
+                  controller: pageController,
+                  pageSnapping: true,
+                  itemBuilder: (context, page) {
+                    final action = actions[page % actions.length];
+                    final isFocused = page == _focusedActionPage;
+                    final colors = AppColors.of(context);
+                    final foreground =
+                        isFocused ? colors.highlightInk : colors.text;
+
+                    return Center(
+                      child: AnimatedScale(
+                        scale: isFocused ? 1.12 : 0.88,
+                        duration: const Duration(milliseconds: 250),
+                        curve: Curves.easeOutCubic,
+                        child: AnimatedOpacity(
+                          opacity: isFocused ? 1 : 0.6,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOutCubic,
+                          child: SizedBox(
+                            width: cardWidth,
+                            height: 132,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 250),
+                              curve: Curves.easeOutCubic,
+                              decoration: BoxDecoration(
+                                color:
+                                    isFocused ? colors.highlight : colors.surface,
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color:
+                                      isFocused ? colors.highlight : colors.line,
+                                ),
+                                boxShadow: isFocused
+                                    ? [
+                                        BoxShadow(
+                                          color: colors.highlightGlow,
+                                          blurRadius: 18,
+                                          spreadRadius: 1,
+                                        ),
+                                      ]
+                                    : const [],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                borderRadius: BorderRadius.circular(18),
+                                child: InkWell(
+                                  onTap: () {
+                                    if (isFocused) {
+                                      action.onTap();
+                                    } else {
+                                      pageController.animateToPage(
+                                        page,
+                                        duration:
+                                            const Duration(milliseconds: 250),
+                                        curve: Curves.easeOutCubic,
+                                      );
+                                    }
+                                  },
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(16),
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            color: isFocused
+                                                ? foreground.withValues(
+                                                    alpha: 0.14,
+                                                  )
+                                                : colors.text.withValues(
+                                                    alpha: 0.12,
+                                                  ),
+                                            borderRadius:
+                                                BorderRadius.circular(14),
+                                          ),
+                                          child: Icon(
+                                            action.icon,
+                                            color:
+                                                isFocused ? foreground : colors.text,
+                                          ),
+                                        ),
+                                        Text(
+                                          action.label,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: foreground,
+                                            fontSize: 14,
+                                            height: 1.25,
+                                            fontWeight: FontWeight.w800,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  onPageChanged: (page) {
+                    setState(() {
+                      _focusedActionPage = page;
+                      _actionRailIndex = page % actions.length;
+                    });
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(
+            actions.length,
+            (index) => AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              width: _actionRailIndex == index ? 18 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: _actionRailIndex == index
+                    ? FigmaAppColors.primary(context)
+                    : FigmaAppColors.border(context),
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOfflineAiEntry() {
+    final llama = LocalLlamaService.instance;
+    final modelName = llama.modelPath == null
+        ? 'Private chat that runs on this phone'
+        : llama.modelPath!.split(RegExp(r'[\\/]')).last;
+    final accent = FigmaAppColors.primary(context);
+
+    return Material(
+      color: FigmaAppColors.card(context),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => Navigator.of(context).pushNamed('/offline-ai'),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 84),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: FigmaAppColors.border(context)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(Icons.memory_outlined, color: accent),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Offline AI assistant',
+                      style: TextStyle(
+                        color: FigmaAppColors.text(context),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      modelName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: FigmaAppColors.subtext(context),
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right, color: FigmaAppColors.subtext(context)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -318,8 +640,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final llama = LocalLlamaService.instance;
     if (!llama.hasModel) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          backgroundColor: Colors.red,
+        SnackBar(
+          backgroundColor: Theme.of(context).colorScheme.error,
           content: Text(
               'Import and load a GGUF model in Settings > Offline AI first.'),
         ),
@@ -435,7 +757,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: Colors.red,
+          backgroundColor: Theme.of(context).colorScheme.error,
           content: Text('Could not read material: $e'),
         ),
       );
@@ -750,50 +1072,67 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionTitle('Quick Progress'),
-        const SizedBox(height: 10),
+        _sectionTitle('Quick progress'),
+        const SizedBox(height: 12),
         Row(
           children: [
-            _progressTile(
-                'Files', _totalFiles.toString(), Icons.description_outlined),
+            _progressTile('Files', _totalFiles.toString(), 'files'),
             const SizedBox(width: 10),
-            _progressTile(
-                'Study Sets', _studySets.length.toString(), Icons.school),
+            _progressTile('Study sets', _studySets.length.toString(), 'sets'),
             const SizedBox(width: 10),
-            _progressTile('Outputs', _totalOutputs.toString(), Icons.task_alt),
+            _progressTile('Outputs', _totalOutputs.toString(), 'outputs'),
           ],
         ),
       ],
     );
   }
 
-  Widget _progressTile(String label, String value, IconData icon) {
+  Widget _progressTile(String label, String value, String section) {
     return Expanded(
-      child: FigmaCard(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: Column(
-          children: [
-            Icon(icon, size: 19, color: FigmaAppColors.primary(context)),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                color: FigmaAppColors.text(context),
-                fontSize: 20,
-                fontWeight: FontWeight.w900,
+      child: Material(
+        color: FigmaAppColors.card(context),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => HistoryScreen(
+                savedFilesMode: true,
+                initialSection: section,
               ),
             ),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: FigmaAppColors.subtext(context),
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
+          ),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 86),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: FigmaAppColors.border(context)),
             ),
-          ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  value,
+                  style: TextStyle(
+                    color: FigmaAppColors.text(context),
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: FigmaAppColors.subtext(context),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -803,15 +1142,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(child: _sectionTitle('Recent Materials')),
-            TextButton(
-              onPressed: () => Navigator.of(context).pushNamed('/saved-files'),
-              child: const Text('View all'),
-            ),
-          ],
-        ),
+        _sectionTitle('Recent materials'),
         const SizedBox(height: 8),
         if (_recentFiles.isEmpty)
           FigmaCard(
@@ -880,7 +1211,7 @@ class _HomeScreenState extends State<HomeScreen> {
       style: TextStyle(
         color: FigmaAppColors.text(context),
         fontSize: 18,
-        fontWeight: FontWeight.w900,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
@@ -915,4 +1246,11 @@ class _HomeScreenState extends State<HomeScreen> {
     if (diff.inDays == 1) return 'Yesterday';
     return '${parsed.year}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';
   }
+}
+
+class _HomeAction {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  const _HomeAction(this.label, this.icon, this.onTap);
 }

@@ -26,7 +26,7 @@ class _AiModelScreenState extends State<AiModelScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: Colors.red, content: Text('$e')),
+        SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text('$e')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -294,7 +294,7 @@ class _AiModelScreenState extends State<AiModelScreen> {
               ),
               if (_busy || _llama.isLoading)
                 Container(
-                  color: Colors.black45,
+                  color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
                   child: const Center(child: CircularProgressIndicator()),
                 ),
             ],

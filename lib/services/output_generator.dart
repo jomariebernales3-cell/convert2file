@@ -11,6 +11,7 @@ import 'txt_generator.dart';
 
 class OutputGenerator {
   static Future<pw.Font>? _mathFontFuture;
+  static final Map<String, Future<pw.Font>> _optionFonts = {};
 
   static Future<pw.Font> _mathFont() {
     return _mathFontFuture ??= _loadMathFont();
@@ -21,11 +22,30 @@ class OutputGenerator {
     return pw.Font.ttf(bytes);
   }
 
+  static Future<pw.Font?> _fontForOption(String option) {
+    final asset = switch (option.toLowerCase()) {
+      'times' || 'cambria' || 'garamond' || 'georgia' || 'book_antiqua' ||
+      'palatino' => 'LiberationSerif-Regular.ttf',
+      'calibri' => 'Carlito-Regular.ttf',
+      'courier_new' => 'LiberationMono-Regular.ttf',
+      'aptos' || 'arial' || 'arial_narrow' || 'tahoma' || 'verdana' ||
+      'trebuchet' || 'century_gothic' => 'LiberationSans-Regular.ttf',
+      _ => null,
+    };
+    if (asset == null) return Future<pw.Font?>.value();
+    final fontFuture = _optionFonts.putIfAbsent(
+      asset,
+      () async => pw.Font.ttf(await rootBundle.load('assets/fonts/$asset')),
+    );
+    return fontFuture.then<pw.Font?>((font) => font);
+  }
+
   static Future<Map<String, String>> generate(
     Map<String, dynamic> templateModel,
     Map<String, dynamic> mapping,
-    GenerationOptions options,
-  ) async {
+    GenerationOptions options, {
+    int? sourceFileId,
+  }) async {
     final results = <String, String>{};
     final baseName = _resolveDownloadBaseName(
       options.outputName,
@@ -64,6 +84,7 @@ class OutputGenerator {
             path,
             'output_docx',
             '$baseName.docx',
+            sourceFileId: sourceFileId,
             metadata: {
               'workspace_mode': options.workspaceMode,
               'preserved_source_layout': canPreserveOriginalDocx,
@@ -78,6 +99,7 @@ class OutputGenerator {
             path,
             'output_pdf',
             '$baseName.pdf',
+            sourceFileId: sourceFileId,
             metadata: {
               'workspace_mode': options.workspaceMode,
               'preserved_source_layout': canPreserveOriginalPdf,
@@ -90,6 +112,7 @@ class OutputGenerator {
             path,
             'output_html',
             '$baseName.html',
+            sourceFileId: sourceFileId,
             metadata: {'workspace_mode': options.workspaceMode},
           );
           break;
@@ -99,6 +122,7 @@ class OutputGenerator {
             path,
             'output_txt',
             '$baseName.txt',
+            sourceFileId: sourceFileId,
             metadata: {'workspace_mode': options.workspaceMode},
           );
           break;
@@ -116,23 +140,25 @@ class OutputGenerator {
     final pdf = pw.Document();
     final profile = _resolvedProfile(options.styleProfile);
     final mathFont = await _mathFont();
+    final selectedFont = await _fontForOption(options.fontFamily);
+    final documentFont = selectedFont ?? profile['font'] as pw.Font;
 
     final titleFont = pw.TextStyle(
-      font: profile['font'] as pw.Font,
+      font: documentFont,
       fontSize: profile['title_size'] as double,
       fontWeight: pw.FontWeight.bold,
       color: profile['title_color'] as PdfColor,
     );
 
     final headingFont = pw.TextStyle(
-      font: profile['font'] as pw.Font,
+      font: documentFont,
       fontSize: profile['heading_size'] as double,
       fontWeight: pw.FontWeight.bold,
       color: profile['heading_color'] as PdfColor,
     );
 
     final bodyFont = pw.TextStyle(
-      font: profile['font'] as pw.Font,
+      font: documentFont,
       fontSize: profile['body_size'] as double,
       color: profile['body_color'] as PdfColor,
     );

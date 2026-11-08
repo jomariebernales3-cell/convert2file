@@ -9,6 +9,7 @@ import '../services/file_storage.dart';
 import '../services/file_download.dart';
 import '../services/file_share_service.dart';
 import '../services/output_generator.dart';
+import '../theme/app_colors.dart';
 import '../widgets/figma_app_chrome.dart';
 
 class PreviewScreen extends StatefulWidget {
@@ -198,7 +199,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Colors.red, content: Text(message)),
+      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message)),
     );
   }
 
@@ -241,6 +242,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
       ),
       body: Column(
         children: [
+          _buildOriginalCopyNotice(),
           _buildTextEditorToolbar(),
           _buildConversionQualityNotice(),
           Expanded(
@@ -258,6 +260,33 @@ class _PreviewScreenState extends State<PreviewScreen> {
         _ => Icons.description_outlined,
       };
 
+  Widget _buildOriginalCopyNotice() {
+    final isUnchangedSourceCopy =
+        widget.options.preserveSourceLayout &&
+        _editableMapping['{{LAYOUT_EDITED}}'] != true &&
+        ((_selectedFormat == 'docx' &&
+                _editableMapping['{{PRESERVE_DOCX_LAYOUT}}'] == true) ||
+            (_selectedFormat == 'pdf' &&
+                _editableMapping['{{PRESERVE_PDF_LAYOUT}}'] == true));
+    if (!isUnchangedSourceCopy) return const SizedBox.shrink();
+
+    final colors = AppColors.of(context);
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 0),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colors.surface2,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Original file kept unchanged. Editing here rebuilds it and may lose the original layout.',
+        style: TextStyle(color: colors.muted, fontSize: 12),
+      ),
+    );
+  }
+
   Widget _buildConversionQualityNotice() {
     if (_isQualityNoticeDismissed) return const SizedBox.shrink();
     final diagnostics = _editableMapping['{{CONVERSION_DIAGNOSTICS}}'];
@@ -273,10 +302,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
             _editableMapping['{{PRESERVE_PDF_LAYOUT}}'] == true) &&
         _editableMapping['{{LAYOUT_EDITED}}'] != true;
     final color = preservesOriginalLayout
-        ? Colors.blue.shade700
+        ? Theme.of(context).colorScheme.primary
         : hasWarnings
-            ? Colors.amber.shade800
-            : Colors.green.shade700;
+            ? Theme.of(context).colorScheme.error
+            : Theme.of(context).colorScheme.primary;
     final label = preservesOriginalLayout
         ? 'Original layout preserved'
         : hasWarnings
@@ -400,7 +429,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
       child: IconButton(
         onPressed: onPressed,
         icon: Icon(icon, size: 19),
-        color: destructive ? Colors.red : selected ? Theme.of(context).colorScheme.primary : null,
+        color: destructive ? Theme.of(context).colorScheme.error : selected ? Theme.of(context).colorScheme.primary : null,
         visualDensity: VisualDensity.compact,
         padding: EdgeInsets.zero,
         constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
@@ -723,7 +752,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
           return const SizedBox.shrink();
         }),
         const SizedBox(height: 20),
-        const Divider(color: Colors.white10),
+        Divider(color: Theme.of(context).dividerColor),
         const SizedBox(height: 20),
       ],
     );
@@ -878,7 +907,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             const SizedBox(height: 8),
             Text(
               error,
-              style: TextStyle(color: Colors.amber.shade300, fontSize: 12),
+              style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
             ),
           ],
         ],
@@ -891,7 +920,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
 
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.white24),
+        border: Border.all(color: Theme.of(context).dividerColor),
         borderRadius: BorderRadius.circular(8),
       ),
       child: SingleChildScrollView(
@@ -899,14 +928,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
         child: DataTable(
           headingRowColor:
               WidgetStateProperty.all(Theme.of(context).colorScheme.primary),
-          border: TableBorder.all(color: Colors.white24),
+          border: TableBorder.all(color: Theme.of(context).dividerColor),
           columns: (rows.first as List).map((cell) {
             return DataColumn(
               label: Text(
                 cell.toString(),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  
                 ),
               ),
             );
@@ -976,9 +1005,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => Container(
                 height: 100,
-                color: Colors.black26,
-                child: const Center(
-                    child: Icon(Icons.broken_image, color: Colors.grey)),
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Center(
+                    child: Icon(Icons.broken_image, color: Theme.of(context).hintColor)),
               ),
             ),
           )
@@ -986,17 +1015,17 @@ class _PreviewScreenState extends State<PreviewScreen> {
           Container(
             height: 100,
             decoration: BoxDecoration(
-              color: Colors.black26,
+              color: Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.image, color: Colors.grey, size: 32),
+                  Icon(Icons.image, color: Theme.of(context).hintColor, size: 32),
                   const SizedBox(height: 4),
                   Text(caption,
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
                 ],
               ),
             ),
@@ -1006,7 +1035,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               caption,
-              style: TextStyle(color: Colors.grey.shade400, fontSize: 12),
+              style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12),
             ),
           ),
       ],
@@ -1038,14 +1067,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
               ),
               const SizedBox(height: 8),
               Text('Path: $path',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
               Text(
                 'Size: ${FileStorage.formatFileSize(snapshot.data!.size)}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
               ),
               Text(
                 'Modified: ${snapshot.data!.modified}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
               ),
             ],
           ),
@@ -1071,6 +1100,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         path,
         fileName: _preferredDownloadName(),
       );
+      if (destPath.isEmpty) return;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Downloaded to: $destPath')),
@@ -1171,7 +1201,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                           width: 16,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: Colors.white,
+                            
                           ),
                         )
                       : const Icon(Icons.download),
@@ -1354,9 +1384,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text('Delete from output',
-                      style: TextStyle(color: Colors.red)),
+                  leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                  title: Text('Delete from output',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   onTap: () {
                     Navigator.pop(context);
                     _deleteItem(contentKey, itemIndex);
@@ -1437,7 +1467,7 @@ class _ColorMenuItem extends StatelessWidget {
         Container(
           width: 16,
           height: 16,
-          decoration: BoxDecoration(color: color, border: Border.all(color: Colors.black26), borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(color: color, border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest), borderRadius: BorderRadius.circular(3)),
         ),
         const SizedBox(width: 10),
         Text(label),

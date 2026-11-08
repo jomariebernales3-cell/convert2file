@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import '../models/generation_options.dart';
@@ -9,7 +10,7 @@ class HtmlGenerator {
     String baseName,
   ) async {
     final profile = _resolvedProfile(options.styleProfile);
-    final css = _previewCss(profile);
+    final css = _previewCss(profile, options);
     final body = _renderHtmlBody(mapping, options.styleProfile, options.workspaceMode);
 
     final html = '''<!doctype html>
@@ -73,6 +74,28 @@ class HtmlGenerator {
         } else if (type == 'image') {
           final caption = (item['caption'] as String? ?? '').trim();
           buffer.write('<figure>');
+          final imagePath = (item['path'] as String? ?? '').trim();
+          if (imagePath.isNotEmpty) {
+            final extension = RegExp(r'\.([^.\\/]+)$')
+                .firstMatch(imagePath)
+                ?.group(1)
+                ?.toLowerCase();
+            final mimeType = <String, String>{
+              'png': 'image/png',
+              'jpg': 'image/jpeg',
+              'jpeg': 'image/jpeg',
+              'gif': 'image/gif',
+            }[extension];
+            final imageFile = File(imagePath);
+            if (mimeType != null && imageFile.existsSync()) {
+              final imageData = base64Encode(imageFile.readAsBytesSync());
+              buffer.write(
+                '<img src="data:$mimeType;base64,$imageData" '
+                'alt="${_escapeHtml(caption.isNotEmpty ? caption : 'Image')}" '
+                'style="max-width:100%;height:auto">',
+              );
+            }
+          }
           buffer.write(
               '<figcaption>${_escapeHtml(caption.isNotEmpty ? caption : 'Image')}</figcaption>');
           buffer.write('</figure>');
@@ -117,7 +140,10 @@ class HtmlGenerator {
     return buffer.toString();
   }
 
-  static String _previewCss(Map<String, dynamic> profile) {
+  static String _previewCss(
+    Map<String, dynamic> profile,
+    GenerationOptions options,
+  ) {
     final styleProfile = profile['style_profile'] as String? ?? 'academic';
     final bodyFont = profile['body_font'] as String? ?? 'Times New Roman';
     final headingFont = profile['heading_font'] as String? ?? 'Times New Roman';
@@ -130,6 +156,15 @@ class HtmlGenerator {
     final titleColor = profile['title_color'] as String? ?? '#111111';
     final tableBorder = profile['table_border'] as String? ?? '#111111';
     final pageBackground = profile['page_background'] as String? ?? '#fffdf8';
+    final selectedFont = _fontName(options.fontFamily);
+    String fontStack(String preferred) => selectedFont == null
+        ? '"$preferred",Arial,sans-serif'
+        : '"$selectedFont","$preferred",Arial,sans-serif';
+    final margin = _marginPoints(options.marginPreset);
+    final pageSize = _pageSize(options.paperSize, options.pageOrientation);
+    final formulaFontStack = selectedFont == null
+        ? '"Cambria Math","Times New Roman",serif'
+        : '"$selectedFont","Cambria Math","Times New Roman",serif';
 
     final titleDecoration = styleProfile == 'modern'
         ? 'padding-bottom:10px;'
@@ -144,10 +179,11 @@ class HtmlGenerator {
         : '';
 
     return '''
-body{font-family:"$bodyFont",Arial,sans-serif;background:$pageBackground;color:$bodyColor;margin:44px;line-height:1.5}
-h1{font-family:"$titleFont",Arial,sans-serif;color:$titleColor;font-size:${titleSize}px;font-weight:700;$titleDecoration;margin:0 0 20px}
-h2{font-family:"$headingFont",Arial,sans-serif;color:$headingColor;font-size:${headingSize}px;font-weight:700;margin:30px 0 14px;$headingDecoration}
-p,li,td,th{font-family:"$bodyFont",Arial,sans-serif;font-size:${bodySize}px;color:$bodyColor}
+@page{size:$pageSize;margin:${margin}pt}
+body{font-family:${fontStack(bodyFont)};background:$pageBackground;color:$bodyColor;margin:${margin}pt;line-height:${options.lineSpacing}}
+h1{font-family:${fontStack(titleFont)};color:$titleColor;font-size:${titleSize}px;font-weight:700;$titleDecoration;margin:0 0 20px}
+h2{font-family:${fontStack(headingFont)};color:$headingColor;font-size:${headingSize}px;font-weight:700;margin:30px 0 14px;$headingDecoration}
+p,li,td,th{font-family:${fontStack(bodyFont)};font-size:${bodySize}px;color:$bodyColor}
 p{margin:0 0 14px}
 figure{margin:20px 0;text-align:center}
 figcaption{margin-top:8px;font-size:${bodySize - 1}px;color:#6b625d}
@@ -156,7 +192,7 @@ figcaption{margin-top:8px;font-size:${bodySize - 1}px;color:#6b625d}
 .preview-diagram-type{display:inline-block;margin-bottom:8px;padding:3px 8px;border-radius:999px;background:#f6eee7;color:#7a5d45;font-size:${bodySize - 2}px;text-transform:uppercase;letter-spacing:.04em}
 .preview-diagram p{margin:8px 0 0}
 .preview-diagram ul{margin:8px 0 0;padding-left:20px}
-.preview-formula{margin:14px 0;padding:10px 12px;border-left:4px solid #2563eb;background:#f7fbff;font-family:"Cambria Math","Times New Roman",serif;font-size:${bodySize + 1}px;color:#111;white-space:pre-wrap}
+.preview-formula{margin:14px 0;padding:10px 12px;border-left:4px solid #2563eb;background:#f7fbff;font-family:$formulaFontStack;font-size:${bodySize + 1}px;color:#111;white-space:pre-wrap}
 .preview-formula-note{margin-top:-6px;color:#8a5a00;font-size:${bodySize - 2}px}
 table{width:100%;border-collapse:collapse;margin:16px 0;background:#fff}
 td,th{border:1px solid $tableBorder;padding:8px}
@@ -166,6 +202,40 @@ ul{padding-left:22px;margin:0 0 14px}
 .module-mark{padding:0 4px;border-radius:4px;background:#fde68a;color:#92400e;font-weight:700}
 ''';
   }
+
+  static String? _fontName(String value) => switch (value.toLowerCase()) {
+        'aptos' => 'Aptos',
+        'times' => 'Times New Roman',
+        'arial' => 'Arial',
+        'arial_narrow' => 'Arial Narrow',
+        'calibri' => 'Calibri',
+        'cambria' => 'Cambria',
+        'garamond' => 'Garamond',
+        'georgia' => 'Georgia',
+        'book_antiqua' => 'Book Antiqua',
+        'palatino' => 'Palatino Linotype',
+        'tahoma' => 'Tahoma',
+        'verdana' => 'Verdana',
+        'trebuchet' => 'Trebuchet MS',
+        'century_gothic' => 'Century Gothic',
+        'courier_new' => 'Courier New',
+        _ => null,
+      };
+
+  static String _pageSize(String paper, String orientation) {
+    final landscape = orientation == 'landscape';
+    return switch (paper) {
+      'letter' => landscape ? '11in 8.5in' : '8.5in 11in',
+      'legal' => landscape ? '14in 8.5in' : '8.5in 14in',
+      _ => landscape ? '297mm 210mm' : '210mm 297mm',
+    };
+  }
+
+  static int _marginPoints(String preset) => switch (preset) {
+        'narrow' => 36,
+        'wide' => 90,
+        _ => 72,
+      };
 
   static Map<String, dynamic> _resolvedProfile(String styleProfile) {
     switch (styleProfile) {

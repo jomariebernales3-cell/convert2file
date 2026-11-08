@@ -1,22 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AppThemeChoice { day, night, dbz }
+enum AppThemeChoice { day, night, dbz, system }
 
 class ThemeService extends ChangeNotifier {
   static final ThemeService instance = ThemeService._();
   ThemeService._();
 
   static const _themeKey = 'app_theme_mode';
-  static const _defaultThemeChoice = AppThemeChoice.night;
+  static const _defaultThemeChoice = AppThemeChoice.system;
 
   int? _currentUserId;
   AppThemeChoice _themeChoice = _defaultThemeChoice;
 
   AppThemeChoice get themeChoice => _themeChoice;
   bool get isDbzTheme => _themeChoice == AppThemeChoice.dbz;
-  ThemeMode get themeMode =>
-      _themeChoice == AppThemeChoice.day ? ThemeMode.light : ThemeMode.dark;
+  ThemeMode get themeMode => switch (_themeChoice) {
+        AppThemeChoice.day => ThemeMode.light,
+        AppThemeChoice.system => ThemeMode.system,
+        AppThemeChoice.night || AppThemeChoice.dbz => ThemeMode.dark,
+      };
 
   Future<void> init({int? userId}) async {
     _currentUserId = userId;
@@ -63,7 +66,9 @@ class ThemeService extends ChangeNotifier {
     return switch (name) {
       'day' || 'light' => AppThemeChoice.day,
       'dbz' => AppThemeChoice.dbz,
-      _ => AppThemeChoice.night,
+      'night' => AppThemeChoice.night,
+      'system' => AppThemeChoice.system,
+      _ => _defaultThemeChoice,
     };
   }
 }

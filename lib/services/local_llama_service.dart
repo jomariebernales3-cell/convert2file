@@ -145,9 +145,13 @@ class LocalLlamaService extends ChangeNotifier {
     String prompt, {
     int maxTokens = 320,
     double temperature = 0.25,
+    ValueChanged<String>? onStatusChanged,
   }) async {
-    await loadModel();
     _stopRequested = false;
+    if (!_isLoaded) onStatusChanged?.call('Loading Offline AI model...');
+    await loadModel();
+    if (_stopRequested) throw Exception('AI generation stopped.');
+    onStatusChanged?.call('Writing questions...');
     _isGenerating = true;
     _status = 'Generating...';
     notifyListeners();
@@ -185,6 +189,7 @@ class LocalLlamaService extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> generateStudyQuestions({
     required String sourceText,
     required int count,
+    ValueChanged<String>? onStatusChanged,
   }) async {
     final prompt = '''
 Create exactly $count study questions from this text.
@@ -200,7 +205,9 @@ ${sourceText.substring(0, sourceText.length.clamp(0, 2200).toInt())}
       prompt,
       maxTokens: (count * 35 + 90).clamp(140, 260).toInt(),
       temperature: 0.15,
+      onStatusChanged: onStatusChanged,
     );
+    onStatusChanged?.call('Almost done...');
     final parsed = _decodePipeQuestions(output);
     return parsed.isEmpty ? _fallbackQuestions(sourceText, count) : parsed;
   }

@@ -44,6 +44,9 @@ class FileStorage {
     return dir.path;
   }
 
+  static int? _lastUploadedFileId;
+  static int? get lastUploadedFileId => _lastUploadedFileId;
+
   static Future<String> saveUploadedFile(
     PlatformFile file,
     String kind, {
@@ -75,7 +78,7 @@ class FileStorage {
         AuthService().currentUser?.id ??
         await DatabaseHelper.instance.getOrCreateGuestUserId();
 
-    await DatabaseHelper.instance.insertFile({
+    final insertedFileId = await DatabaseHelper.instance.insertFile({
       'user_id': ownerId,
       'kind': recordKind,
       'original_name': file.name,
@@ -87,6 +90,7 @@ class FileStorage {
       'metadata_json': metadata == null ? null : jsonEncode(metadata),
       'created_at': DateTime.now().toIso8601String(),
     });
+    _lastUploadedFileId = insertedFileId;
 
     return filePath;
   }

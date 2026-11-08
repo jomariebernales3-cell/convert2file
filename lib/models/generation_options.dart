@@ -1,4 +1,5 @@
 class GenerationOptions {
+  final String conversionMode;
   final List<String> selectedFormats;
   final String styleProfile;
   final String outputName;
@@ -21,6 +22,7 @@ class GenerationOptions {
   final String workspaceMode;
 
   GenerationOptions({
+    this.conversionMode = 'normal',
     this.selectedFormats = const ['docx'],
     this.styleProfile = 'academic',
     this.outputName = '',
@@ -35,12 +37,13 @@ class GenerationOptions {
     this.includeImages = true,
     this.includeTables = true,
     this.preserveSourceTableFormat = true,
-    this.preserveSourceLayout = true,
+    this.preserveSourceLayout = false,
     this.workspaceMode = 'direct',
   });
 
   Map<String, dynamic> toJson() {
     return {
+      'conversion_mode': conversionMode,
       'selected_formats': selectedFormats,
       'style_profile': styleProfile,
       'output_name': outputName,
@@ -62,6 +65,7 @@ class GenerationOptions {
 
   factory GenerationOptions.fromJson(Map<String, dynamic> json) {
     return GenerationOptions(
+      conversionMode: json['conversion_mode'] as String? ?? 'normal',
       selectedFormats: List<String>.from(json['selected_formats'] as List? ?? ['docx']),
       styleProfile: json['style_profile'] as String? ?? 'academic',
       outputName: json['output_name'] as String? ?? '',
@@ -77,7 +81,7 @@ class GenerationOptions {
       includeTables: json['include_tables'] as bool? ?? true,
       preserveSourceTableFormat:
           json['preserve_source_table_format'] as bool? ?? true,
-      preserveSourceLayout: json['preserve_source_layout'] as bool? ?? true,
+      preserveSourceLayout: json['preserve_source_layout'] as bool? ?? false,
       workspaceMode: json['workspace_mode'] as String? ?? 'direct',
     );
   }

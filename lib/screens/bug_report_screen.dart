@@ -166,7 +166,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Colors.red, content: Text(message)),
+      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message)),
     );
   }
 
@@ -225,10 +225,6 @@ class _BugReportScreenState extends State<BugReportScreen> {
                 _screenshot == null ? 'Attach screenshot' : _screenshot!.name),
           ),
           const SizedBox(height: 12),
-          Text(
-            'Admin contact: admin@smarttemplate.app',
-            style: TextStyle(color: Colors.grey.shade400),
-          ),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _isSubmitting ? null : _submit,
