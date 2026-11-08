@@ -86,8 +86,8 @@
     <footer>Convert2File · A student project built with Flutter.</footer>
   </div>
   <script>
-    // Add the APK's Google Drive share URL here before publishing this page.
-    const apkUrl = "https://drive.google.com/drive/folders/1MeiUIsFMTAasqBEJA-u2pAW6aJNWmP7V?usp=sharing";
+    // Download the Android APK from the GitHub v1.0.25 pre-release.
+    const apkUrl = "https://github.com/jomariebernales3-cell/convert2file/releases/download/v1.0.25/app-release.apk";
     const download = document.getElementById("download");
     const hint = document.getElementById("download-hint");
     if (apkUrl) {
@@ -95,7 +95,7 @@
       download.target = "_blank";
       download.rel = "noopener noreferrer";
       download.removeAttribute("aria-disabled");
-      hint.textContent = "Download the Android APK from Google Drive.";
+      hint.textContent = "Download the Android APK from GitHub Releases.";
     } else {
       download.addEventListener("click", event => event.preventDefault());
     }
