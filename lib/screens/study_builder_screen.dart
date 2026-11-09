@@ -496,7 +496,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       });
       await _finishAiTask(
         success: true,
-        message: 'AI generated ' + generated.length.toString() + ' editable question(s).',
+        message: 'AI generated ${generated.length} editable question(s).',
       );
     } on TimeoutException {
       if (!_isCurrentAiRun(runId)) return;

@@ -12,6 +12,7 @@ import 'screens/history_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/offline_ai_chat_screen.dart';
 import 'screens/login_screen.dart';
+import 'screens/forgot_password_screen.dart';
 import 'screens/app_info_screen.dart';
 import 'screens/bug_report_screen.dart';
 import 'screens/profile_screen.dart';
@@ -71,6 +72,9 @@ class SmartTemplateApp extends StatelessWidget {
           routes: {
             '/splash': (context) => const SplashScreen(),
             '/login': (context) => const LoginScreen(),
+            '/forgot-password': (context) => ForgotPasswordScreen(
+                  initialEmail: ModalRoute.of(context)?.settings.arguments as String?,
+                ),
             '/home': (context) => const HomeScreen(),
             '/offline-ai': (context) => const OfflineAiChatScreen(),
             '/dashboard': (context) => const DashboardScreen(),

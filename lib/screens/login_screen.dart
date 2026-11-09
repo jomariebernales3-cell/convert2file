@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/auth_service.dart';
+import '../theme/app_colors.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,7 +56,11 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.of(context).pushNamedAndRemoveUntil('/home', (_) => false);
       }
     } on AuthException catch (error) {
-      _showMessage(_friendlyAuthMessage(error.message), error: true);
+      if (error.message.toLowerCase().contains('email not confirmed')) {
+        _showEmailConfirmationMessage();
+      } else {
+        _showMessage(_friendlyAuthMessage(error.message), error: true);
+      }
     } catch (error) {
       _showMessage(error.toString().replaceFirst('Bad state: ', ''),
           error: true);
@@ -64,6 +69,42 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showEmailConfirmationMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: Theme.of(context).colorScheme.errorContainer,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Please confirm your email before signing in.',
+              style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
+            ),
+            TextButton(
+              onPressed: _isBusy ? null : _resendConfirmationEmail,
+              child: const Text('Resend confirmation email'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _resendConfirmationEmail() async {
+    setState(() => _isBusy = true);
+    try {
+      await _auth.resendConfirmationEmail(email: _emailController.text);
+      _showMessage('Check your inbox and spam folder, then sign in again.');
+    } on AuthException catch (error) {
+      _showMessage(_friendlyAuthMessage(error.message), error: true);
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Bad state: ', ''), error: true);
+    } finally {
+      if (mounted) setState(() => _isBusy = false);
+    }
+  }
   Future<void> _continueAsGuest() async {
     setState(() => _isBusy = true);
     try {
@@ -89,6 +130,18 @@ class _LoginScreenState extends State<LoginScreen> {
     return message;
   }
 
+  void _showPasswordUpdatedMessage() {
+    final appColors = AppColors.of(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: appColors.accent,
+        content: Text(
+          'Password updated. Sign in with your new password.',
+          style: TextStyle(color: appColors.accentInk),
+        ),
+      ),
+    );
+  }
   void _showMessage(String message, {bool error = false}) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -196,6 +249,38 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ? 'Use at least 6 characters'
                                   : null,
                         ),
+                        ),
+                        if (!_isSignUp)
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: SizedBox(
+                              height: 48,
+                              child: TextButton(
+                                onPressed: _isBusy || !configured
+                                    ? null
+                                    : () async {
+                                        final email = _emailController.text.trim();
+                                        final validEmail = RegExp(
+                                          r'^[^@\s]+@[^@\s]+\.[^@\s]+$',
+                                        ).hasMatch(email);
+                                        final updated = await Navigator.of(context)
+                                            .pushNamed<bool>(
+                                          '/forgot-password',
+                                          arguments: validEmail ? email : null,
+                                        );
+                                        if (updated == true && mounted) {
+                                          _showPasswordUpdatedMessage();
+                                        }
+                                      },
+                                style: TextButton.styleFrom(
+                                  foregroundColor: colors.primary,
+                                  minimumSize: const Size(44, 44),
+                                ),
+                                child: const Text('Forgot password?'),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 18),
                         const SizedBox(height: 18),
                         SizedBox(
                           width: double.infinity,

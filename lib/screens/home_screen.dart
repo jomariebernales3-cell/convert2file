@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/database_helper.dart';
 import 'dashboard_screen.dart';
 import '../services/auth_service.dart';
+import '../services/app_remote_config_service.dart';
 import '../services/document_parser.dart';
 import '../services/file_storage.dart';
 import '../services/local_llama_service.dart';
@@ -60,12 +61,14 @@ class _HomeScreenState extends State<HomeScreen> {
   PageController? _actionPageController;
   int _focusedActionPage = _actionInitialPage;
   int _actionRailIndex = 0;
+  AppRemoteConfig _remoteConfig = const AppRemoteConfig();
 
   @override
   void initState() {
     super.initState();
     _loadHomeData();
     _loadChatHistory();
+    _loadRemoteConfig();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTermsAgreement());
   }
 
@@ -234,6 +237,69 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _loadRemoteConfig() async {
+    try {
+      final config = await const AppRemoteConfigService().load();
+      if (mounted) setState(() => _remoteConfig = config);
+    } catch (_) {
+      // Remote controls are optional; local tools stay available when offline.
+    }
+  }
+
+  bool _actionEnabled(String label) {
+    final key = switch (label) {
+      'Convert file' => 'document_conversion',
+      'Create study guide' => 'study_guides',
+      'Generate quiz' => 'quiz_generator',
+      _ => null,
+    };
+    return key == null || _remoteConfig.featureEnabled(key);
+  }
+
+  Widget _buildRemoteNotices() {
+    if (!_remoteConfig.maintenanceEnabled && !_remoteConfig.updateAvailable && _remoteConfig.announcements.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final colors = AppColors.of(context);
+    return Column(
+      children: [
+        if (_remoteConfig.updateAvailable)
+          _remoteNoticeCard(colors, Icons.system_update_alt, 'Update available',
+              'Version ${_remoteConfig.latestVersion} is available. Check the Convert2File GitHub Releases page.'),
+        if (_remoteConfig.maintenanceEnabled)
+          _remoteNoticeCard(colors, Icons.build_outlined, 'Online maintenance',
+              'Online services may be temporarily unavailable. Offline tools remain available.'),
+        ..._remoteConfig.announcements.map((notice) => _remoteNoticeCard(
+              colors, Icons.campaign_outlined,
+              notice['title']?.toString() ?? 'Announcement',
+              notice['message']?.toString() ?? '',
+            )),
+      ],
+    );
+  }
+
+  Widget _remoteNoticeCard(AppColors colors, IconData icon, String title, String message) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.surface2,
+        border: Border.all(color: colors.line),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icon, color: colors.accent),
+        const SizedBox(width: 10),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: TextStyle(color: colors.text, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(message, style: TextStyle(color: colors.muted)),
+        ])),
+      ]),
+    );
+  }
+
   Future<void> _loadHomeData() async {
     setState(() => _isLoading = true);
     try {
@@ -291,14 +357,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ],
       child: RefreshIndicator(
-        onRefresh: _loadHomeData,
+        onRefresh: () async {
+          await _loadHomeData();
+          await _loadRemoteConfig();
+        },
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
                   _buildWelcomeCard(),
-                  const SizedBox(height: 22),
+                  _buildRemoteNotices(),
+                  const SizedBox(height: 12),
                   _buildMainActions(),
                   const SizedBox(height: 22),
                   _buildOfflineAiEntry(),
@@ -472,7 +542,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                 child: InkWell(
                                   onTap: () {
                                     if (isFocused) {
-                                      action.onTap();
+                                      if (_actionEnabled(action.label)) {
+                                        action.onTap();
+                                      } else {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('This feature is temporarily disabled by the administrator.')),
+                                        );
+                                      }
                                     } else {
                                       pageController.animateToPage(
                                         page,
@@ -579,7 +655,9 @@ class _HomeScreenState extends State<HomeScreen> {
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: () => Navigator.of(context).pushNamed('/offline-ai'),
+        onTap: _remoteConfig.featureEnabled('offline_ai')
+            ? () => Navigator.of(context).pushNamed('/offline-ai')
+            : null,
         child: Container(
           constraints: const BoxConstraints(minHeight: 84),
           padding: const EdgeInsets.all(16),

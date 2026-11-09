@@ -71,6 +71,6 @@ class DocxToTxt {
     final count = (counters[key] ?? 0) + 1;
     counters[key] = count;
     final marker = list.marker.isEmpty ? '%1.' : list.marker;
-    return marker.replaceAll('%${list.level + 1}', '$count') + ' ';
+    return '${marker.replaceAll('%${list.level + 1}', '$count')} ';
   }
 }

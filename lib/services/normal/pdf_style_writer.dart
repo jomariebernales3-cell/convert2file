@@ -500,10 +500,10 @@ class PdfStyleWriter {
 
   static Future<_FontFamilies> _loadFonts() async {
     Future<_FontSet> load(String prefix) async => _FontSet(
-          regular: await _loadFont('assets/fonts/${prefix}-Regular.ttf'),
-          bold: await _loadFont('assets/fonts/${prefix}-Bold.ttf'),
-          italic: await _loadFont('assets/fonts/${prefix}-Italic.ttf'),
-          boldItalic: await _loadFont('assets/fonts/${prefix}-BoldItalic.ttf'),
+          regular: await _loadFont('assets/fonts/$prefix-Regular.ttf'),
+          bold: await _loadFont('assets/fonts/$prefix-Bold.ttf'),
+          italic: await _loadFont('assets/fonts/$prefix-Italic.ttf'),
+          boldItalic: await _loadFont('assets/fonts/$prefix-BoldItalic.ttf'),
         );
     return _FontFamilies(
       sans: await load('LiberationSans'),

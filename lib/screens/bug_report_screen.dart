@@ -5,9 +5,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/database_helper.dart';
 import '../services/auth_service.dart';
+import '../services/supabase_config.dart';
 
 class BugReportScreen extends StatefulWidget {
   const BugReportScreen({super.key});
@@ -71,6 +73,20 @@ class _BugReportScreenState extends State<BugReportScreen> {
     final subject = _subjectController.text.trim();
     final message = _messageController.text.trim();
     final user = await _authService.requireLocalUser();
+    if (_authService.isLoggedIn) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Send report online?'),
+          content: const Text('Your report title, description, app version, and basic device platform information will be sent to the Convert2File team. Files and screenshots stay on this phone and will not be uploaded.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Send report')),
+          ],
+        ),
+      );
+      if (confirmed != true) return;
+    }
     if (subject.length < 4 || subject.length > 180) {
       _showError('Subject must be 4 to 180 characters');
       return;
@@ -121,6 +137,24 @@ class _BugReportScreenState extends State<BugReportScreen> {
         });
       }
 
+      if (_authService.isLoggedIn) {
+        final onlineSettings = await Supabase.instance.client
+            .from('app_control_settings')
+            .select('maintenance_enabled')
+            .eq('id', true)
+            .maybeSingle();
+        if (onlineSettings?['maintenance_enabled'] == true) {
+          throw const AuthException('Online services are under maintenance. Please try again later.');
+        }
+        await Supabase.instance.client.from('bug_reports').insert({
+          'user_id': Supabase.instance.client.auth.currentUser!.id,
+          'title': subject,
+          'description': message,
+          'app_version': SupabaseConfig.appVersion,
+          'device_info': {'platform': Platform.operatingSystem, 'version': Platform.operatingSystemVersion},
+        });
+      }
+
       await DatabaseHelper.instance.insertBugReport({
         'user_id': user.id,
         'reporter_name': user.name,
@@ -145,7 +179,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Bug report submitted')),
+          SnackBar(content: Text(_authService.isLoggedIn ? 'Bug report sent to the team' : 'Bug report saved on this device')),
         );
         Navigator.pop(context);
       }
@@ -177,9 +211,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
     return bugDir;
   }
 
-  List<String> get _requiredAttachmentSlots {
-    return ['data_source', 'output'];
-  }
+  List<String> get _requiredAttachmentSlots => const [];
 
   String _attachmentLabel(String slot) {
     return switch (slot) {
