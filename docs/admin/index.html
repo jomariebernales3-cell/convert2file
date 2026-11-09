@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <title>Convert2File Admin</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <section id="login" class="login-wrap" hidden>
+    <form id="login-form" class="login-card">
+      <div class="brand-mark">C</div>
+      <p class="eyebrow">CONVERT2FILE</p>
+      <h1>Admin sign in</h1>
+      <p class="muted">Use an account assigned an admin role by the Owner.</p>
+      <label>Email<input id="email" type="email" autocomplete="username" required></label>
+      <label>Password<input id="password" type="password" autocomplete="current-password" required></label>
+      <button class="button primary" type="submit">Sign in</button>
+      <p id="login-error" class="error" role="alert"></p>
+    </form>
+  </section>
+
+  <div id="portal" class="app" hidden>
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">C</div><span>Convert2File</span></div>
+      <nav aria-label="Admin pages">
+        <button class="nav active" data-page="dashboard">▦ <span>Dashboard</span></button>
+        <button class="nav" data-page="users">♙ <span>Users</span></button>
+        <button class="nav" data-page="reports">⚑ <span>Bug reports</span></button>
+        <button class="nav owner-only" data-page="team">♧ <span>Admin team</span></button>
+        <button class="nav" data-page="audit">▤ <span>Audit log</span></button>
+      </nav>
+      <div class="sidebar-foot">
+        <div><small>Signed in as</small><b id="identity">—</b><small id="role-label">—</small></div>
+        <label class="appearance-label">Appearance
+          <select id="appearance" aria-label="Appearance">
+            <option value="system">System</option><option value="day">Day</option>
+            <option value="night">Night</option><option value="dbz">DBZ</option>
+          </select>
+        </label>
+        <button id="signout" class="button ghost">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div><span class="eyebrow">ADMIN WORKSPACE</span><h1 id="page-title">Dashboard</h1></div><button id="refresh" class="button">Refresh</button></header>
+      <p id="notice" class="notice" role="status" hidden></p>
+
+      <section id="page-dashboard" class="page">
+        <p class="muted">Accounts and reports at a glance.</p>
+        <div class="stats">
+          <article class="card stat"><span>Total accounts</span><strong id="stat-users">—</strong></article>
+          <article class="card stat"><span>New this week</span><strong id="stat-new">—</strong></article>
+          <article class="card stat"><span>Open bug reports</span><strong id="stat-open">—</strong></article>
+          <article class="card stat"><span>Suspended accounts</span><strong id="stat-suspended">—</strong></article>
+        </div>
+        <div class="columns">
+          <article class="card"><h2>New signups, last 7 days</h2><div id="signup-chart" class="chart"></div></article>
+          <article class="card"><h2>Latest bug reports</h2><div id="latest-reports"></div></article>
+        </div>
+      </section>
+
+      <section id="page-users" class="page" hidden>
+        <p class="muted">Online accounts only. Guests and local-only workspaces are not listed.</p>
+        <div class="toolbar"><input id="user-search" placeholder="Search name or email"><select id="user-status"><option value="">All statuses</option><option value="active">Active</option><option value="suspended">Suspended</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>Joined</th><th>Last seen</th></tr></thead><tbody id="users-body"></tbody></table></div>
+      </section>
+
+      <section id="page-reports" class="page" hidden>
+        <p class="muted">Reports users submit from the app. User files, quizzes, and study content are not shown here.</p>
+        <div class="toolbar"><select id="report-status"><option value="">All statuses</option><option value="new">New</option><option value="in_review">In review</option><option value="resolved">Resolved</option></select></div>
+        <div class="table-wrap"><table><thead><tr><th>Title</th><th>App / device</th><th>Date</th><th>Status</th></tr></thead><tbody id="reports-body"></tbody></table></div>
+      </section>
+
+      <section id="page-team" class="page" hidden>
+        <p class="muted">Only the Owner can change admin roles. The account must already exist.</p>
+        <form id="team-form" class="card team-form"><label>Existing account email<input id="team-email" type="email" required></label><label>Role<select id="team-role"><option value="admin">Admin / Support</option><option value="owner">Owner</option><option value="user">Remove admin access</option></select></label><button class="button primary">Save role</button></form>
+        <div class="table-wrap"><table><thead><tr><th>Email</th><th>Name</th><th>Role</th><th>Added</th></tr></thead><tbody id="team-body"></tbody></table></div>
+      </section>
+
+      <section id="page-audit" class="page" hidden>
+        <p class="muted">Administrative changes are recorded here and cannot be edited from this portal.</p>
+        <div class="table-wrap"><table><thead><tr><th>Action</th><th>Actor</th><th>Target</th><th>Details</th><th>Date</th></tr></thead><tbody id="audit-body"></tbody></table></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="user-dialog" class="dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="user-detail"></div></dialog>
+  <dialog id="report-dialog" class="dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="report-detail"></div></dialog>
+  <script type="module" src="admin.js"></script>
+</body>
+</html>
