@@ -19,7 +19,15 @@ let users = [];
 let reports = [];
 let admins = [];
 let auditEntries = [];
+let announcements = [];
+let appSettings = null;
 let currentPage = 'dashboard';
+const featureDefinitions = [
+  ['offline_ai', 'AI assistant', 'Show the offline AI chat'],
+  ['quiz_generator', 'Quiz generator', 'Allow quiz creation'],
+  ['study_guides', 'Study guides', 'Allow study guide creation'],
+  ['document_conversion', 'Document conversion', 'Allow document conversion'],
+];
 
 function notice(message, isError = false) {
   const node = $('#notice');
@@ -114,10 +122,18 @@ async function refreshData() {
       queryRows('bug_reports', 'id,user_id,title,description,app_version,device_info,status,admin_notes,created_at,updated_at'),
       queryRows('admin_audit_log', 'id,actor_id,action,target_type,target_id,details,created_at'),
     ]);
+    [announcements, appSettings] = await Promise.all([
+      queryRows('admin_announcements', 'id,title,message,status,created_by,created_at,ended_at'),
+      (async () => {
+        const { data, error } = await client.from('app_control_settings').select('*').eq('id', true).single();
+        if (error) throw error;
+        return data;
+      })(),
+    ]);
     admins = role === 'owner'
       ? await queryRows('admin_users', 'user_id,role,created_by,created_at')
       : [];
-    drawDashboard(); drawUsers(); drawReports(); drawTeam(); drawAudit();
+    drawDashboard(); drawUsers(); drawReports(); drawTeam(); drawAudit(); drawAnnouncements(); drawAppControl();
     notice('Data refreshed.');
   } catch (error) {
     notice(`Could not load portal data: ${error.message}`, true);
@@ -207,12 +223,38 @@ function drawAudit() {
   }).join('') || '<tr><td colspan="5" class="empty">No audit entries yet.</td></tr>';
 }
 
+function drawAnnouncements() {
+  $('#announcement-history').innerHTML = announcements.map((item) => `<div class="row"><div><b>${esc(item.title)}</b><small>${esc(item.message)} · ${esc(shortDate(item.created_at))}</small></div><div class="announcement-actions">${badge(item.status)}${item.status === 'active' ? `<button class="button" data-end-announcement="${esc(item.id)}">End</button>` : ''}</div></div>`).join('') || '<p class="empty">No announcements yet.</p>';
+}
+
+function drawAppControl() {
+  if (!appSettings) return;
+  $('#maintenance-enabled').checked = appSettings.maintenance_enabled;
+  $('#latest-version').value = appSettings.latest_version;
+  $('#minimum-version').value = appSettings.minimum_supported_version;
+  const flags = appSettings.feature_flags ?? {};
+  $('#feature-switches').innerHTML = featureDefinitions.map(([key, title, description]) => `<div class="control-row"><div><b>${esc(title)}</b><small>${esc(description)}</small></div><label class="switch"><input type="checkbox" data-feature="${esc(key)}" ${flags[key] !== false ? 'checked' : ''}><span></span></label></div>`).join('');
+}
+
+async function saveAppSettings(changes, auditLabel) {
+  const { error } = await client.rpc('admin_update_app_settings', {
+    p_maintenance_enabled: changes.maintenance_enabled ?? appSettings.maintenance_enabled,
+    p_latest_version: changes.latest_version ?? appSettings.latest_version,
+    p_minimum_supported_version: changes.minimum_supported_version ?? appSettings.minimum_supported_version,
+    p_feature_flags: changes.feature_flags ?? appSettings.feature_flags,
+  });
+  if (error) { notice(error.message, true); return false; }
+  await refreshData();
+  notice(auditLabel);
+  return true;
+}
+
 function showPage(page) {
   if (page === 'team' && role !== 'owner') page = 'dashboard';
   currentPage = page;
   $$('.page').forEach((node) => { node.hidden = node.id !== `page-${page}`; });
   $$('.nav').forEach((node) => node.classList.toggle('active', node.dataset.page === page));
-  $('#page-title').textContent = ({ dashboard: 'Dashboard', users: 'Users', reports: 'Bug reports', team: 'Admin team', audit: 'Audit log' })[page];
+  $('#page-title').textContent = ({ dashboard: 'Dashboard', users: 'Users', reports: 'Bug reports', announcements: 'Announcements', 'app-control': 'App control', team: 'Admin team', audit: 'Audit log' })[page];
 }
 
 function initTheme() {
@@ -244,6 +286,35 @@ async function init() {
   $('#user-search').addEventListener('input', drawUsers);
   $('#user-status').addEventListener('change', drawUsers);
   $('#report-status').addEventListener('change', drawReports);
+  $('#announcement-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const { error } = await client.rpc('admin_publish_announcement', {
+      p_title: $('#announcement-title').value.trim(), p_message: $('#announcement-message').value.trim(),
+    });
+    if (error) { notice(error.message, true); return; }
+    $('#announcement-form').reset(); await refreshData();
+    showPage('announcements'); notice('Announcement published.');
+  });
+  $('#announcement-history').addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-end-announcement]'); if (!button) return;
+    const { error } = await client.rpc('admin_end_announcement', { p_announcement_id: button.dataset.endAnnouncement });
+    if (error) { notice(error.message, true); return; }
+    await refreshData(); showPage('announcements'); notice('Announcement ended.');
+  });
+  $('#maintenance-enabled').addEventListener('change', async () => {
+    await saveAppSettings({ maintenance_enabled: $('#maintenance-enabled').checked }, 'Maintenance setting saved.');
+  });
+  $('#app-settings-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await saveAppSettings({ latest_version: $('#latest-version').value.trim(), minimum_supported_version: $('#minimum-version').value.trim() }, 'Version settings saved.');
+    showPage('app-control');
+  });
+  $('#feature-switches').addEventListener('change', async (event) => {
+    const input = event.target.closest('[data-feature]'); if (!input) return;
+    const featureFlags = { ...(appSettings.feature_flags ?? {}), [input.dataset.feature]: input.checked };
+    await saveAppSettings({ feature_flags: featureFlags }, 'Feature setting saved.');
+    showPage('app-control');
+  });
   $('#users-body').addEventListener('click', (e) => { const row = e.target.closest('[data-user]'); if (row) openUser(row.dataset.user); });
   $('#reports-body').addEventListener('click', (e) => { const row = e.target.closest('[data-report]'); if (row) openReport(row.dataset.report); });
   $('#team-form').addEventListener('submit', async (event) => {

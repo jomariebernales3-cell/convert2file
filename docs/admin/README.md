@@ -1,6 +1,6 @@
 # Convert2File Admin Portal
 
-This is a separate static website from the Flutter app. It uses the mockup's appearance language and the app's Day, Night, DBZ, and System color roles. The first version contains Dashboard, Users, Bug reports, Admin team, and Audit log. Announcements and App control are intentionally excluded from v1.
+This is a separate static website from the Flutter app. It uses the mockup's appearance language and the app's Day, Night, DBZ, and System color roles. It contains Dashboard, Users, Bug reports, Announcements, App control, Admin team, and Audit log.
 
 ## Backend setup
 
@@ -8,7 +8,8 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
 
 1. Create the first Owner account in the new project's Auth settings (email/password).
 2. In the new project's SQL Editor, run `supabase/migrations/202611090001_admin_portal.sql` from the repository.
-3. In SQL Editor, bootstrap the first Owner, replacing the email:
+3. Run `supabase/migrations/202611100001_admin_controls.sql` to add announcement and app-control storage.
+4. In SQL Editor, bootstrap the first Owner, replacing the email:
 
    ```sql
    insert into public.admin_users(user_id, role)
@@ -16,9 +17,9 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
    where lower(email) = lower('owner@example.com');
    ```
 
-4. Set the new project's Project URL and **anon/publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place the `service_role` or secret key in this website, the Flutter app, or GitHub.
-5. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
-6. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and anon key are public client settings, protect the data with the included RLS and RPC authorization.
+5. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
+6. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
+7. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
 
 ## First admin
 
@@ -30,4 +31,4 @@ Suspension changes `profiles.account_status`. RLS and the admin RPCs check that 
 
 ## App integration still needed
 
-The current Flutter app is still configured for the existing Supabase project, and its bug reports are local-only. To populate this new project, the mobile app must later be pointed at the new project, submit text-only reports after clear consent, and check account status at sign-in/session refresh. Existing accounts in the old project do not automatically transfer; either users register again or account migration is planned separately.
+The current Flutter app is still configured for the existing Supabase project, and its bug reports are local-only. The Announcements and App control pages store values in the new project, but they do not affect the installed app until Flutter is connected to this project and reads those settings. The mobile app must also submit text-only reports after clear consent and check account status at sign-in/session refresh. Existing accounts in the old project do not automatically transfer; either users register again or account migration is planned separately.

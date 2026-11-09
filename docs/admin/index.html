@@ -28,6 +28,8 @@
         <button class="nav active" data-page="dashboard">▦ <span>Dashboard</span></button>
         <button class="nav" data-page="users">♙ <span>Users</span></button>
         <button class="nav" data-page="reports">⚑ <span>Bug reports</span></button>
+        <button class="nav" data-page="announcements">◖ <span>Announcements</span></button>
+        <button class="nav" data-page="app-control">☷ <span>App control</span></button>
         <button class="nav owner-only" data-page="team">♧ <span>Admin team</span></button>
         <button class="nav" data-page="audit">▤ <span>Audit log</span></button>
       </nav>
@@ -71,6 +73,29 @@
         <p class="muted">Reports users submit from the app. User files, quizzes, and study content are not shown here.</p>
         <div class="toolbar"><select id="report-status"><option value="">All statuses</option><option value="new">New</option><option value="in_review">In review</option><option value="resolved">Resolved</option></select></div>
         <div class="table-wrap"><table><thead><tr><th>Title</th><th>App / device</th><th>Date</th><th>Status</th></tr></thead><tbody id="reports-body"></tbody></table></div>
+      </section>
+
+      <section id="page-announcements" class="page" hidden>
+        <p class="muted">Notices users can see in the app after the app is connected to this project.</p>
+        <form id="announcement-form" class="card announcement-form">
+          <h2>New announcement</h2>
+          <label>Title<input id="announcement-title" maxlength="180" required></label>
+          <label>Message<textarea id="announcement-message" rows="4" maxlength="4000" required></textarea></label>
+          <button class="button primary" type="submit">Publish</button>
+        </form>
+        <article class="card"><h2>History</h2><div id="announcement-history"></div></article>
+      </section>
+
+      <section id="page-app-control" class="page" hidden>
+        <p class="muted">These settings are stored online. The mobile app must be connected to read and enforce them.</p>
+        <article class="card control-row"><div><b>Maintenance mode</b><small>Online app access can be paused when the app checks this setting.</small></div><label class="switch"><input id="maintenance-enabled" type="checkbox"><span></span></label></article>
+        <form id="app-settings-form" class="card app-settings-form">
+          <h2>Versions</h2>
+          <div class="version-fields"><label>Latest version<input id="latest-version" maxlength="32" required></label><label>Minimum supported version<input id="minimum-version" maxlength="32" required></label></div>
+          <p class="muted">Users below the minimum may be asked to update once the app enforces this setting.</p>
+          <button class="button primary" type="submit">Save versions</button>
+        </form>
+        <article class="card"><h2>Feature switches</h2><div id="feature-switches"></div></article>
       </section>
 
       <section id="page-team" class="page" hidden>
