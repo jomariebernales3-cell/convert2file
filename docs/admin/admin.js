@@ -379,18 +379,18 @@ function drawAppInfo() {
     return;
   }
   $('#app-info-sections').innerHTML = appInfoContent.sections.map((section, index) => `
-    <article class="card info-editor" data-info-section="${index}">
-      <div class="info-editor-heading"><h3>Section ${index + 1}</h3><button class="button danger" data-remove-info-section="${index}">Remove</button></div>
-      <label>Title<input data-info-title maxlength="80" value="${esc(section.title)}" required></label>
+    <article class="card info-editor info-editor-section" data-info-section="${index}">
+      <div class="info-editor-heading"><div class="info-editor-title"><span class="info-editor-index" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><span class="eyebrow">APP INFORMATION</span><h3>Section ${index + 1}</h3></div></div><button class="button danger" data-remove-info-section="${index}" aria-label="Remove section ${index + 1}">Remove</button></div>
+      <label>Section title<input data-info-title maxlength="80" value="${esc(section.title)}" required></label>
       <label>Details <small>Put each paragraph on its own line.</small><textarea data-info-details rows="5" required>${esc((section.details ?? []).join('\n'))}</textarea></label>
     </article>`).join('');
   $('#app-info-releases').innerHTML = appInfoContent.release_notes.map((release, index) => `
-    <article class="card info-editor" data-info-release="${index}">
-      <div class="info-editor-heading"><h3>Version entry ${index + 1}</h3><button class="button danger" data-remove-info-release="${index}">Remove</button></div>
+    <article class="card info-editor info-editor-release" data-info-release="${index}">
+      <div class="info-editor-heading"><div class="info-editor-title"><span class="info-editor-index" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><span class="eyebrow">UPDATE HISTORY</span><h3>Version entry ${index + 1}</h3></div></div><button class="button danger" data-remove-info-release="${index}" aria-label="Remove version entry ${index + 1}">Remove</button></div>
       <div class="version-fields"><label>Version<input data-release-version maxlength="32" value="${esc(release.version)}" required></label><label>Date or label<input data-release-date maxlength="64" value="${esc(release.date)}" required></label></div>
-      <label>Features <small>One item per line.</small><textarea data-release-features rows="4">${esc((release.features ?? []).join('\n'))}</textarea></label>
-      <label>Fixes and updates <small>One item per line.</small><textarea data-release-fixes rows="4">${esc((release.fixes ?? []).join('\n'))}</textarea></label>
-      <label class="info-current-version"><input data-release-latest type="checkbox" ${release.is_latest ? 'checked' : ''}> Current version</label>
+      <div class="info-editor-text-grid"><label>Features <small>One item per line.</small><textarea data-release-features rows="4">${esc((release.features ?? []).join('\n'))}</textarea></label>
+      <label>Fixes and updates <small>One item per line.</small><textarea data-release-fixes rows="4">${esc((release.fixes ?? []).join('\n'))}</textarea></label></div>
+      <label class="info-current-version"><input data-release-latest type="checkbox" ${release.is_latest ? 'checked' : ''}><span><b>Mark as current version</b><small>This entry gets the latest badge in the app.</small></span></label>
     </article>`).join('');
 }
 
