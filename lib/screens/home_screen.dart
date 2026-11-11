@@ -4,17 +4,17 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/database_helper.dart';
 import 'dashboard_screen.dart';
 import '../services/auth_service.dart';
 import '../services/app_remote_config_service.dart';
-import '../services/announcement_service.dart';
 import '../services/report_service.dart';
 import '../services/document_parser.dart';
 import '../services/file_storage.dart';
 import '../services/local_llama_service.dart';
+import '../services/supabase_config.dart';
 import '../widgets/figma_app_chrome.dart';
 import '../theme/app_colors.dart';
 import 'history_screen.dart';
@@ -26,7 +26,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const _chatStopWords = {
     'the',
     'and',
@@ -52,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
   static const _chatHistoryKey = 'offline_ai_chat_history_v1';
   final List<Map<String, String>> _chatHistory = [];
   bool _isLoading = true;
+  bool _hasLoadedHomeData = false;
   bool _isAskingAi = false;
   bool _isLoadingMaterial = false;
   Map<String, dynamic>? _selectedMaterial;
@@ -66,23 +67,16 @@ class _HomeScreenState extends State<HomeScreen> {
   int _focusedActionPage = _actionInitialPage;
   int _actionRailIndex = 0;
   AppRemoteConfig _remoteConfig = const AppRemoteConfig();
-  final _announcementService = AnnouncementService();
-  List<Map<String, dynamic>> _announcements = const [];
-  Set<String> _dismissedAnnouncementIds = <String>{};
-  Timer? _announcementRefreshTimer;
-  bool _isLoadingAnnouncements = false;
+  RealtimeChannel? _appControlChannel;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadHomeData();
     _loadChatHistory();
     _loadRemoteConfig();
-    _loadAnnouncements();
-    _announcementRefreshTimer = Timer.periodic(
-      const Duration(minutes: 1),
-      (_) => _loadAnnouncements(),
-    );
+    _subscribeToAppControlChanges();
     ReportService().retryPending();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTermsAgreement());
   }
@@ -205,7 +199,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
-    _announcementRefreshTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    final channel = _appControlChannel;
+    if (channel != null) {
+      unawaited(Supabase.instance.client.removeChannel(channel));
+    }
     _chatController.dispose();
     _chatScrollController.dispose();
     _actionPageController?.dispose();
@@ -262,101 +260,39 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _subscribeToAppControlChanges() {
+    if (!SupabaseConfig.isConfigured) return;
+    _appControlChannel = Supabase.instance.client
+        .channel('app-control-settings-live')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'app_control_settings',
+          callback: (_) => unawaited(_loadRemoteConfig()),
+        )
+        .subscribe();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_loadRemoteConfig());
+    }
+  }
+
   bool _actionEnabled(String label) {
     final key = switch (label) {
       'Convert file' => 'document_conversion',
       'Create study guide' => 'study_guides',
       'Generate quiz' => 'quiz_generator',
+      'QR code' => 'qr_code',
+      'Text to file' => 'text_to_file',
+      'My materials' => 'my_materials',
       _ => null,
     };
     return key == null || _remoteConfig.featureEnabled(key);
   }
 
-  Future<void> _loadAnnouncements() async {
-    if (_isLoadingAnnouncements) return;
-    _isLoadingAnnouncements = true;
-    try {
-      final values = await _announcementService.fetchActive();
-      final dismissed = await _announcementService.dismissedIds();
-      if (!mounted) return;
-      setState(() {
-        _announcements = values;
-        _dismissedAnnouncementIds = dismissed;
-      });
-    } finally {
-      _isLoadingAnnouncements = false;
-    }
-  }
-
-  Color _announcementKindColor(String kind, AppColors colors) => switch (kind) {
-        'important' => colors.warning,
-        'maintenance' => colors.muted,
-        _ => colors.accent,
-      };
-
-  IconData _announcementKindIcon(String kind) => switch (kind) {
-        'important' => Icons.priority_high_rounded,
-        'maintenance' => Icons.build_circle_outlined,
-        _ => Icons.info_outline_rounded,
-      };
-
-  Widget _buildAnnouncementBanner() {
-    final visible = _announcements
-        .where((item) => !_dismissedAnnouncementIds.contains(item['id']?.toString()))
-        .toList(growable: false);
-    if (visible.isEmpty) return const SizedBox.shrink();
-    final notice = visible.first;
-    final colors = AppColors.of(context);
-    final kind = notice['kind']?.toString() ?? 'info';
-    final kindColor = _announcementKindColor(kind, colors);
-    final parsedLink = Uri.tryParse(notice['link_url']?.toString() ?? '');
-    final safeLink = parsedLink != null && parsedLink.scheme.toLowerCase() == 'https' && parsedLink.host.isNotEmpty;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      decoration: BoxDecoration(color: colors.surface, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(18)),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Container(width: 4, color: kindColor),
-          Expanded(child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Padding(padding: const EdgeInsets.only(top: 2), child: Icon(_announcementKindIcon(kind), size: 24, color: kindColor)),
-                const SizedBox(width: 10),
-                Expanded(child: Text(notice['title']?.toString() ?? 'Announcement', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.text, fontSize: 15, fontWeight: FontWeight.w800))),
-                SizedBox(width: 44, height: 44, child: IconButton(
-                  tooltip: 'Dismiss announcement',
-                  onPressed: () async {
-                    final id = notice['id']?.toString();
-                    if (id == null) return;
-                    await _announcementService.dismiss(id);
-                    if (mounted) setState(() => _dismissedAnnouncementIds.add(id));
-                  },
-                  icon: const Icon(Icons.close),
-                )),
-              ]),
-              const SizedBox(height: 4),
-              Text(notice['body']?.toString() ?? '', maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.muted)),
-              if (safeLink || visible.length > 1) ...[
-                const SizedBox(height: 6),
-                Wrap(spacing: 8, children: [
-                  if (safeLink) TextButton(
-                    onPressed: () => launchUrl(parsedLink!, mode: LaunchMode.externalApplication),
-                    child: Text(notice['link_label']?.toString().trim().isNotEmpty == true ? notice['link_label'].toString() : 'Learn more'),
-                  ),
-                  if (visible.length > 1) TextButton(
-                    onPressed: () => Navigator.of(context).pushNamed('/announcements'),
-                    child: Text('See all (${visible.length})'),
-                  ),
-                ]),
-              ],
-            ]),
-          )),
-        ]),
-      ),
-    );
-  }
   Widget _buildRemoteNotices() {
     if (!_remoteConfig.maintenanceEnabled && !_remoteConfig.updateAvailable) {
       return const SizedBox.shrink();
@@ -374,7 +310,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _remoteNoticeCard(AppColors colors, IconData icon, String title, String message) {
+  Widget _remoteNoticeCard(
+      AppColors colors, IconData icon, String title, String message) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 10),
@@ -387,8 +324,12 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Icon(icon, color: colors.accent),
         const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(color: colors.text, fontWeight: FontWeight.w800)),
+        Expanded(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title,
+              style:
+                  TextStyle(color: colors.text, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(message, style: TextStyle(color: colors.muted)),
         ])),
@@ -397,7 +338,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadHomeData() async {
-    setState(() => _isLoading = true);
+    if (!_hasLoadedHomeData) setState(() => _isLoading = true);
     try {
       final ownerId = _authService.currentUser?.id ??
           await DatabaseHelper.instance.getOrCreateGuestUserId();
@@ -408,7 +349,8 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _recentFiles = files
             .where(
-              (file) => !(file['kind'] as String? ?? '').startsWith('output_') &&
+              (file) =>
+                  !(file['kind'] as String? ?? '').startsWith('output_') &&
                   file['kind'] != 'qr',
             )
             .take(3)
@@ -416,16 +358,19 @@ class _HomeScreenState extends State<HomeScreen> {
         _studySets = studySets;
         _totalFiles = files
             .where(
-              (file) => !(file['kind'] as String? ?? '').startsWith('output_') &&
+              (file) =>
+                  !(file['kind'] as String? ?? '').startsWith('output_') &&
                   file['kind'] != 'qr',
             )
             .length;
         _totalOutputs = files
             .where(
-              (file) => (file['kind'] as String? ?? '').startsWith('output_') ||
+              (file) =>
+                  (file['kind'] as String? ?? '').startsWith('output_') ||
                   file['kind'] == 'qr',
             )
             .length;
+        _hasLoadedHomeData = true;
         _isLoading = false;
       });
     } catch (e) {
@@ -459,14 +404,12 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async {
           await _loadHomeData();
           await _loadRemoteConfig();
-          await _loadAnnouncements();
         },
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
-                  _buildAnnouncementBanner(),
                   _buildWelcomeCard(),
                   _buildRemoteNotices(),
                   const SizedBox(height: 12),
@@ -546,7 +489,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _HomeAction(
         'QR code',
         Icons.qr_code_scanner_outlined,
-        () => Navigator.of(context).pushNamed('/qr-code'),
+        () async {
+          await Navigator.of(context).pushNamed('/qr-code');
+          if (mounted) await _loadHomeData();
+        },
       ),
       _HomeAction(
         'Text to file',
@@ -556,7 +502,10 @@ class _HomeScreenState extends State<HomeScreen> {
       _HomeAction(
         'My materials',
         Icons.folder_copy_outlined,
-        () => Navigator.of(context).pushNamed('/saved-files'),
+        () async {
+          await Navigator.of(context).pushNamed('/saved-files');
+          if (mounted) await _loadHomeData();
+        },
       ),
     ];
 
@@ -579,8 +528,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   final currentPage = _focusedActionPage;
                   if ((currentPage - _actionInitialPage).abs() >=
                       _actionRecenterThreshold) {
-                    final recenteredPage =
-                        _actionInitialPage + currentPage % actions.length;
+                    final recenteredPage = _actionInitialPage +
+                        (currentPage - _actionInitialPage) % actions.length;
                     if (recenteredPage != currentPage) {
                       pageController.jumpToPage(recenteredPage);
                       setState(() {
@@ -600,6 +549,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemBuilder: (context, page) {
                     final action = actions[page % actions.length];
                     final isFocused = page == _focusedActionPage;
+                    final isEnabled = _actionEnabled(action.label);
                     final colors = AppColors.of(context);
                     final foreground =
                         isFocused ? colors.highlightInk : colors.text;
@@ -620,12 +570,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               duration: const Duration(milliseconds: 250),
                               curve: Curves.easeOutCubic,
                               decoration: BoxDecoration(
-                                color:
-                                    isFocused ? colors.highlight : colors.surface,
+                                color: isFocused
+                                    ? colors.highlight
+                                    : colors.surface,
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
-                                  color:
-                                      isFocused ? colors.highlight : colors.line,
+                                  color: isFocused
+                                      ? colors.highlight
+                                      : colors.line,
                                 ),
                                 boxShadow: isFocused
                                     ? [
@@ -646,8 +598,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                       if (_actionEnabled(action.label)) {
                                         action.onTap();
                                       } else {
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(content: Text('This feature is temporarily disabled by the administrator.')),
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                              content: Text(
+                                                  'This feature is temporarily disabled by the administrator.')),
                                         );
                                       }
                                     } else {
@@ -684,20 +639,47 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ),
                                           child: Icon(
                                             action.icon,
-                                            color:
-                                                isFocused ? foreground : colors.text,
+                                            color: isFocused
+                                                ? foreground
+                                                : colors.text,
                                           ),
                                         ),
-                                        Text(
-                                          action.label,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color: foreground,
-                                            fontSize: 14,
-                                            height: 1.25,
-                                            fontWeight: FontWeight.w800,
-                                          ),
+                                        Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              action.label,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: foreground,
+                                                fontSize: 14,
+                                                height: 1.2,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            if (!isEnabled) ...[
+                                              const SizedBox(height: 3),
+                                              Row(
+                                                children: [
+                                                  Icon(Icons.lock_outline,
+                                                      size: 12,
+                                                      color: colors.muted),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    'Disabled by admin',
+                                                    style: TextStyle(
+                                                        color: colors.muted,
+                                                        fontSize: 10,
+                                                        fontWeight:
+                                                            FontWeight.w700),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
                                         ),
                                       ],
                                     ),
@@ -750,13 +732,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ? 'Private chat that runs on this phone'
         : llama.modelPath!.split(RegExp(r'[\\/]')).last;
     final accent = FigmaAppColors.primary(context);
+    final isEnabled = _remoteConfig.featureEnabled('offline_ai');
 
     return Material(
       color: FigmaAppColors.card(context),
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: _remoteConfig.featureEnabled('offline_ai')
+        onTap: isEnabled
             ? () => Navigator.of(context).pushNamed('/offline-ai')
             : null,
         child: Container(
@@ -793,7 +776,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      modelName,
+                      isEnabled ? modelName : 'Disabled by admin',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -804,7 +787,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right, color: FigmaAppColors.subtext(context)),
+              Icon(isEnabled ? Icons.chevron_right : Icons.lock_outline,
+                  color: FigmaAppColors.subtext(context)),
             ],
           ),
         ),

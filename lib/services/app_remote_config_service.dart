@@ -11,7 +11,7 @@ class AppRemoteConfig {
 
   const AppRemoteConfig({
     this.maintenanceEnabled = false,
-    this.latestVersion = '1.0.25',
+    this.latestVersion = '1.0.26',
     this.minimumSupportedVersion = '1.0.0',
     this.featureFlags = const {},
     this.announcements = const [],
@@ -19,7 +19,7 @@ class AppRemoteConfig {
 
   bool featureEnabled(String key) => featureFlags[key] != false;
 
-  bool get updateAvailable => _compareVersions(latestVersion, '1.0.25') > 0;
+  bool get updateAvailable => _compareVersions(latestVersion, '1.0.26') > 0;
 
   static int _compareVersions(String left, String right) {
     final a = left.split('.').map((part) => int.tryParse(part) ?? 0).toList();
@@ -49,7 +49,7 @@ class AppRemoteConfigService {
     final flags = settings['feature_flags'];
     return AppRemoteConfig(
       maintenanceEnabled: settings['maintenance_enabled'] == true,
-      latestVersion: settings['latest_version']?.toString() ?? '1.0.25',
+      latestVersion: settings['latest_version']?.toString() ?? '1.0.26',
       minimumSupportedVersion:
           settings['minimum_supported_version']?.toString() ?? '1.0.0',
       featureFlags: flags is Map ? Map<String, dynamic>.from(flags) : const {},

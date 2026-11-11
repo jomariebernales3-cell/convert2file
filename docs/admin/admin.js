@@ -28,6 +28,9 @@ const featureDefinitions = [
   ['quiz_generator', 'Quiz generator', 'Allow quiz creation'],
   ['study_guides', 'Study guides', 'Allow study guide creation'],
   ['document_conversion', 'Document conversion', 'Allow document conversion'],
+  ['qr_code', 'QR code', 'Allow QR code scanning and creation'],
+  ['text_to_file', 'Text to file', 'Allow creating files from text'],
+  ['my_materials', 'My materials', 'Allow access to saved files and outputs'],
 ];
 
 function notice(message, isError = false) {
