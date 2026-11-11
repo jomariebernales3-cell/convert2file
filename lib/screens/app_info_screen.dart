@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import '../services/app_share_service.dart';
+import '../theme/app_colors.dart';
 
 class AppInfoScreen extends StatefulWidget {
   const AppInfoScreen({super.key});
@@ -20,54 +19,59 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   static const _additionalInfo = [
     _AdditionalInfo(
       title: 'App Purpose',
-      icon: Icons.flag,
+      icon: Icons.school_outlined,
       details: [
-        'Convert2File helps create structured academic documents from uploaded source files.',
-        'It focuses on direct file conversion, study guide creation, and quiz generation.',
+        'Convert2File helps students and teachers turn lesson files and notes into usable documents, study guides, and quiz drafts on Android.',
+        'It combines on-device tools with optional online account and service features. You can also use a local guest workspace.',
       ],
     ),
     _AdditionalInfo(
       title: 'Supported Files',
       icon: Icons.file_present,
       details: [
-        'PDF, DOCX, and PPTX files can be used as source uploads.',
-        'Generated outputs can be previewed before saving or sharing.',
+        'Source files: PDF, DOCX, PPTX, legacy PPT, and TXT. Legacy PPT files have limited extraction support.',
+        'Create and conversion outputs: DOCX, PDF, HTML, and TXT. QR codes can be saved as PNG images.',
+        'Scanned or image-only PDFs may have little or no extractable text because OCR is not currently provided. Complex layouts may change during conversion.',
       ],
     ),
     _AdditionalInfo(
       title: 'Privacy',
       icon: Icons.privacy_tip,
       details: [
-        'Convert2File runs in local-only mode without online accounts.',
-        'Uploaded files, generated outputs, history, profile details, bug reports, and theme preferences are stored on this device.',
+        'Selected source files are processed by the app and saved materials/history are stored on this device. Core conversion does not upload your documents to Convert2File storage.',
+        'If you sign in, Supabase handles account authentication and account profile data. The app also connects to Supabase for announcements, app controls, and submitted problem reports.',
+        'Problem reports are sent to the Convert2File project. Depending on your choices, a report may include your description, email, app/device details, technical context, and attached files. Chosen attachments are uploaded to private report storage.',
+        'Guest workspace files stay on this device. Web links and online services need an internet connection; offline AI runs on-device after you import a compatible model.',
       ],
     ),
     _AdditionalInfo(
       title: 'Credits',
-      icon: Icons.person,
+      icon: Icons.groups_outlined,
       details: [
-        'Created by Despair(0_0).',
-        'Built with Flutter and local SQLite storage through sqflite.',
+        'Project creator: Despair(0_0).',
+        'Built with Flutter and Dart. Local workspace data uses SQLite; account and app-management services use Supabase.',
+        'Development was AI-assisted with OpenAI Codex. The project creator is responsible for the app and its published content.',
       ],
     ),
     _AdditionalInfo(
       title: 'Capabilities',
-      icon: Icons.auto_awesome,
+      icon: Icons.auto_awesome_outlined,
       details: [
-        'Create converts one source file into a structured output. It is fastest for readable PDFs, DOCX, TXT, and PPTX materials, but complex layouts, formulas, and scanned pages may need review.',
-        'Study Builder lets you create manual reviewers or auto-generate editable quiz drafts from a file, topic, or link.',
-        'Preview & Export shows generated sections, tables, images, and formula references before saving. Edits made in preview can regenerate selected outputs.',
-        'History keeps saved uploads and outputs on the device so files can be opened, downloaded, shared, inspected, or removed later.',
-        'Bug Report saves details, screenshots, and workflow files locally for review. Attach only files needed to reproduce the problem.',
-        'Share App sends the installed APK file directly when Android exposes an installable APK path.',
+        'Convert documents, create files from typed text, build study guides, and draft quizzes. Review generated content and formatting before using it.',
+        'Study guides and quizzes can be created manually. AI-assisted actions require a compatible GGUF model imported on the device; model output can be incorrect.',
+        'The QR tool scans codes and creates QR images. Camera access is needed for scanning.',
+        'My Materials and History let you find and manage locally saved files and outputs. Android may ask for permission when saving images or accessing selected files.',
+        'Sharing offers the installed APK when Android exposes it, the public website link, or a QR code for that link. Installing APKs may require Android to allow installs from the app you use to open the file.',
+        'Online source links require internet access. Offline AI is performed on the device with the imported model, but speed and quality depend on the phone and model.',
       ],
     ),
     _AdditionalInfo(
       title: 'Disclaimer',
       icon: Icons.info,
       details: [
-        'Generated documents are approximate structured outputs.',
-        'Review the final document before submitting or sharing it.',
+        'Conversion and extraction can omit or rearrange content, especially in scanned PDFs, complex layouts, tables, and formulas. OCR is not available in this build.',
+        'AI-generated summaries, study guides, and quiz drafts may contain mistakes or invented details. Check facts, answers, and source material yourself.',
+        'Convert2File is a study and document utility, not a substitute for professional advice or the original course material. Review outputs before relying on, submitting, or sharing them.',
       ],
     ),
   ];
@@ -75,15 +79,15 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   static const _releaseNotes = [
     _ReleaseNote(
       version: '1.0.26.29',
-      date: 'August 13, 2026',
+      date: 'Current build',
       isLatest: true,
       features: [
-        'Switched the app to local-only mode with no online account screens.',
-        'Made profile, history, saved files, study sets, and bug reports use the local device user automatically.',
+        'Refreshed App Info with current supported formats, privacy disclosures, capabilities, and limitations.',
+        'Added APK, website-link, and QR-code choices to Share App in Settings.',
       ],
       fixes: [
-        'Removed online startup initialization so the app can open without account checks.',
-        'Cleaned drawer and settings actions that pointed users to account actions.',
+        'Corrected outdated text that described the app as local-only while it still uses Supabase for online services.',
+        'Updated the release notes to reflect the current account, guest, and online-service behavior.',
       ],
     ),
     _ReleaseNote(
@@ -380,30 +384,17 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('App Info'),
-        actions: [
-          IconButton(
-            tooltip: 'Share App',
-            icon: const Icon(Icons.share),
-            onPressed: _shareApp,
-          ),
-        ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
           _buildProjectCard(context),
-          const SizedBox(height: 20),
-          const Text(
-            'Additional Info',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          const SizedBox(height: 24),
+          _buildSectionHeading(context, 'About the app', 'Purpose, formats, data use, and limitations'),
           const SizedBox(height: 12),
           _buildAdditionalInfoSection(context),
-          const SizedBox(height: 20),
-          const Text(
-            'Update History',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
+          const SizedBox(height: 24),
+          _buildSectionHeading(context, 'Update history', 'What has changed across app versions'),
           const SizedBox(height: 12),
           _buildVersionButtons(context),
           const SizedBox(height: 12),
@@ -414,55 +405,91 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   }
 
   Widget _buildProjectCard(BuildContext context) {
+    final colors = AppColors.of(context);
     return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: _panelDecoration(context),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.line),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.description,
-                  color: Theme.of(context).colorScheme.primary, size: 30),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Convert2File',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  color: colors.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(Icons.description_outlined, color: colors.accent, size: 28),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Convert2File', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 3),
+                    Text('Documents and study tools for Android', style: TextStyle(color: colors.muted)),
+                  ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _metaChip(context, Icons.new_releases_outlined, 'Version 1.0.26.29'),
+              _metaChip(context, Icons.person_outline, 'Despair(0_0)'),
+              _metaChip(context, Icons.code, 'Flutter · Dart'),
+            ],
+          ),
           const SizedBox(height: 14),
-          const _InfoRow(label: 'Current Version', value: '1.0.26.29'),
-          const _InfoRow(label: 'Created by', value: 'Despair(0_0)'),
-          const _InfoRow(label: 'Date Started', value: 'April 15, 2026'),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _shareApp,
-              icon: const Icon(Icons.share),
-              label: const Text('SHARE APP'),
-            ),
+          Text(
+            'Convert lesson files into editable documents and study resources. Choose a section below for details about formats, privacy, and limitations.',
+            style: TextStyle(color: colors.muted, height: 1.45),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _shareApp() async {
-    try {
-      await AppShareService.shareApp();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          backgroundColor: Theme.of(context).colorScheme.error,
-          content: Text('Share failed: $e'),
-        ),
-      );
-    }
+  Widget _metaChip(BuildContext context, IconData icon, String text) {
+    final colors = AppColors.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: colors.surface2,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: colors.line),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: colors.accent),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(color: colors.text, fontSize: 12, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionHeading(BuildContext context, String title, String subtitle) {
+    final colors = AppColors.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 3),
+        Text(subtitle, style: TextStyle(color: colors.muted)),
+      ],
+    );
   }
 
   Widget _buildAdditionalInfoSection(BuildContext context) {
@@ -480,35 +507,14 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   }
 
   Widget _buildAdditionalInfoGrid(BuildContext context) {
-    final rows = <Widget>[];
-
-    for (var i = 0; i < _additionalInfo.length; i += 2) {
-      rows.add(
-        Padding(
-          padding:
-              EdgeInsets.only(bottom: i + 2 < _additionalInfo.length ? 8 : 0),
-          child: Row(
-            children: [
-              Expanded(
-                child: _buildAdditionalInfoTile(context, _additionalInfo[i], i),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: i + 1 < _additionalInfo.length
-                    ? _buildAdditionalInfoTile(
-                        context,
-                        _additionalInfo[i + 1],
-                        i + 1,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Column(children: rows);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (var i = 0; i < _additionalInfo.length; i++)
+          _buildAdditionalInfoTile(context, _additionalInfo[i], i),
+      ],
+    );
   }
 
   Widget _buildAdditionalInfoTile(
@@ -517,66 +523,65 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     int index,
   ) {
     final isSelected = _selectedAdditionalInfoIndex == index;
-    final colorScheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(10),
-      onTap: () => setState(() => _selectedAdditionalInfoIndex = index),
-      child: Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.24)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : Theme.of(context).dividerColor,
+    return Material(
+      color: isSelected ? colors.accent.withValues(alpha: 0.16) : colors.surface,
+      borderRadius: BorderRadius.circular(999),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => setState(() => _selectedAdditionalInfoIndex = index),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: isSelected ? colors.accent : colors.line),
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              info.icon,
-              size: 17,
-              color: isSelected
-                  ? colorScheme.primary
-                  : Theme.of(context).hintColor,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(info.icon, size: 17, color: isSelected ? colors.accent : colors.muted),
+              const SizedBox(width: 7),
+              Text(
                 info.title,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: colors.text,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildAdditionalInfoCard(BuildContext context, _AdditionalInfo info) {
+    final colors = AppColors.of(context);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(info.icon, color: Theme.of(context).colorScheme.primary),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: colors.accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(info.icon, color: colors.accent, size: 21),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   info.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -683,24 +688,20 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     int releaseIndex,
   ) {
     final isSelected = _selectedReleaseIndex == releaseIndex;
-    final colorScheme = Theme.of(context).colorScheme;
+    final colors = AppColors.of(context);
 
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () => setState(() => _selectedReleaseIndex = releaseIndex),
       child: Container(
-        height: 44,
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: isSelected
-              ? colorScheme.primary.withValues(alpha: 0.24)
-              : colorScheme.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected
-                ? colorScheme.primary
-                : Theme.of(context).dividerColor,
-          ),
+              ? colors.accent.withValues(alpha: 0.16)
+              : colors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: isSelected ? colors.accent : colors.line),
         ),
         child: Stack(
           children: [
@@ -711,9 +712,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                   Icon(
                     releaseIndex == 0 ? Icons.new_releases : Icons.history,
                     size: 17,
-                    color: isSelected
-                        ? colorScheme.primary
-                        : Theme.of(context).hintColor,
+                    color: isSelected ? colors.accent : colors.muted,
                   ),
                   const SizedBox(width: 8),
                   Flexible(
@@ -779,8 +778,9 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   }
 
   Widget _buildReleaseCard(BuildContext context, _ReleaseNote note) {
+    final colors = AppColors.of(context);
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: _panelDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -790,16 +790,13 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
               Expanded(
                 child: Text(
                   'Version ${note.version}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               Text(
                 note.date,
                 style: TextStyle(
-                  color: Theme.of(context).hintColor,
+                  color: colors.muted,
                   fontSize: 12,
                 ),
               ),
@@ -829,17 +826,27 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
         const SizedBox(height: 6),
         for (final entry in entries)
           Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: 9),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('- '),
+                Padding(
+                  padding: const EdgeInsets.only(top: 7, right: 9),
+                  child: Container(
+                    width: 5,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.of(context).accent,
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Text(
                     entry,
                     style: TextStyle(
-                      color: Theme.of(context).hintColor,
-                      height: 1.3,
+                      color: AppColors.of(context).muted,
+                      height: 1.45,
                     ),
                   ),
                 ),
@@ -851,45 +858,11 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   }
 
   BoxDecoration _panelDecoration(BuildContext context) {
+    final colors = AppColors.of(context);
     return BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Theme.of(context).dividerColor),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 118,
-            child: Text(
-              label,
-              style: TextStyle(color: Theme.of(context).hintColor),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
+      color: colors.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: colors.line),
     );
   }
 }
