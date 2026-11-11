@@ -21,6 +21,7 @@ let account;
 let role;
 let users = [];
 let reports = [];
+const selectedReportIds = new Set();
 let admins = [];
 let auditEntries = [];
 let announcements = [];
@@ -197,14 +198,31 @@ function openUser(id) {
 function drawReports() {
   const status = $('#report-status').value;
   const matches = reports.filter((r) => !status || r.status === status);
-  $('#reports-body').innerHTML = matches.map((r) => `<tr class="clickable" data-report="${esc(r.id)}"><td><b>${esc(r.area.replaceAll('_', ' '))}</b><small>${esc(r.description.slice(0, 90))}${r.description.length > 90 ? '…' : ''}</small></td><td>${esc(r.reporter_email || users.find((u) => u.id === r.user_id)?.email || 'Guest')}<small>${esc(r.app_version || 'App version unknown')} · ${esc(r.platform || r.device_info || 'Device not provided')}</small></td><td>${esc(shortDate(r.created_at))}</td><td>${badge(r.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No reports found.</td></tr>';
+  const allSelected = matches.length > 0 && matches.every((r) => selectedReportIds.has(r.id));
+  $('#reports-body').innerHTML = matches.map((r) => `<tr class="clickable" data-report="${esc(r.id)}"><td><input class="report-select" type="checkbox" data-report-select="${esc(r.id)}" aria-label="Select report" ${selectedReportIds.has(r.id) ? 'checked' : ''}></td><td><b>${esc(r.area.replaceAll('_', ' '))}</b><small>${esc(r.description.slice(0, 90))}${r.description.length > 90 ? '…' : ''}</small></td><td>${esc(r.reporter_email || users.find((u) => u.id === r.user_id)?.email || 'Guest')}<small>${esc(r.app_version || 'App version unknown')} · ${esc(r.platform || r.device_info || 'Device not provided')}</small></td><td>${esc(shortDate(r.created_at))}</td><td>${badge(r.status)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No reports found.</td></tr>';
+  $('#select-all-reports').checked = allSelected;
+  $('#delete-selected-reports').disabled = selectedReportIds.size === 0;
+  $('#delete-selected-reports').textContent = `Delete selected (${selectedReportIds.size})`;
+}
+
+async function deleteProblemReports(reportIds, { all = false, confirmMessage } = {}) {
+  if (!window.confirm(confirmMessage)) return false;
+  const { data, error } = await client.rpc('admin_delete_problem_reports', {
+    p_report_ids: all ? null : reportIds,
+  });
+  if (error) { notice(error.message, true); return false; }
+  selectedReportIds.clear();
+  await refreshData();
+  const count = Number(data) || 0;
+  notice(`Deleted ${count} report${count === 1 ? '' : 's'}.`);
+  return true;
 }
 
 function openReport(id) {
   const report = reports.find((item) => item.id === id); if (!report) return;
   const reporter = users.find((item) => item.id === report.user_id);
   const context = JSON.stringify(report.context ?? {}, null, 2);
-  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p><details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
+  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p><details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
   $('#save-report').addEventListener('click', async () => {
@@ -214,6 +232,13 @@ function openReport(id) {
     }).eq('id', report.id);
     if (error) { notice(error.message, true); return; }
     $('#report-dialog').close(); await refreshData();
+  });
+  $('#delete-report').addEventListener('click', async () => {
+    const title = report.area.replaceAll('_', ' ');
+    const deleted = await deleteProblemReports([report.id], {
+      confirmMessage: `Delete this ${title} report permanently? This action will be recorded in the audit log.`,
+    });
+    if (deleted) $('#report-dialog').close();
   });
 }
 
@@ -329,6 +354,31 @@ async function init() {
   $('#user-search').addEventListener('input', drawUsers);
   $('#user-status').addEventListener('change', drawUsers);
   $('#report-status').addEventListener('change', drawReports);
+  $('#reports-body').addEventListener('change', (event) => {
+    const checkbox = event.target.closest('[data-report-select]');
+    if (!checkbox) return;
+    if (checkbox.checked) selectedReportIds.add(checkbox.dataset.reportSelect);
+    else selectedReportIds.delete(checkbox.dataset.reportSelect);
+    drawReports();
+  });
+  $('#select-all-reports').addEventListener('change', (event) => {
+    const status = $('#report-status').value;
+    reports.filter((r) => !status || r.status === status).forEach((r) => {
+      if (event.target.checked) selectedReportIds.add(r.id);
+      else selectedReportIds.delete(r.id);
+    });
+    drawReports();
+  });
+  $('#delete-selected-reports').addEventListener('click', () => {
+    const ids = [...selectedReportIds];
+    if (ids.length) deleteProblemReports(ids, {
+      confirmMessage: `Permanently delete ${ids.length} selected report${ids.length === 1 ? '' : 's'}? Each deletion will be recorded in the audit log.`,
+    });
+  });
+  $('#delete-all-reports').addEventListener('click', () => deleteProblemReports([], {
+    all: true,
+    confirmMessage: 'Permanently delete all reports? Each deletion will be recorded in the audit log.',
+  }));
   resetAnnouncementForm();
   $('#announcement-cancel').addEventListener('click', resetAnnouncementForm);
   $('#announcement-form').addEventListener('submit', async (event) => {
@@ -381,7 +431,7 @@ async function init() {
     showPage('app-control');
   });
   $('#users-body').addEventListener('click', (e) => { const row = e.target.closest('[data-user]'); if (row) openUser(row.dataset.user); });
-  $('#reports-body').addEventListener('click', (e) => { const row = e.target.closest('[data-report]'); if (row) openReport(row.dataset.report); });
+  $('#reports-body').addEventListener('click', (e) => { if (e.target.closest('[data-report-select]')) return; const row = e.target.closest('[data-report]'); if (row) openReport(row.dataset.report); });
   $('#team-form').addEventListener('submit', async (event) => {
     event.preventDefault();
     const email = $('#team-email').value.trim().toLowerCase();

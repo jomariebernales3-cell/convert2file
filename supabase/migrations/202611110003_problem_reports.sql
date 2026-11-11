@@ -21,36 +21,21 @@ create table if not exists public.problem_reports (
 
 alter table public.problem_reports enable row level security;
 
+drop policy if exists problem_reports_public_insert on public.problem_reports;
 create policy problem_reports_public_insert
   on public.problem_reports for insert to anon, authenticated
   with check (status = 'new' and (user_id is null or user_id = (select auth.uid())));
 
+drop policy if exists problem_reports_admin_read on public.problem_reports;
 create policy problem_reports_admin_read
   on public.problem_reports for select to authenticated
-  using (
-    exists (
-      select 1 from public.admin_users au
-      join public.profiles p on p.id = au.user_id
-      where au.user_id = (select auth.uid()) and p.account_status = 'active'
-    )
-  );
+  using (public.is_active_admin());
 
+drop policy if exists problem_reports_admin_update on public.problem_reports;
 create policy problem_reports_admin_update
   on public.problem_reports for update to authenticated
-  using (
-    exists (
-      select 1 from public.admin_users au
-      join public.profiles p on p.id = au.user_id
-      where au.user_id = (select auth.uid()) and p.account_status = 'active'
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.admin_users au
-      join public.profiles p on p.id = au.user_id
-      where au.user_id = (select auth.uid()) and p.account_status = 'active'
-    )
-  );
+  using (public.is_active_admin())
+  with check (public.is_active_admin());
 
 grant insert on public.problem_reports to anon, authenticated;
 grant select, update on public.problem_reports to authenticated;
@@ -59,10 +44,12 @@ insert into storage.buckets (id, name, public, file_size_limit)
 values ('report-files', 'report-files', false, 10485760)
 on conflict (id) do update set public = false, file_size_limit = 10485760;
 
+drop policy if exists report_files_client_insert on storage.objects;
 create policy report_files_client_insert
   on storage.objects for insert to anon, authenticated
   with check (bucket_id = 'report-files' and (storage.foldername(name))[1] = 'reports');
 
+drop policy if exists report_files_admin_read on storage.objects;
 create policy report_files_admin_read
   on storage.objects for select to authenticated
   using (
