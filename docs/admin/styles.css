@@ -42,3 +42,12 @@
 .app-info-save-bar>div{display:grid;gap:4px}.app-info-save-bar b{font-size:12px}.app-info-save-bar small{font-size:11px;color:var(--muted)}
 @media(max-width:760px){.app-info-intro{grid-template-columns:48px minmax(0,1fr);gap:13px;padding:17px}.app-info-live-badge{grid-column:2;justify-self:start;padding:7px 9px}.app-info-intro-mark{width:46px;height:46px}.app-info-editor-text-grid{grid-template-columns:1fr}}
 @media(max-width:520px){.app-info-editor-heading{align-items:flex-end}.app-info-editor-heading h2{font-size:16px}.app-info-editor-heading>.button{padding:8px 9px;font-size:11px}.info-editor{padding:16px}.info-editor-heading{gap:8px}.info-editor-heading .button{padding:7px 9px;font-size:11px}.info-editor-index{width:34px;height:34px}.app-info-save-bar{bottom:8px;padding:11px}.app-info-save-bar>div{max-width:58%}.app-info-save-bar .button{padding:10px;font-size:11px}}
+.app-info-content-block{margin-top:18px;padding:18px 20px;border:1px solid var(--line);border-radius:18px;background:var(--surface)}
+.app-info-content-block .app-info-editor-heading{margin:0 0 16px}
+.app-info-history-block .app-info-editor-heading>div{max-width:600px}
+.app-info-history-block .app-info-editor-heading p{margin:2px 0 0;font-size:12px;line-height:1.45}
+.app-info-content-block .info-editor{background:var(--bg)}
+.app-info-empty{display:flex;align-items:center;gap:12px;padding:18px;border:1px dashed var(--line);border-radius:14px;color:var(--muted)}
+.app-info-empty>span{width:38px;height:38px;display:grid;place-items:center;border-radius:12px;background:var(--surface2);color:var(--accent);font-size:20px}
+.app-info-empty>div{display:grid;gap:4px}.app-info-empty b{font-size:12px;color:var(--text)}.app-info-empty small{font-size:11px}
+@media(max-width:680px){.app-info-content-block{padding:15px;border-radius:15px}.app-info-content-block .app-info-editor-heading{align-items:flex-start}.app-info-history-block .app-info-editor-heading{flex-direction:column}.app-info-history-block .app-info-editor-heading>.button{align-self:flex-start}}

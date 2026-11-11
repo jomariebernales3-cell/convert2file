@@ -115,10 +115,15 @@
           <div class="app-info-live-badge"><span></span><div><b>Connected content</b><small>Synced from Supabase</small></div></div>
         </div>
         <p id="app-info-unavailable" class="notice" hidden>App Info storage is unavailable. Apply the admin-managed App Info migration in Supabase, then refresh this page.</p>
-        <div class="app-info-editor-heading"><div><span class="eyebrow">WHAT USERS SEE</span><h2>Information sections</h2></div><button id="add-info-section" class="button">＋ Add section</button></div>
-        <div id="app-info-sections" class="app-info-editors"></div>
-        <div class="app-info-editor-heading"><div><span class="eyebrow">RELEASE DETAILS</span><h2>Update history</h2></div><button id="add-info-release" class="button">＋ Add version</button></div>
-        <div id="app-info-releases" class="app-info-editors"></div>
+        <section class="app-info-content-block" aria-labelledby="app-info-sections-title">
+          <div class="app-info-editor-heading"><div><span class="eyebrow">WHAT USERS SEE</span><h2 id="app-info-sections-title">Information sections</h2></div><button id="add-info-section" class="button">＋ Add section</button></div>
+          <div id="app-info-sections" class="app-info-editors"></div>
+        </section>
+        <section class="app-info-content-block app-info-history-block" aria-labelledby="app-info-history-title">
+          <div class="app-info-editor-heading"><div><span class="eyebrow">RELEASE DETAILS</span><h2 id="app-info-history-title">Update history</h2><p class="muted">Add a version entry with its features and fixes. Users can browse these entries in the app.</p></div><button id="add-info-release" class="button">＋ Add update history</button></div>
+          <div id="app-info-releases" class="app-info-editors"></div>
+          <div id="app-info-releases-empty" class="app-info-empty" hidden><span aria-hidden="true">↗</span><div><b>No update history entries yet</b><small>Add an entry to share version details with app users.</small></div></div>
+        </section>
         <div class="app-info-save-bar"><div><b>Ready to publish your changes?</b><small>Saving updates the App Info content for users.</small></div><button id="save-app-info" class="button primary">Save App Info</button></div>
       </section>
 

@@ -370,6 +370,7 @@ function drawAppControl() {
 function drawAppInfo() {
   const unavailable = !appInfoContent;
   $('#app-info-unavailable').hidden = !unavailable;
+  $('#app-info-releases-empty').hidden = unavailable || appInfoContent.release_notes.length > 0;
   $('#save-app-info').disabled = unavailable;
   $('#add-info-section').disabled = unavailable;
   $('#add-info-release').disabled = unavailable;
@@ -386,7 +387,7 @@ function drawAppInfo() {
     </article>`).join('');
   $('#app-info-releases').innerHTML = appInfoContent.release_notes.map((release, index) => `
     <article class="card info-editor info-editor-release" data-info-release="${index}">
-      <div class="info-editor-heading"><div class="info-editor-title"><span class="info-editor-index" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><span class="eyebrow">UPDATE HISTORY</span><h3>Version entry ${index + 1}</h3></div></div><button class="button danger" data-remove-info-release="${index}" aria-label="Remove version entry ${index + 1}">Remove</button></div>
+      <div class="info-editor-heading"><div class="info-editor-title"><span class="info-editor-index" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><span class="eyebrow">UPDATE HISTORY</span><h3>${release.version ? `Version ${esc(release.version)}` : `New update entry ${index + 1}`}</h3></div></div><button class="button danger" data-remove-info-release="${index}" aria-label="Remove update history entry ${index + 1}">Remove</button></div>
       <div class="version-fields"><label>Version<input data-release-version maxlength="32" value="${esc(release.version)}" required></label><label>Date or label<input data-release-date maxlength="64" value="${esc(release.date)}" required></label></div>
       <div class="info-editor-text-grid"><label>Features <small>One item per line.</small><textarea data-release-features rows="4">${esc((release.features ?? []).join('\n'))}</textarea></label>
       <label>Fixes and updates <small>One item per line.</small><textarea data-release-fixes rows="4">${esc((release.fixes ?? []).join('\n'))}</textarea></label></div>
@@ -484,6 +485,7 @@ async function init() {
     appInfoContent.release_notes.forEach((entry) => { entry.is_latest = false; });
     appInfoContent.release_notes.unshift({ version: '', date: '', is_latest: true, features: [], fixes: [] });
     drawAppInfo();
+    $('#app-info-releases [data-release-version]')?.focus();
   });
   $('#app-info-sections').addEventListener('click', (event) => {
     const button = event.target.closest('[data-remove-info-section]');
