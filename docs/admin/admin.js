@@ -224,7 +224,7 @@ function openReport(id) {
   const report = reports.find((item) => item.id === id); if (!report) return;
   const reporter = users.find((item) => item.id === report.user_id);
   const context = JSON.stringify(report.context ?? {}, null, 2);
-  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p><details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
+  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p><details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
   $('#save-report').addEventListener('click', async () => {
@@ -232,7 +232,12 @@ function openReport(id) {
       status: $('#detail-status').value,
       admin_note: $('#detail-notes').value,
     }).eq('id', report.id);
-    if (error) { notice(error.message, true); return; }
+    if (error) {
+      const errorNode = #report-save-error;
+      errorNode.textContent = error.message;
+      errorNode.hidden = false;
+      return;
+    }
     $('#report-dialog').close(); await refreshData();
   });
   $('#delete-report').addEventListener('click', async () => {
