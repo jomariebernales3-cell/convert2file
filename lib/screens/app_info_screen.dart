@@ -803,7 +803,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                 right: 0,
                 child: CustomPaint(
                   size: const Size(18, 18),
-                  painter: _LatestRibbonPainter(colorScheme.primary),
+                  painter: _LatestRibbonPainter(colors.accent),
                 ),
               ),
           ],
