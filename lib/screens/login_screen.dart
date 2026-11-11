@@ -51,7 +51,7 @@ class _LoginScreenState extends State<LoginScreen> {
         if (!mounted) return;
         if (!signedIn) {
           _showMessage(
-              'Check your email to confirm your account, then sign in.');
+              'Check your inbox and Spam/Junk for the confirmation email. If missing, sign in and tap Resend confirmation email.');
           setState(() => _isSignUp = false);
           return;
         }
@@ -92,7 +92,7 @@ class _LoginScreenState extends State<LoginScreen> {
               style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer),
             ),
             TextButton(
-              onPressed: _isBusy ? null : _resendConfirmationEmail,
+              onPressed: _resendConfirmationEmail,
               child: const Text('Resend confirmation email'),
             ),
           ],
@@ -102,6 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _resendConfirmationEmail() async {
+    if (_isBusy) return;
     setState(() => _isBusy = true);
     try {
       await _auth.resendConfirmationEmail(email: _emailController.text);

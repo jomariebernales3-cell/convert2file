@@ -9,7 +9,8 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
 1. Create the first Owner account in the new project's Auth settings (email/password).
 2. In the new project's SQL Editor, run `supabase/migrations/202611090001_admin_portal.sql` from the repository.
 3. Run `supabase/migrations/202611100001_admin_controls.sql` to add announcement and app-control storage.
-4. In SQL Editor, bootstrap the first Owner, replacing the email:
+4. Run `supabase/migrations/202611110002_announcements.sql` to create the `public.announcements` table used by the Announcements page.
+5. In SQL Editor, bootstrap the first Owner, replacing the email:
 
    ```sql
    insert into public.admin_users(user_id, role)
@@ -17,9 +18,9 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
    where lower(email) = lower('owner@example.com');
    ```
 
-5. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
-6. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
-7. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
+6. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
+7. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
+8. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
 
 ## First admin
 

@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/database_helper.dart';
 import 'dashboard_screen.dart';
 import '../services/auth_service.dart';
+import '../services/announcement_service.dart';
 import '../services/app_remote_config_service.dart';
 import '../services/report_service.dart';
 import '../services/document_parser.dart';
@@ -68,6 +69,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   int _actionRailIndex = 0;
   AppRemoteConfig _remoteConfig = const AppRemoteConfig();
   RealtimeChannel? _appControlChannel;
+  RealtimeChannel? _announcementChannel;
+  final AnnouncementService _announcementService = AnnouncementService();
+  int _unreadAnnouncementCount = 0;
 
   @override
   void initState() {
@@ -76,7 +80,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadHomeData();
     _loadChatHistory();
     _loadRemoteConfig();
+    _loadUnreadAnnouncementCount(forceRefresh: true);
     _subscribeToAppControlChanges();
+    _subscribeToAnnouncementChanges();
     ReportService().retryPending();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTermsAgreement());
   }
@@ -204,6 +210,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (channel != null) {
       unawaited(Supabase.instance.client.removeChannel(channel));
     }
+    final announcementChannel = _announcementChannel;
+    if (announcementChannel != null) {
+      unawaited(Supabase.instance.client.removeChannel(announcementChannel));
+    }
     _chatController.dispose();
     _chatScrollController.dispose();
     _actionPageController?.dispose();
@@ -260,6 +270,23 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> _loadUnreadAnnouncementCount({bool forceRefresh = false}) async {
+    try {
+      final results = await Future.wait([
+        _announcementService.fetchActive(forceRefresh: forceRefresh),
+        _announcementService.seenIds(),
+      ]);
+      final announcements = results[0] as List<Map<String, dynamic>>;
+      final seenIds = results[1] as Set<String>;
+      final unreadCount = announcements
+          .where((item) => !seenIds.contains(item['id']?.toString()))
+          .length;
+      if (mounted) setState(() => _unreadAnnouncementCount = unreadCount);
+    } catch (_) {
+      // Keep the indicator quiet if local cache or network access is unavailable.
+    }
+  }
+
   void _subscribeToAppControlChanges() {
     if (!SupabaseConfig.isConfigured) return;
     _appControlChannel = Supabase.instance.client
@@ -273,10 +300,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         .subscribe();
   }
 
+  void _subscribeToAnnouncementChanges() {
+    if (!SupabaseConfig.isConfigured) return;
+    _announcementChannel = Supabase.instance.client
+        .channel('announcements-live')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'announcements',
+          callback: (_) =>
+              unawaited(_loadUnreadAnnouncementCount(forceRefresh: true)),
+        )
+        .subscribe();
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       unawaited(_loadRemoteConfig());
+      unawaited(_loadUnreadAnnouncementCount(forceRefresh: true));
     }
   }
 
@@ -395,15 +437,74 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       showProfile: false,
       showBottomNav: false,
       actions: [
-        FigmaIconButton(
-          icon: Icons.settings_outlined,
-          onPressed: () => Navigator.of(context).pushNamed('/settings'),
+        Stack(
+          clipBehavior: Clip.none,
+          children: [
+            FigmaIconButton(
+              icon: Icons.settings_outlined,
+              onPressed: () async {
+                await Navigator.of(context).pushNamed('/settings');
+                await _loadUnreadAnnouncementCount();
+              },
+            ),
+            if (_unreadAnnouncementCount > 0)
+              Positioned(
+                top: -3,
+                right: -3,
+                child: IgnorePointer(
+                  child: Semantics(
+                    label: 'Unread announcements: ' + _unreadAnnouncementCount.toString(),
+                    child: ExcludeSemantics(
+                      child: _unreadAnnouncementCount == 1
+                          ? Container(
+                              width: 11,
+                              height: 11,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.error,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: FigmaAppColors.bg(context),
+                                  width: 1.5,
+                                ),
+                              ),
+                            )
+                          : Container(
+                              constraints: const BoxConstraints(
+                                minWidth: 19,
+                                minHeight: 19,
+                              ),
+                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.error,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: FigmaAppColors.bg(context),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Text(
+                                _unreadAnnouncementCount > 99 ? '99+' : _unreadAnnouncementCount.toString(),
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.onError,
+                                  fontSize: 10,
+                                  height: 1,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
       child: RefreshIndicator(
         onRefresh: () async {
           await _loadHomeData();
           await _loadRemoteConfig();
+          await _loadUnreadAnnouncementCount();
         },
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())

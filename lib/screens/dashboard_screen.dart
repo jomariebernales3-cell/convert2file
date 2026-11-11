@@ -1,9 +1,13 @@
+import '../widgets/report_problem_entry.dart';
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as path;
 import '../services/file_storage.dart';
+import '../services/app_remote_config_service.dart';
+import '../services/supabase_config.dart';
 import '../services/document_parser.dart';
 import '../services/data_extractor.dart';
 import '../services/template_engine.dart';
@@ -27,12 +31,15 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with WidgetsBindingObserver {
   final _outputNameController = TextEditingController();
 
   File? _dataFile;
   String? _dataFileName;
   int? _selectedCreateActionIndex;
+  AppRemoteConfig _remoteConfig = const AppRemoteConfig();
+  RealtimeChannel? _appControlChannel;
 
   bool _isLoading = false;
   String _statusMessage = '';
@@ -43,6 +50,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
   DateTime _lastProgressUpdate = DateTime.now();
   DateTime _conversionStartedAt = DateTime.now();
   Timer? _progressTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_loadRemoteConfig());
+    _subscribeToAppControlChanges();
+  }
+
+  Future<void> _loadRemoteConfig() async {
+    try {
+      final config = await const AppRemoteConfigService().load();
+      if (mounted) setState(() => _remoteConfig = config);
+    } catch (_) {
+      // Keep local tools available when remote settings cannot be reached.
+    }
+  }
+
+  void _subscribeToAppControlChanges() {
+    if (!SupabaseConfig.isConfigured) return;
+    _appControlChannel = Supabase.instance.client
+        .channel('dashboard-app-control-settings-live')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'app_control_settings',
+          callback: (_) => unawaited(_loadRemoteConfig()),
+        )
+        .subscribe();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) unawaited(_loadRemoteConfig());
+  }
 
   String _styleProfile = 'academic';
   String _warningAction = 'sanitize';
@@ -64,6 +106,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    final channel = _appControlChannel;
+    if (channel != null) unawaited(Supabase.instance.client.removeChannel(channel));
     _progressTimer?.cancel();
     _outputNameController.dispose();
     super.dispose();
@@ -196,6 +241,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fileType: targetExtension,
                 fileSizeBytes: outputSize,
                 notes: result.notes,
+                sourceFilePath: _dataFile?.path,
+                reportContext: {
+                  'mode': 'normal',
+                  'source_ext': _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
+                  'target_ext': targetExtension,
+                  'style_profile': _styleProfile,
+                  'selected_options': {
+                    'paper_size': _paperSize,
+                    'orientation': 'auto',
+                    'margins': _marginPreset,
+                    'line_spacing': _lineSpacing,
+                    'font': _fontFamily,
+                    'clean_grammar': _warningAction,
+                    'summarize': _summarize,
+                    'preserve_layout': _preserveSourceLayout,
+                  },
+                  'file_sizes_bytes': {'source': _dataFile?.lengthSync(), 'output': outputSize},
+                },
               ),
             ),
           );
@@ -423,6 +486,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
               outputPaths: outputPaths,
               mapping: mappingResults,
               options: options,
+              sourceFilePath: _dataFile?.path,
+              reportContext: {
+                'mode': 'advanced',
+                'source_ext': _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
+                'style_profile': _styleProfile,
+                'selected_options': {
+                  'paper_size': _paperSize,
+                  'orientation': 'auto',
+                  'margins': _marginPreset,
+                  'line_spacing': _lineSpacing,
+                  'font': _fontFamily,
+                  'clean_grammar': _warningAction,
+                  'summarize': _summarize,
+                  'preserve_layout': _preserveSourceLayout,
+                },
+              },
             ),
           ),
         );
@@ -502,6 +581,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
           backgroundColor: Theme.of(context).colorScheme.errorContainer,
           content: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
           behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Report this problem',
+            onPressed: () => openReportProblem(
+              context,
+              area: 'conversion',
+              sourceFilePath: _dataFile?.path,
+              contextInfo: {
+                'error': message.length > 500 ? message.substring(0, 500) : message,
+                'mode': _conversionMode,
+                'source_ext': _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
+                'target_ext': _selectedFormats.isEmpty ? null : _selectedFormats.first,
+                'style_profile': _styleProfile,
+                'selected_options': {'paper_size': _paperSize, 'orientation': 'auto', 'margins': _marginPreset, 'line_spacing': _lineSpacing, 'font': _fontFamily, 'clean_grammar': _warningAction, 'summarize': _summarize, 'preserve_layout': _preserveSourceLayout},
+              },
+            ),
+          ),
         ),
       );
     }
@@ -705,31 +800,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
             builder: (_) => const DashboardScreen(conversionOnly: true),
           ),
         ),
+        featureFlag: 'document_conversion',
       ),
       _CreateAction(
         'Create Study Guide',
         Icons.menu_book_outlined,
         () => Navigator.of(context).pushNamed('/study-builder'),
+        featureFlag: 'study_guides',
       ),
       _CreateAction(
         'Generate Quiz',
         Icons.quiz_outlined,
         () => Navigator.of(context).pushNamed('/generate-quiz'),
+        featureFlag: 'quiz_generator',
       ),
       _CreateAction(
         'QR Code',
         Icons.qr_code_scanner_outlined,
         () => Navigator.of(context).pushNamed('/qr-code'),
+        featureFlag: 'qr_code',
       ),
       _CreateAction(
         'Text to File',
         Icons.text_snippet_outlined,
         () => Navigator.of(context).pushNamed('/text-to-file'),
+        featureFlag: 'text_to_file',
       ),
       _CreateAction(
         'My Materials',
         Icons.folder_copy_outlined,
         () => Navigator.of(context).pushNamed('/saved-files'),
+        featureFlag: 'my_materials',
       ),
     ];
 
@@ -758,9 +859,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           itemBuilder: (context, index) {
             final action = actions[index];
             final isSelected = _selectedCreateActionIndex == index;
+            final isEnabled = action.featureFlag == null ||
+                _remoteConfig.featureEnabled(action.featureFlag!);
             final colors = Theme.of(context).colorScheme;
             return InkWell(
               onTap: () {
+                if (!isEnabled) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'This feature is temporarily disabled by the administrator.',
+                      ),
+                    ),
+                  );
+                  return;
+                }
                 setState(() => _selectedCreateActionIndex = index);
                 action.onTap();
               },
@@ -789,20 +902,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Row(
                   children: [
-                    Icon(action.icon, color: colors.primary),
+                    Icon(
+                      action.icon,
+                      color: isEnabled
+                          ? colors.primary
+                          : FigmaAppColors.subtext(context),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(
-                        action.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: isSelected
-                              ? colors.primary
-                              : FigmaAppColors.text(context),
-                          fontWeight: FontWeight.w800,
-                          fontSize: 13,
-                        ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            action.label,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: !isEnabled
+                                  ? FigmaAppColors.subtext(context)
+                                  : isSelected
+                                      ? colors.primary
+                                      : FigmaAppColors.text(context),
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13,
+                            ),
+                          ),
+                          if (!isEnabled)
+                            Text(
+                              'Disabled by admin',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: FigmaAppColors.subtext(context),
+                                fontSize: 9,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
                   ],
@@ -1447,6 +1584,12 @@ class _CreateAction {
   final String label;
   final IconData icon;
   final VoidCallback onTap;
+  final String? featureFlag;
 
-  const _CreateAction(this.label, this.icon, this.onTap);
+  const _CreateAction(
+    this.label,
+    this.icon,
+    this.onTap, {
+    this.featureFlag,
+  });
 }

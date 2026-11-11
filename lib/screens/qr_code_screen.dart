@@ -1,4 +1,5 @@
 import 'dart:ui' as ui;
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -10,9 +11,15 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../widgets/figma_app_chrome.dart';
+import '../widgets/report_problem_entry.dart';
 import '../theme/app_colors.dart';
+import '../core/database_helper.dart';
+import '../services/auth_service.dart';
+import '../services/file_storage.dart';
+import 'history_screen.dart';
 
 class QrCodeScreen extends StatefulWidget {
   const QrCodeScreen({super.key});
@@ -29,6 +36,7 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
   bool _handledScan = false;
   bool _isReadingImage = false;
   bool _isSaving = false;
+  bool _isSaved = false;
   bool _isGenerated = false;
   bool _isCameraReady = false;
   bool _isCheckingCamera = true;
@@ -162,40 +170,176 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
     setState(() {
       _result = value;
       _isGenerated = true;
+      _isSaved = false;
     });
   }
 
   Future<void> _saveGeneratedQr() async {
     final value = _result;
-    if (value == null) return;
+    if (value == null || _isSaving || _isSaved) return;
     setState(() => _isSaving = true);
+    String? temporaryPath;
     try {
+      final userId = AuthService().currentUser?.id ??
+          await DatabaseHelper.instance.getOrCreateGuestUserId();
+      final wifiPayload = value.startsWith('WIFI:');
+      final wifiName = RegExp(r'(?:^|;)S:((?:\\.|[^;])*)').firstMatch(value)?.group(1)
+          ?.replaceAll(r'\;', ';');
+      final qrType = wifiPayload ? 'wifi' : (_isLink ? 'link' : 'text');
+      final metadataContent = wifiPayload ? (wifiName ?? 'Wi-Fi network') : value;
+      final existing = await DatabaseHelper.instance.findQrOutputByContent(
+        userId: userId,
+        content: metadataContent,
+      );
+      if (existing != null) {
+        if (mounted) {
+          setState(() => _isSaved = true);
+          _showMessage('Already saved');
+        }
+        return;
+      }
+      final qrCode = QrCode.fromData(
+        data: value,
+        errorCorrectLevel: QrErrorCorrectLevel.M,
+      );
       final painter = QrPainter(
         data: value,
         version: QrVersions.auto,
         errorCorrectionLevel: QrErrorCorrectLevel.M,
         gapless: true,
       );
+      const imageSize = 1024.0;
+      final moduleSize = imageSize / (qrCode.moduleCount + 8);
+      final quietZone = moduleSize * 4;
       final recorder = ui.PictureRecorder();
       final canvas = Canvas(recorder);
       canvas.drawColor(Colors.white, BlendMode.src);
-      painter.paint(canvas, const Size(1024, 1024));
+      canvas.save();
+      canvas.translate(quietZone, quietZone);
+      painter.paint(canvas, Size(imageSize - quietZone * 2, imageSize - quietZone * 2));
+      canvas.restore();
       final image = await recorder.endRecording().toImage(1024, 1024);
       final data = await image.toByteData(format: ui.ImageByteFormat.png);
       image.dispose();
       if (data == null) throw StateError('Could not create the QR image.');
-      await Gal.putImageBytes(
+      final tempDir = await getTemporaryDirectory();
+      final now = DateTime.now();
+      String two(int value) => value.toString().padLeft(2, '0');
+      final originalName = 'QR_${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}${two(now.second)}.png';
+      temporaryPath = '${tempDir.path}${Platform.pathSeparator}convert2file_qr_${now.millisecondsSinceEpoch}.png';
+      await File(temporaryPath).writeAsBytes(
         data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
-        name: 'convert2file_qr_${DateTime.now().millisecondsSinceEpoch}.png',
+        flush: true,
       );
-      if (mounted) _showMessage('QR code saved to your gallery.');
-    } catch (e) {
-      if (mounted) _showMessage('Could not save QR image: $e', error: true);
+      await FileStorage.saveOutputFile(
+        temporaryPath,
+        'qr',
+        originalName,
+        userId: userId,
+        metadata: {
+          'qr_type': qrType,
+          'content': metadataContent,
+          'created_at': now.toIso8601String(),
+        },
+      );
+      if (mounted) setState(() => _isSaved = true);
+
+      try {
+        var allowed = await Gal.hasAccess(toAlbum: true);
+        if (!allowed) allowed = await Gal.requestAccess(toAlbum: true);
+        if (!allowed) {
+          _showSaveMessage(
+            'Saved to Outputs. Photos permission was denied',
+            action: 'Open settings',
+            onAction: openAppSettings,
+          );
+        } else {
+          await Gal.putImage(temporaryPath, album: 'Convert2File');
+          _showSaveMessage(
+            'Saved to Photos and Outputs',
+            action: 'View',
+            onAction: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const HistoryScreen(savedFilesMode: true, initialSection: 'outputs'),
+            )),
+          );
+        }
+      } on GalException catch (error) {
+        debugPrint('[QR] Photos save failed: $error');
+        if (error.type == GalExceptionType.accessDenied) {
+          _showSaveMessage(
+            'Saved to Outputs. Photos permission was denied',
+            action: 'Open settings',
+            onAction: openAppSettings,
+          );
+        } else {
+          final reason = switch (error.type) {
+            GalExceptionType.notEnoughSpace => 'There is not enough space in Photos.',
+            GalExceptionType.notSupportedFormat => 'Photos does not support this image format.',
+            _ => 'Photos could not save the image.',
+          };
+          _showSaveMessage(
+            'Saved to Outputs. $reason',
+            action: 'View',
+            onAction: () => Navigator.of(context).push(MaterialPageRoute<void>(
+              builder: (_) => const HistoryScreen(savedFilesMode: true, initialSection: 'outputs'),
+            )),
+          );
+        }
+      } catch (error) {
+        debugPrint('[QR] Photos save failed: $error');
+        _showSaveMessage(
+          'Saved to Outputs. Photos could not save the image.',
+          action: 'View',
+          onAction: () => Navigator.of(context).push(MaterialPageRoute<void>(
+            builder: (_) => const HistoryScreen(savedFilesMode: true, initialSection: 'outputs'),
+          )),
+        );
+      }
+    } catch (error) {
+      debugPrint('[QR] Output save failed: $error');
+      if (mounted) _showMessage('Could not save the QR code to Outputs.', error: true);
     } finally {
+      if (temporaryPath != null) {
+        try { await File(temporaryPath).delete(); } catch (error) { debugPrint('[QR] Temp cleanup failed: $error'); }
+      }
       if (mounted) setState(() => _isSaving = false);
     }
   }
 
+  void _showSaveMessage(String text, {required String action, required VoidCallback onAction}) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final notification = messenger.showSnackBar(SnackBar(
+      duration: const Duration(seconds: 5),
+      behavior: SnackBarBehavior.floating,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(text),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: () {
+                  messenger.hideCurrentSnackBar();
+                  onAction();
+                },
+                style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
+                child: Text(action),
+              ),
+              IconButton(
+                tooltip: 'Dismiss notification',
+                onPressed: messenger.hideCurrentSnackBar,
+                icon: const Icon(Icons.close_rounded),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ));
+    Future<void>.delayed(const Duration(seconds: 5), notification.close);
+  }
   Future<void> _copyResult() async {
     final value = _result;
     if (value == null) return;
@@ -269,6 +413,14 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
               const SizedBox(height: 20),
               _buildResult(),
             ],
+            const SizedBox(height: 12),
+            ReportProblemEntry(
+              area: 'qr_code',
+              contextInfo: {
+                'action': _tab == 0 ? 'scan' : (_tab == 1 ? 'from image' : 'create'),
+                'qr_type': _tab == 2 ? (_isLink ? 'link' : 'QR') : 'scanned QR',
+              },
+            ),
           ],
         ),
       ),
@@ -370,6 +522,7 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
             minLines: 4,
             maxLines: 7,
             decoration: const InputDecoration(hintText: 'Link or text', alignLabelWithHint: true),
+            onChanged: (_) { if (_isGenerated || _isSaved) setState(() { _isSaved = false; _isGenerated = false; _result = null; }); },
           ),
           const SizedBox(height: 12),
           FigmaPrimaryButton(label: 'Create QR code', onPressed: _createQr),
@@ -387,25 +540,44 @@ class _QrCodeScreenState extends State<QrCodeScreen> {
             child: Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: FigmaAppColors.border(context)),
               ),
               child: QrImageView(
                 data: _result!,
                 size: 220,
-                backgroundColor: AppColors.of(context).background,
+                backgroundColor: Colors.white,
                 errorCorrectionLevel: QrErrorCorrectLevel.M,
-                eyeStyle: QrEyeStyle(color: AppColors.of(context).text),
-                dataModuleStyle: QrDataModuleStyle(color: AppColors.of(context).text),
+                eyeStyle: const QrEyeStyle(color: Colors.black),
+                dataModuleStyle: const QrDataModuleStyle(color: Colors.black),
               ),
             ),
           ),
           const SizedBox(height: 12),
           if (_isGenerated)
-            FigmaPrimaryButton(
-              label: _isSaving ? 'Saving QR...' : 'Save QR as PNG',
-              icon: Icons.download_rounded,
-              onPressed: _isSaving ? null : _saveGeneratedQr,
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _isSaving || _isSaved ? null : _saveGeneratedQr,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: FigmaAppColors.primary(context),
+                  foregroundColor: FigmaAppColors.primaryText(context),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                ),
+                child: _isSaving
+                    ? Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: FigmaAppColors.primaryText(context))),
+                        const SizedBox(width: 10),
+                        const Text('Saving...'),
+                      ])
+                    : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Icon(_isSaved ? Icons.check_rounded : Icons.save_alt_rounded, size: 18),
+                        const SizedBox(width: 8),
+                        Text(_isSaved ? 'Saved' : 'Save'),
+                      ]),
+              ),
             )
           else ...[
             TextField(

@@ -319,6 +319,8 @@ class DatabaseHelper {
     required int userId,
     required int page,
     required int pageSize,
+    String sort = 'newest',
+    String typeFilter = 'all',
   }) async {
     final db = await instance.database;
     final isStudySets = kind == 'sets';
@@ -331,6 +333,19 @@ class DatabaseHelper {
         where.add("(substr(kind, 1, 7) = 'output_' OR kind = 'qr')");
       } else {
         where.add("substr(kind, 1, 7) != 'output_'");
+      }
+      switch (typeFilter) {
+        case 'qr':
+          where.add("kind = 'qr'");
+          break;
+        case 'image':
+          where.add("LOWER(COALESCE(extension, '')) IN ('png', 'jpg', 'jpeg', 'gif', 'webp')");
+          break;
+        case 'all':
+          break;
+        default:
+          where.add("LOWER(COALESCE(extension, '')) = ?");
+          whereArgs.add(typeFilter.toLowerCase());
       }
     }
 
@@ -351,9 +366,16 @@ class DatabaseHelper {
 
     final whereSql = where.join(' AND ');
     final offset = page * pageSize;
+    final nameColumn = isStudySets ? 'title' : 'original_name';
+    final orderBy = switch (sort) {
+      'oldest' => 'created_at ASC, id ASC',
+      'az' => "LOWER(COALESCE($nameColumn, '')) ASC, created_at DESC, id DESC",
+      'za' => "LOWER(COALESCE($nameColumn, '')) DESC, created_at DESC, id DESC",
+      _ => 'created_at DESC, id DESC',
+    };
     final items = await db.rawQuery(
       'SELECT * FROM $table WHERE $whereSql '
-      'ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?',
+      'ORDER BY $orderBy LIMIT ? OFFSET ?',
       [...whereArgs, pageSize, offset],
     );
     final countRows = await db.rawQuery(

@@ -1,3 +1,4 @@
+import '../widgets/report_problem_entry.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -14,6 +15,8 @@ class NormalResultScreen extends StatefulWidget {
   final String fileType;
   final int fileSizeBytes;
   final List<String> notes;
+  final String? sourceFilePath;
+  final Map<String, dynamic> reportContext;
 
   const NormalResultScreen({
     super.key,
@@ -22,6 +25,8 @@ class NormalResultScreen extends StatefulWidget {
     required this.fileType,
     required this.fileSizeBytes,
     this.notes = const [],
+    this.sourceFilePath,
+    this.reportContext = const {},
   });
 
   @override
@@ -178,6 +183,19 @@ class _NormalResultScreenState extends State<NormalResultScreen> {
               onPressed: _isBusy || !fileExists ? null : _share,
               icon: const Icon(Icons.share_outlined),
               label: const Text('Share'),
+            ),
+            const SizedBox(height: 8),
+            ReportProblemEntry(
+              area: 'conversion',
+              prompt: 'Something wrong with the result?',
+              sourceFilePath: widget.sourceFilePath,
+              outputFilePath: widget.filePath,
+              contextInfo: {
+                ...widget.reportContext,
+                'target_ext': widget.fileType,
+                'output_size_bytes': widget.fileSizeBytes,
+                'notes_or_warnings': widget.notes,
+              },
             ),
           ],
         ),

@@ -1,3 +1,4 @@
+import '../widgets/report_problem_entry.dart';
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -16,12 +17,16 @@ class PreviewScreen extends StatefulWidget {
   final Map<String, String> outputPaths;
   final Map<String, dynamic> mapping;
   final GenerationOptions options;
+  final String? sourceFilePath;
+  final Map<String, dynamic> reportContext;
 
   const PreviewScreen({
     super.key,
     required this.outputPaths,
     required this.mapping,
     required this.options,
+    this.sourceFilePath,
+    this.reportContext = const {},
   });
 
   @override
@@ -198,8 +203,9 @@ class _PreviewScreenState extends State<PreviewScreen> {
   }
 
   void _showError(String message) {
+    final detail = message.length > 500 ? message.substring(0, 500) : message;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message)),
+      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message), action: SnackBarAction(label: 'Report this problem', onPressed: () => openReportProblem(context, area: 'conversion', sourceFilePath: widget.sourceFilePath, outputFilePath: _outputPaths[_selectedFormat], contextInfo: {...widget.reportContext, 'error': detail, 'target_ext': _selectedFormat}))),
     );
   }
 
@@ -1134,7 +1140,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
         border: Border(top: BorderSide(color: Theme.of(context).dividerColor)),
       ),
       child: SafeArea(
-        child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+          SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
@@ -1235,6 +1244,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ),
             ],
           ),
+          ),
+          const SizedBox(height: 4),
+          ReportProblemEntry(area: 'conversion', prompt: 'Something wrong with the result?', sourceFilePath: widget.sourceFilePath, outputFilePath: _outputPaths[_selectedFormat], contextInfo: {...widget.reportContext, 'mode': 'advanced', 'target_ext': _selectedFormat, 'style_profile': widget.options.styleProfile}),
+          ],
         ),
       ),
     );

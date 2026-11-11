@@ -5,6 +5,7 @@ import '../models/generation_options.dart';
 import '../services/math_formula_service.dart';
 import '../services/output_generator.dart';
 import '../widgets/figma_app_chrome.dart';
+import '../widgets/report_problem_entry.dart';
 import 'preview_screen.dart';
 
 class TextToFileScreen extends StatefulWidget {
@@ -207,6 +208,8 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                     label: _isConverting ? 'Converting...' : 'Convert text',
                     onPressed: _isConverting ? null : _convert,
                   ),
+                  const SizedBox(height: 12),
+                  ReportProblemEntry(area: 'text_to_file', contextInfo: {'format': _format, 'style': _style}),
                 ],
               ),
             ),

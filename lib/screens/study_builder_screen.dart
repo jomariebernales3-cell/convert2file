@@ -14,6 +14,7 @@ import '../services/document_parser.dart';
 import '../services/local_llama_service.dart';
 import '../services/offline_ai_task_service.dart';
 import '../widgets/figma_app_chrome.dart';
+import '../widgets/report_problem_entry.dart';
 
 enum StudyQuestionType {
   trueFalse,
@@ -866,7 +867,17 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                   ] else ...[
                     _buildStudyReader(),
                   ],
-                  const SizedBox(height: 80),
+                  ReportProblemEntry(
+                    area: widget.generateQuizOnly ? 'quiz' : 'study_guide',
+                    contextInfo: {
+                      'source_type': _autoFile?.name ?? _studyGuideFile?.name ?? 'manual',
+                      'ai_used': _builderMode == _StudyBuilderMode.ai,
+                      'model_name': LocalLlamaService.instance.modelPath?.split(RegExp(r'[\\\\/]')).last,
+                      'step': _aiProgressStatus.isEmpty ? 'builder' : _aiProgressStatus,
+                    },
+                    sourceFilePath: _autoFile?.path ?? _studyGuideFile?.path,
+                  ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),

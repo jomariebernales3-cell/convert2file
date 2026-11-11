@@ -8,6 +8,10 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Convert2File</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Convert2File saves QR images to your Photos album when you choose Save.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Convert2File needs Photos access to add QR images to your Convert2File album.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

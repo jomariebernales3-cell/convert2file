@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/local_llama_service.dart';
+import '../widgets/report_problem_entry.dart';
 import '../widgets/figma_app_chrome.dart';
 
 class AiModelScreen extends StatefulWidget {
@@ -288,7 +289,8 @@ class _AiModelScreenState extends State<AiModelScreen> {
                         ],
                       ),
                     ),
-                    const SizedBox(height: 80),
+                    ReportProblemEntry(area: 'offline_ai', contextInfo: {'model_file_name': modelName, 'model_loaded': _llama.isLoaded, 'last_error_text': null}),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),

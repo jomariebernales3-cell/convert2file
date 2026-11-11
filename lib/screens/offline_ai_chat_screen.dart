@@ -9,6 +9,7 @@ import '../services/document_parser.dart';
 import '../services/file_storage.dart';
 import '../services/local_llama_service.dart';
 import '../widgets/figma_app_chrome.dart';
+import '../widgets/report_problem_entry.dart';
 import '../theme/app_colors.dart';
 
 class OfflineAiChatScreen extends StatefulWidget {
@@ -353,6 +354,7 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
             _buildSuggestions(),
             if (_selectedMaterial != null) _buildAttachmentChip(),
             _buildComposer(),
+            ReportProblemEntry(area: 'offline_ai', contextInfo: {'model_file_name': modelName, 'model_loaded': llama.isLoaded, 'last_error_text': null}),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Text(

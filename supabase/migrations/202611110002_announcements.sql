@@ -14,6 +14,7 @@ create table if not exists public.announcements (
 
 alter table public.announcements enable row level security;
 
+drop policy if exists announcements_public_active_read on public.announcements;
 create policy announcements_public_active_read
   on public.announcements for select to anon, authenticated
   using (
@@ -22,6 +23,7 @@ create policy announcements_public_active_read
     and (ends_at is null or ends_at > now())
   );
 
+drop policy if exists announcements_admin_read on public.announcements;
 create policy announcements_admin_read
   on public.announcements for select to authenticated
   using (
@@ -33,6 +35,7 @@ create policy announcements_admin_read
     )
   );
 
+drop policy if exists announcements_admin_insert on public.announcements;
 create policy announcements_admin_insert
   on public.announcements for insert to authenticated
   with check (
@@ -44,6 +47,7 @@ create policy announcements_admin_insert
     )
   );
 
+drop policy if exists announcements_admin_update on public.announcements;
 create policy announcements_admin_update
   on public.announcements for update to authenticated
   using (
@@ -63,6 +67,7 @@ create policy announcements_admin_update
     )
   );
 
+drop policy if exists announcements_admin_delete on public.announcements;
 create policy announcements_admin_delete
   on public.announcements for delete to authenticated
   using (

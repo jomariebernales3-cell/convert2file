@@ -135,9 +135,8 @@ class FileStorage {
   }
 
   static Future<void> deleteFile(int fileId) async {
-    final files = await DatabaseHelper.instance.queryAllFiles();
-    final file = files.firstWhere((f) => f['id'] == fileId, orElse: () => {});
-    if (file.isEmpty) return;
+    final file = await DatabaseHelper.instance.queryFileById(fileId);
+    if (file == null) return;
 
     final path = file['path'] as String?;
     if (path != null && await File(path).exists()) {
