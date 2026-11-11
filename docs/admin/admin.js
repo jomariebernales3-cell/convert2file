@@ -29,6 +29,7 @@ const auditPageSize = 20;
 let announcements = [];
 let editingAnnouncementId = null;
 let appSettings = null;
+let appInfoContent = null;
 let currentPage = 'dashboard';
 const featureDefinitions = [
   ['offline_ai', 'AI assistant', 'Show the offline AI chat'],
@@ -133,18 +134,23 @@ async function refreshData() {
       queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,status,admin_note,created_at'),
       queryRows('admin_audit_log', 'id,actor_id,action,target_type,target_id,details,created_at'),
     ]);
-    [announcements, appSettings] = await Promise.all([
+    [announcements, appSettings, appInfoContent] = await Promise.all([
       queryRows('announcements', 'id,title,body,kind,starts_at,ends_at,is_active,link_url,link_label,created_at,updated_at'),
       (async () => {
         const { data, error } = await client.from('app_control_settings').select('*').eq('id', true).single();
         if (error) throw error;
         return data;
       })(),
+      (async () => {
+        const { data, error } = await client.from('app_info_content').select('sections,release_notes,updated_at').eq('id', true).maybeSingle();
+        if (error) return null;
+        return data;
+      })(),
     ]);
     admins = role === 'owner'
       ? await queryRows('admin_users', 'user_id,role,created_by,created_at')
       : [];
-    drawDashboard(); drawUsers(); drawReports(); drawTeam(); populateAuditFilters(); drawAudit(); drawAnnouncements(); drawAppControl();
+    drawDashboard(); drawUsers(); drawReports(); drawTeam(); populateAuditFilters(); drawAudit(); drawAnnouncements(); drawAppControl(); drawAppInfo();
     notice('Data refreshed.');
   } catch (error) {
     notice(`Could not load portal data: ${error.message}`, true);
@@ -361,6 +367,60 @@ function drawAppControl() {
   $('#feature-switches').innerHTML = featureDefinitions.map(([key, title, description]) => `<div class="control-row"><div><b>${esc(title)}</b><small>${esc(description)}</small></div><label class="switch"><input type="checkbox" data-feature="${esc(key)}" ${flags[key] !== false ? 'checked' : ''}><span></span></label></div>`).join('');
 }
 
+function drawAppInfo() {
+  const unavailable = !appInfoContent;
+  $('#app-info-unavailable').hidden = !unavailable;
+  $('#save-app-info').disabled = unavailable;
+  $('#add-info-section').disabled = unavailable;
+  $('#add-info-release').disabled = unavailable;
+  if (unavailable) {
+    $('#app-info-sections').innerHTML = '';
+    $('#app-info-releases').innerHTML = '';
+    return;
+  }
+  $('#app-info-sections').innerHTML = appInfoContent.sections.map((section, index) => `
+    <article class="card info-editor" data-info-section="${index}">
+      <div class="info-editor-heading"><h3>Section ${index + 1}</h3><button class="button danger" data-remove-info-section="${index}">Remove</button></div>
+      <label>Title<input data-info-title maxlength="80" value="${esc(section.title)}" required></label>
+      <label>Details <small>Put each paragraph on its own line.</small><textarea data-info-details rows="5" required>${esc((section.details ?? []).join('\n'))}</textarea></label>
+    </article>`).join('');
+  $('#app-info-releases').innerHTML = appInfoContent.release_notes.map((release, index) => `
+    <article class="card info-editor" data-info-release="${index}">
+      <div class="info-editor-heading"><h3>Version entry ${index + 1}</h3><button class="button danger" data-remove-info-release="${index}">Remove</button></div>
+      <div class="version-fields"><label>Version<input data-release-version maxlength="32" value="${esc(release.version)}" required></label><label>Date or label<input data-release-date maxlength="64" value="${esc(release.date)}" required></label></div>
+      <label>Features <small>One item per line.</small><textarea data-release-features rows="4">${esc((release.features ?? []).join('\n'))}</textarea></label>
+      <label>Fixes and updates <small>One item per line.</small><textarea data-release-fixes rows="4">${esc((release.fixes ?? []).join('\n'))}</textarea></label>
+      <label class="info-current-version"><input data-release-latest type="checkbox" ${release.is_latest ? 'checked' : ''}> Current version</label>
+    </article>`).join('');
+}
+
+function editorLines(value) {
+  return value.split('\n').map((line) => line.trim()).filter(Boolean);
+}
+
+function readAppInfoEditors() {
+  const sections = [...document.querySelectorAll('[data-info-section]')].map((node) => {
+    const original = appInfoContent.sections[Number(node.dataset.infoSection)] ?? {};
+    return {
+      ...original,
+      title: node.querySelector('[data-info-title]').value.trim(),
+      details: editorLines(node.querySelector('[data-info-details]').value),
+    };
+  });
+  const releaseNotes = [...document.querySelectorAll('[data-info-release]')].map((node) => {
+    const original = appInfoContent.release_notes[Number(node.dataset.infoRelease)] ?? {};
+    return {
+      ...original,
+      version: node.querySelector('[data-release-version]').value.trim(),
+      date: node.querySelector('[data-release-date]').value.trim(),
+      features: editorLines(node.querySelector('[data-release-features]').value),
+      fixes: editorLines(node.querySelector('[data-release-fixes]').value),
+      is_latest: node.querySelector('[data-release-latest]').checked,
+    };
+  });
+  return { sections, releaseNotes };
+}
+
 async function saveAppSettings(changes, auditLabel) {
   const { error } = await client.rpc('admin_update_app_settings', {
     p_maintenance_enabled: changes.maintenance_enabled ?? appSettings.maintenance_enabled,
@@ -379,7 +439,7 @@ function showPage(page) {
   currentPage = page;
   $$('.page').forEach((node) => { node.hidden = node.id !== `page-${page}`; });
   $$('.nav').forEach((node) => node.classList.toggle('active', node.dataset.page === page));
-  $('#page-title').textContent = ({ dashboard: 'Dashboard', users: 'Users', reports: 'Bug reports', announcements: 'Announcements', 'app-control': 'App control', team: 'Admin team', audit: 'Audit log' })[page];
+  $('#page-title').textContent = ({ dashboard: 'Dashboard', users: 'Users', reports: 'Bug reports', announcements: 'Announcements', 'app-control': 'App control', 'app-info': 'App Info', team: 'Admin team', audit: 'Audit log' })[page];
 }
 
 function initTheme() {
@@ -408,6 +468,70 @@ async function init() {
   $('#signout').addEventListener('click', async () => { await client.auth.signOut(); actor = account = null; role = null; showLogin(); });
   $('#refresh').addEventListener('click', refreshData);
   $$('.nav').forEach((node) => node.addEventListener('click', () => showPage(node.dataset.page)));
+  $('#add-info-section').addEventListener('click', () => {
+    if (!appInfoContent) return;
+    const edited = readAppInfoEditors();
+    appInfoContent.sections = edited.sections;
+    appInfoContent.release_notes = edited.releaseNotes;
+    appInfoContent.sections.push({ id: `custom_${Date.now()}`, title: '', icon: 'info', details: [''] });
+    drawAppInfo();
+  });
+  $('#add-info-release').addEventListener('click', () => {
+    if (!appInfoContent) return;
+    const edited = readAppInfoEditors();
+    appInfoContent.sections = edited.sections;
+    appInfoContent.release_notes = edited.releaseNotes;
+    appInfoContent.release_notes.forEach((entry) => { entry.is_latest = false; });
+    appInfoContent.release_notes.unshift({ version: '', date: '', is_latest: true, features: [], fixes: [] });
+    drawAppInfo();
+  });
+  $('#app-info-sections').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-remove-info-section]');
+    if (!button || !appInfoContent) return;
+    const edited = readAppInfoEditors();
+    appInfoContent.sections = edited.sections;
+    appInfoContent.release_notes = edited.releaseNotes;
+    appInfoContent.sections.splice(Number(button.dataset.removeInfoSection), 1);
+    drawAppInfo();
+  });
+  $('#app-info-releases').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-remove-info-release]');
+    if (!button || !appInfoContent) return;
+    const edited = readAppInfoEditors();
+    appInfoContent.sections = edited.sections;
+    appInfoContent.release_notes = edited.releaseNotes;
+    appInfoContent.release_notes.splice(Number(button.dataset.removeInfoRelease), 1);
+    drawAppInfo();
+  });
+  $('#app-info-releases').addEventListener('change', (event) => {
+    if (!event.target.matches('[data-release-latest]') || !event.target.checked) return;
+    $('#app-info-releases').querySelectorAll('[data-release-latest]').forEach((checkbox) => {
+      if (checkbox !== event.target) checkbox.checked = false;
+    });
+  });
+  $('#save-app-info').addEventListener('click', async () => {
+    if (!appInfoContent) return;
+    const { sections, releaseNotes } = readAppInfoEditors();
+    if (!sections.length || sections.some((item) => !item.title || !item.details.length)) {
+      notice('Each App Info section needs a title and at least one detail.', true); return;
+    }
+    if (!releaseNotes.length || releaseNotes.filter((item) => item.is_latest).length !== 1) {
+      notice('Keep at least one release entry and mark exactly one as the current version.', true); return;
+    }
+    if (releaseNotes.some((item) => !item.version || !item.date)) {
+      notice('Each release entry needs a version and date or label.', true); return;
+    }
+    $('#save-app-info').disabled = true;
+    const { error } = await client.rpc('admin_update_app_info', {
+      p_sections: sections,
+      p_release_notes: releaseNotes,
+    });
+    $('#save-app-info').disabled = false;
+    if (error) { notice(error.message, true); return; }
+    await refreshData();
+    showPage('app-info');
+    notice('App Info and update history saved.');
+  });
   $('#user-search').addEventListener('input', drawUsers);
   $('#user-status').addEventListener('change', drawUsers);
   $('#report-status').addEventListener('change', drawReports);

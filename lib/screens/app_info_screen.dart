@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import '../services/app_info_service.dart';
 
 class AppInfoScreen extends StatefulWidget {
   const AppInfoScreen({super.key});
@@ -15,8 +16,72 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   int _selectedAdditionalInfoIndex = 0;
   int _selectedReleaseIndex = 0;
   int _releasePage = 0;
+  List<_AdditionalInfo> _additionalInfo = _defaultAdditionalInfo;
+  List<_ReleaseNote> _releaseNotes = _defaultReleaseNotes;
 
-  static const _additionalInfo = [
+  @override
+  void initState() {
+    super.initState();
+    _loadManagedContent();
+  }
+
+  Future<void> _loadManagedContent() async {
+    final content = await AppInfoService().fetchContent();
+    if (!mounted || content == null) return;
+    try {
+      final sections = (content['sections'] as List)
+          .map((value) => Map<String, dynamic>.from(value as Map))
+          .map((value) => _AdditionalInfo(
+                title: value['title']?.toString() ?? 'Information',
+                icon: _iconForKey(value['icon']?.toString()),
+                details: (value['details'] as List)
+                    .map((detail) => detail.toString())
+                    .toList(growable: false),
+              ))
+          .toList(growable: false);
+      final releases = (content['release_notes'] as List)
+          .map((value) => Map<String, dynamic>.from(value as Map))
+          .map((value) => _ReleaseNote(
+                version: value['version']?.toString() ?? 'Unknown',
+                date: value['date']?.toString() ?? '',
+                isLatest: value['is_latest'] == true,
+                features: (value['features'] as List)
+                    .map((entry) => entry.toString())
+                    .toList(growable: false),
+                fixes: (value['fixes'] as List)
+                    .map((entry) => entry.toString())
+                    .toList(growable: false),
+              ))
+          .toList(growable: false);
+      if (sections.isEmpty || releases.isEmpty) return;
+      setState(() {
+        _additionalInfo = sections;
+        _releaseNotes = releases;
+        _selectedAdditionalInfoIndex = 0;
+        _selectedReleaseIndex = releases.indexWhere((note) => note.isLatest);
+        if (_selectedReleaseIndex < 0) _selectedReleaseIndex = 0;
+        _releasePage = _selectedReleaseIndex ~/ _releaseNotesPerPage;
+      });
+    } catch (_) {
+      // Keep the bundled copy available if an incomplete online record is returned.
+    }
+  }
+
+  IconData _iconForKey(String? key) => switch (key) {
+        'school' => Icons.school_outlined,
+        'files' => Icons.file_present_outlined,
+        'privacy' => Icons.privacy_tip_outlined,
+        'credits' => Icons.groups_outlined,
+        'capabilities' => Icons.auto_awesome_outlined,
+        'disclaimer' => Icons.info_outline,
+        _ => Icons.info_outline,
+      };
+
+  String get _latestVersion => _releaseNotes
+      .firstWhere((note) => note.isLatest, orElse: () => _releaseNotes.first)
+      .version;
+
+  static const _defaultAdditionalInfo = [
     _AdditionalInfo(
       title: 'App Purpose',
       icon: Icons.school_outlined,
@@ -76,7 +141,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     ),
   ];
 
-  static const _releaseNotes = [
+  static const _defaultReleaseNotes = [
     _ReleaseNote(
       version: '1.0.26.29',
       date: 'Current build',
@@ -384,6 +449,13 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('App Info'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh App Info',
+            onPressed: _loadManagedContent,
+            icon: const Icon(Icons.refresh),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
@@ -445,7 +517,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _metaChip(context, Icons.new_releases_outlined, 'Version 1.0.26.29'),
+              _metaChip(context, Icons.new_releases_outlined, 'Latest release $_latestVersion'),
               _metaChip(context, Icons.person_outline, 'Despair(0_0)'),
               _metaChip(context, Icons.code, 'Flutter · Dart'),
             ],

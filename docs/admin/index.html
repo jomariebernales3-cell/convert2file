@@ -30,6 +30,7 @@
         <button class="nav" data-page="reports">⚑ <span>Bug reports</span></button>
         <button class="nav" data-page="announcements">◖ <span>Announcements</span></button>
         <button class="nav" data-page="app-control">☷ <span>App control</span></button>
+        <button class="nav" data-page="app-info">ⓘ <span>App Info</span></button>
         <button class="nav owner-only" data-page="team">♧ <span>Admin team</span></button>
         <button class="nav" data-page="audit">▤ <span>Audit log</span></button>
       </nav>
@@ -101,6 +102,16 @@
           <button class="button primary" type="submit">Save versions</button>
         </form>
         <article class="card"><h2>Feature switches</h2><div id="feature-switches"></div></article>
+      </section>
+
+      <section id="page-app-info" class="page" hidden>
+        <p class="muted">Edit the public App Info shown in the Android app. Changes appear when the app next refreshes this page; a bundled copy remains available offline.</p>
+        <p id="app-info-unavailable" class="notice" hidden>App Info storage is unavailable. Apply the admin-managed App Info migration in Supabase, then refresh this page.</p>
+        <div class="app-info-editor-heading"><h2>Information sections</h2><button id="add-info-section" class="button">Add section</button></div>
+        <div id="app-info-sections" class="app-info-editors"></div>
+        <div class="app-info-editor-heading"><h2>Update history</h2><button id="add-info-release" class="button">Add version</button></div>
+        <div id="app-info-releases" class="app-info-editors"></div>
+        <div class="detail-actions"><button id="save-app-info" class="button primary">Save App Info</button></div>
       </section>
 
       <section id="page-team" class="page" hidden>
