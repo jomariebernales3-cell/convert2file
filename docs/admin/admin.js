@@ -8,7 +8,11 @@ const shortDate = (value) => value ? new Date(value).toLocaleDateString() : '—
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 }[c]));
-const statusText = (value) => ({ in_review: 'In review' }[value] ?? value);
+const statusText = (value) => ({
+  in_review: 'In review',
+  seen: 'Seen',
+  in_progress: 'In progress',
+}[value] ?? value);
 const badge = (value) => `<span class="pill ${esc(value)}">${esc(statusText(value))}</span>`;
 
 let client;
@@ -123,7 +127,7 @@ async function refreshData() {
     showPortal();
     [users, reports, auditEntries] = await Promise.all([
       queryRows('profiles', 'id,email,display_name,account_status,created_at,last_seen_at'),
-      queryRows('bug_reports', 'id,user_id,title,description,app_version,device_info,status,admin_notes,created_at,updated_at'),
+      queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,status,admin_note,created_at'),
       queryRows('admin_audit_log', 'id,actor_id,action,target_type,target_id,details,created_at'),
     ]);
     [announcements, appSettings] = await Promise.all([
@@ -164,7 +168,7 @@ function drawDashboard() {
   });
   const max = Math.max(1, ...days.map((d) => d.count));
   $('#signup-chart').innerHTML = days.map((d) => `<div class="bar" title="${d.count} signups" style="height:${Math.max(8, d.count / max * 130)}px"><span>${esc(d.label)}</span></div>`).join('');
-  $('#latest-reports').innerHTML = reports.slice(0, 5).map((r) => `<div class="row"><div><b>${esc(r.title)}</b><small>${esc(r.app_version)} · ${esc(r.device_info?.model ?? r.device_info?.platform ?? 'Device not provided')}</small></div>${badge(r.status)}</div>`).join('') || '<p class="empty">No reports yet.</p>';
+  $('#latest-reports').innerHTML = reports.slice(0, 5).map((r) => `<div class="row"><div><b>${esc(r.area.replaceAll('_', ' '))}</b><small>${esc(r.description.slice(0, 90))}${r.description.length > 90 ? '…' : ''}</small></div>${badge(r.status)}</div>`).join('') || '<p class="empty">No reports yet.</p>';
 }
 
 function drawUsers() {
@@ -193,21 +197,21 @@ function openUser(id) {
 function drawReports() {
   const status = $('#report-status').value;
   const matches = reports.filter((r) => !status || r.status === status);
-  $('#reports-body').innerHTML = matches.map((r) => `<tr class="clickable" data-report="${esc(r.id)}"><td><b>${esc(r.title)}</b><small>${esc(r.description.slice(0, 90))}${r.description.length > 90 ? '…' : ''}</small></td><td>${esc(r.app_version)} · ${esc(r.device_info?.model ?? r.device_info?.platform ?? 'Unknown device')}</td><td>${esc(shortDate(r.created_at))}</td><td>${badge(r.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No reports found.</td></tr>';
+  $('#reports-body').innerHTML = matches.map((r) => `<tr class="clickable" data-report="${esc(r.id)}"><td><b>${esc(r.area.replaceAll('_', ' '))}</b><small>${esc(r.description.slice(0, 90))}${r.description.length > 90 ? '…' : ''}</small></td><td>${esc(r.reporter_email || users.find((u) => u.id === r.user_id)?.email || 'Guest')}<small>${esc(r.app_version || 'App version unknown')} · ${esc(r.platform || r.device_info || 'Device not provided')}</small></td><td>${esc(shortDate(r.created_at))}</td><td>${badge(r.status)}</td></tr>`).join('') || '<tr><td colspan="4" class="empty">No reports found.</td></tr>';
 }
 
 function openReport(id) {
   const report = reports.find((item) => item.id === id); if (!report) return;
   const reporter = users.find((item) => item.id === report.user_id);
-  $('#report-detail').innerHTML = `<h2>${esc(report.title)}</h2><p class="muted">${esc(reporter?.email ?? 'Account unavailable')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version)}</b></div><div class="kv"><span>Device</span><b>${esc(report.device_info?.model ?? report.device_info?.platform ?? 'Not provided')}</b></div><p>${esc(report.description)}</p><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="in_review">In review</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_notes)}</textarea></label><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
+  const context = JSON.stringify(report.context ?? {}, null, 2);
+  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p><details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
   $('#save-report').addEventListener('click', async () => {
-    const { error } = await client.rpc('admin_set_report', {
-      p_report_id: report.id,
-      p_status: $('#detail-status').value,
-      p_admin_notes: $('#detail-notes').value,
-    });
+    const { error } = await client.from('problem_reports').update({
+      status: $('#detail-status').value,
+      admin_note: $('#detail-notes').value,
+    }).eq('id', report.id);
     if (error) { notice(error.message, true); return; }
     $('#report-dialog').close(); await refreshData();
   });
