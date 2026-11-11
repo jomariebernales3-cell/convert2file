@@ -15,8 +15,7 @@ create table if not exists public.problem_reports (
   source_file_path text null,
   output_file_path text null,
   status text not null default 'new' check (status in ('new', 'seen', 'in_progress', 'resolved')),
-  admin_note text null,
-  constraint problem_reports_user_self check (user_id is null or user_id = auth.uid())
+  admin_note text null
 );
 
 alter table public.problem_reports enable row level security;
