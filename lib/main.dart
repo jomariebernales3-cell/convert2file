@@ -17,6 +17,8 @@ import 'screens/app_info_screen.dart';
 import 'screens/bug_report_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/qr_code_screen.dart';
+import 'screens/qr_output_screen.dart';
+import 'screens/announcements_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/study_builder_screen.dart';
@@ -88,6 +90,10 @@ class SmartTemplateApp extends StatelessWidget {
             '/study-builder': (context) => const StudyBuilderScreen(),
             '/generate-quiz': (context) => const StudyBuilderScreen(generateQuizOnly: true),
             '/qr-code': (context) => const QrCodeScreen(),
+            '/qr-output': (context) => QrOutputScreen(
+                  file: ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>,
+                ),
+            '/announcements': (context) => const AnnouncementsScreen(),
             '/text-to-file': (context) => const TextToFileScreen(),
           },
         );

@@ -20,6 +20,7 @@ let reports = [];
 let admins = [];
 let auditEntries = [];
 let announcements = [];
+let editingAnnouncementId = null;
 let appSettings = null;
 let currentPage = 'dashboard';
 const featureDefinitions = [
@@ -123,7 +124,7 @@ async function refreshData() {
       queryRows('admin_audit_log', 'id,actor_id,action,target_type,target_id,details,created_at'),
     ]);
     [announcements, appSettings] = await Promise.all([
-      queryRows('admin_announcements', 'id,title,message,status,created_by,created_at,ended_at'),
+      queryRows('announcements', 'id,title,body,kind,starts_at,ends_at,is_active,link_url,link_label,created_at,updated_at'),
       (async () => {
         const { data, error } = await client.from('app_control_settings').select('*').eq('id', true).single();
         if (error) throw error;
@@ -224,7 +225,42 @@ function drawAudit() {
 }
 
 function drawAnnouncements() {
-  $('#announcement-history').innerHTML = announcements.map((item) => `<div class="row"><div><b>${esc(item.title)}</b><small>${esc(item.message)} · ${esc(shortDate(item.created_at))}</small></div><div class="announcement-actions">${badge(item.status)}${item.status === 'active' ? `<button class="button" data-end-announcement="${esc(item.id)}">End</button>` : ''}</div></div>`).join('') || '<p class="empty">No announcements yet.</p>';
+  $('#announcement-history').innerHTML = announcements.map((item) => `<div class="row"><div><b>${esc(item.title)}</b><small>${esc(item.kind)} · ${item.is_active ? 'Active' : 'Inactive'} · Starts ${esc(date(item.starts_at))} · Ends ${esc(date(item.ends_at))}</small><small>${esc(item.body)}</small></div><div class="announcement-actions"><button class="button" data-edit-announcement="${esc(item.id)}">Edit</button><button class="button danger" data-delete-announcement="${esc(item.id)}">Delete</button></div></div>`).join('') || '<p class="empty">No announcements yet.</p>';
+}
+
+function announcementDateInput(value) {
+  if (!value) return '';
+  const parsed = new Date(value);
+  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function resetAnnouncementForm() {
+  editingAnnouncementId = null;
+  $('#announcement-form').reset();
+  $('#announcement-form-title').textContent = 'New announcement';
+  $('#announcement-submit').textContent = 'Publish';
+  $('#announcement-cancel').hidden = true;
+  $('#announcement-active').checked = true;
+  $('#announcement-starts').value = announcementDateInput(new Date().toISOString());
+}
+
+function editAnnouncement(id) {
+  const item = announcements.find((announcement) => announcement.id === id);
+  if (!item) return;
+  editingAnnouncementId = item.id;
+  $('#announcement-form-title').textContent = 'Edit announcement';
+  $('#announcement-submit').textContent = 'Save changes';
+  $('#announcement-cancel').hidden = false;
+  $('#announcement-title').value = item.title;
+  $('#announcement-message').value = item.body;
+  $('#announcement-kind').value = item.kind;
+  $('#announcement-starts').value = announcementDateInput(item.starts_at);
+  $('#announcement-ends').value = announcementDateInput(item.ends_at);
+  $('#announcement-active').checked = item.is_active;
+  $('#announcement-link-url').value = item.link_url ?? '';
+  $('#announcement-link-label').value = item.link_label ?? '';
+  $('#announcement-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function drawAppControl() {
@@ -286,20 +322,42 @@ async function init() {
   $('#user-search').addEventListener('input', drawUsers);
   $('#user-status').addEventListener('change', drawUsers);
   $('#report-status').addEventListener('change', drawReports);
+  resetAnnouncementForm();
+  $('#announcement-cancel').addEventListener('click', resetAnnouncementForm);
   $('#announcement-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    const { error } = await client.rpc('admin_publish_announcement', {
-      p_title: $('#announcement-title').value.trim(), p_message: $('#announcement-message').value.trim(),
-    });
-    if (error) { notice(error.message, true); return; }
-    $('#announcement-form').reset(); await refreshData();
-    showPage('announcements'); notice('Announcement published.');
+    const linkUrl = $('#announcement-link-url').value.trim();
+    if (linkUrl && new URL(linkUrl).protocol !== 'https:') {
+      notice('Announcement links must use https.', true); return;
+    }
+    const values = {
+      title: $('#announcement-title').value.trim(),
+      body: $('#announcement-message').value.trim(),
+      kind: $('#announcement-kind').value,
+      starts_at: new Date($('#announcement-starts').value).toISOString(),
+      ends_at: $('#announcement-ends').value ? new Date($('#announcement-ends').value).toISOString() : null,
+      is_active: $('#announcement-active').checked,
+      link_url: linkUrl || null,
+      link_label: $('#announcement-link-label').value.trim() || null,
+      updated_at: new Date().toISOString(),
+    };
+    const result = editingAnnouncementId
+      ? await client.from('announcements').update(values).eq('id', editingAnnouncementId)
+      : await client.from('announcements').insert(values);
+    if (result.error) { notice(result.error.message, true); return; }
+    resetAnnouncementForm(); await refreshData();
+    showPage('announcements'); notice('Announcement saved.');
   });
   $('#announcement-history').addEventListener('click', async (event) => {
-    const button = event.target.closest('[data-end-announcement]'); if (!button) return;
-    const { error } = await client.rpc('admin_end_announcement', { p_announcement_id: button.dataset.endAnnouncement });
+    const editButton = event.target.closest('[data-edit-announcement]');
+    if (editButton) { editAnnouncement(editButton.dataset.editAnnouncement); return; }
+    const deleteButton = event.target.closest('[data-delete-announcement]');
+    if (!deleteButton) return;
+    const item = announcements.find((announcement) => announcement.id === deleteButton.dataset.deleteAnnouncement);
+    if (!item || !window.confirm(`Delete “${item.title}”?`)) return;
+    const { error } = await client.from('announcements').delete().eq('id', item.id);
     if (error) { notice(error.message, true); return; }
-    await refreshData(); showPage('announcements'); notice('Announcement ended.');
+    await refreshData(); showPage('announcements'); notice('Announcement deleted.');
   });
   $('#maintenance-enabled').addEventListener('change', async () => {
     await saveAppSettings({ maintenance_enabled: $('#maintenance-enabled').checked }, 'Maintenance setting saved.');

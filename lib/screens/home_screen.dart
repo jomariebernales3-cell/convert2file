@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -68,6 +69,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final _announcementService = AnnouncementService();
   List<Map<String, dynamic>> _announcements = const [];
   Set<String> _dismissedAnnouncementIds = <String>{};
+  Timer? _announcementRefreshTimer;
+  bool _isLoadingAnnouncements = false;
 
   @override
   void initState() {
@@ -76,6 +79,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadChatHistory();
     _loadRemoteConfig();
     _loadAnnouncements();
+    _announcementRefreshTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _loadAnnouncements(),
+    );
     ReportService().retryPending();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTermsAgreement());
   }
@@ -198,6 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _announcementRefreshTimer?.cancel();
     _chatController.dispose();
     _chatScrollController.dispose();
     _actionPageController?.dispose();
@@ -265,13 +273,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadAnnouncements() async {
-    final values = await _announcementService.fetchActive();
-    final dismissed = await _announcementService.dismissedIds();
-    if (!mounted) return;
-    setState(() {
-      _announcements = values;
-      _dismissedAnnouncementIds = dismissed;
-    });
+    if (_isLoadingAnnouncements) return;
+    _isLoadingAnnouncements = true;
+    try {
+      final values = await _announcementService.fetchActive();
+      final dismissed = await _announcementService.dismissedIds();
+      if (!mounted) return;
+      setState(() {
+        _announcements = values;
+        _dismissedAnnouncementIds = dismissed;
+      });
+    } finally {
+      _isLoadingAnnouncements = false;
+    }
   }
 
   Color _announcementKindColor(String kind, AppColors colors) => switch (kind) {
@@ -445,6 +459,7 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: () async {
           await _loadHomeData();
           await _loadRemoteConfig();
+          await _loadAnnouncements();
         },
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())

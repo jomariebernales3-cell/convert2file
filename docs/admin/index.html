@@ -78,10 +78,15 @@
       <section id="page-announcements" class="page" hidden>
         <p class="muted">Notices users can see in the app after the app is connected to this project.</p>
         <form id="announcement-form" class="card announcement-form">
-          <h2>New announcement</h2>
-          <label>Title<input id="announcement-title" maxlength="180" required></label>
-          <label>Message<textarea id="announcement-message" rows="4" maxlength="4000" required></textarea></label>
-          <button class="button primary" type="submit">Publish</button>
+          <h2 id="announcement-form-title">New announcement</h2>
+          <label>Title<input id="announcement-title" maxlength="80" required></label>
+          <label>Message<textarea id="announcement-message" rows="4" maxlength="600" required></textarea></label>
+          <label>Kind<select id="announcement-kind"><option value="info">Info</option><option value="important">Important</option><option value="maintenance">Maintenance</option></select></label>
+          <div class="version-fields"><label>Starts at<input id="announcement-starts" type="datetime-local" required></label><label>Ends at (optional)<input id="announcement-ends" type="datetime-local"></label></div>
+          <label class="control-row">Active <input id="announcement-active" type="checkbox" checked></label>
+          <label>Link URL (optional)<input id="announcement-link-url" type="url" placeholder="https://example.com"></label>
+          <label>Link label (optional)<input id="announcement-link-label" maxlength="60"></label>
+          <div class="detail-actions"><button id="announcement-submit" class="button primary" type="submit">Publish</button><button id="announcement-cancel" class="button" type="button" hidden>Cancel edit</button></div>
         </form>
         <article class="card"><h2>History</h2><div id="announcement-history"></div></article>
       </section>

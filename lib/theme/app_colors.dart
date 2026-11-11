@@ -14,6 +14,7 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color highlightInk;
   final Color highlightGlow;
   final Color danger;
+  final Color warning;
 
   const AppColors({
     required this.background,
@@ -28,6 +29,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.highlightInk,
     required this.highlightGlow,
     required this.danger,
+    required this.warning,
   });
 
   static const day = AppColors(
@@ -43,6 +45,7 @@ class AppColors extends ThemeExtension<AppColors> {
     highlightInk: Color(0xFFFFFFFF),
     highlightGlow: Color.fromARGB(46, 0, 0, 0),
     danger: Color(0xFFDC2626),
+    warning: Color(0xFFB45309),
   );
 
   static const night = AppColors(
@@ -58,6 +61,7 @@ class AppColors extends ThemeExtension<AppColors> {
     highlightInk: Color(0xFF000000),
     highlightGlow: Color.fromARGB(46, 255, 255, 255),
     danger: Color(0xFFFCA5A5),
+    warning: Color(0xFFFBBF24),
   );
 
   static const dbz = AppColors(
@@ -73,6 +77,7 @@ class AppColors extends ThemeExtension<AppColors> {
     highlightInk: Color(0xFF04222A),
     highlightGlow: Color.fromARGB(71, 103, 232, 249),
     danger: Color(0xFFFCA5A5),
+    warning: Color(0xFFFBBF24),
   );
 
   static AppColors of(BuildContext context) =>
@@ -92,6 +97,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? highlightInk,
     Color? highlightGlow,
     Color? danger,
+    Color? warning,
   }) =>
       AppColors(
         background: background ?? this.background,
@@ -106,6 +112,7 @@ class AppColors extends ThemeExtension<AppColors> {
         highlightInk: highlightInk ?? this.highlightInk,
         highlightGlow: highlightGlow ?? this.highlightGlow,
         danger: danger ?? this.danger,
+        warning: warning ?? this.warning,
       );
 
   @override
@@ -124,6 +131,7 @@ class AppColors extends ThemeExtension<AppColors> {
       highlightInk: Color.lerp(highlightInk, other.highlightInk, t)!,
       highlightGlow: Color.lerp(highlightGlow, other.highlightGlow, t)!,
       danger: Color.lerp(danger, other.danger, t)!,
+      warning: Color.lerp(warning, other.warning, t)!,
     );
   }
 }
