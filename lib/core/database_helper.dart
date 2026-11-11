@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 7,
+      version: 8,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -52,6 +52,7 @@ class DatabaseHelper {
     if (oldVersion < 7) {
       await db.execute("UPDATE users SET role = 'user' WHERE role = 'admin'");
     }
+    if (oldVersion < 8) await _createPendingReportsTable(db);
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -150,6 +151,19 @@ class DatabaseHelper {
     ''');
 
     await _createStudySetsTable(db);
+    await _createPendingReportsTable(db);
+  }
+
+  Future<void> _createPendingReportsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_reports (
+        id TEXT PRIMARY KEY,
+        payload_json TEXT NOT NULL,
+        source_local_path TEXT,
+        output_local_path TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createStudySetsTable(Database db) async {
@@ -299,6 +313,84 @@ class DatabaseHelper {
         where: 'kind = ?', orderBy: 'id DESC', whereArgs: [kind]);
   }
 
+  Future<Map<String, dynamic>> fetchMaterials({
+    required String kind,
+    required String query,
+    required int userId,
+    required int page,
+    required int pageSize,
+  }) async {
+    final db = await instance.database;
+    final isStudySets = kind == 'sets';
+    final table = isStudySets ? 'study_sets' : 'files';
+    final where = <String>['user_id = ?'];
+    final whereArgs = <Object?>[userId];
+
+    if (!isStudySets) {
+      if (kind == 'outputs') {
+        where.add("(substr(kind, 1, 7) = 'output_' OR kind = 'qr')");
+      } else {
+        where.add("substr(kind, 1, 7) != 'output_'");
+      }
+    }
+
+    final normalizedQuery = query.trim().toLowerCase();
+    if (normalizedQuery.isNotEmpty) {
+      final pattern = '%$normalizedQuery%';
+      if (isStudySets) {
+        where.add("LOWER(COALESCE(title, '')) LIKE ?");
+        whereArgs.add(pattern);
+      } else {
+        where.add(
+          "(LOWER(COALESCE(original_name, '')) LIKE ? "
+          "OR LOWER(COALESCE(extension, '')) LIKE ?)",
+        );
+        whereArgs.addAll([pattern, pattern]);
+      }
+    }
+
+    final whereSql = where.join(' AND ');
+    final offset = page * pageSize;
+    final items = await db.rawQuery(
+      'SELECT * FROM $table WHERE $whereSql '
+      'ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?',
+      [...whereArgs, pageSize, offset],
+    );
+    final countRows = await db.rawQuery(
+      'SELECT COUNT(*) AS count FROM $table WHERE $whereSql',
+      whereArgs,
+    );
+
+    return {
+      'items': items,
+      'totalCount': Sqflite.firstIntValue(countRows) ?? 0,
+    };
+  }
+
+  Future<Map<String, dynamic>?> findQrOutputByContent({
+    required int userId,
+    required String content,
+  }) async {
+    final db = await instance.database;
+    final rows = await db.rawQuery(
+      "SELECT * FROM files WHERE user_id = ? AND kind = 'qr' "
+      "AND json_extract(metadata_json, '\$.content') = ? LIMIT 1",
+      [userId, content],
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
+  Future<Map<String, dynamic>?> queryFileById(int id) async {
+    final db = await instance.database;
+    final rows = await db.query(
+      'files',
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : rows.first;
+  }
+
   Future<int> deleteFile(int id) async {
     Database db = await instance.database;
     return await db.delete('files', where: 'id = ?', whereArgs: [id]);
@@ -378,6 +470,22 @@ class DatabaseHelper {
   Future<int> insertBugReport(Map<String, dynamic> row) async {
     Database db = await instance.database;
     return await db.insert('bug_reports', row);
+  }
+
+  Future<void> insertPendingReport(Map<String, dynamic> row) async {
+    final db = await instance.database;
+    await db.insert('pending_reports', row,
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> queryPendingReports() async {
+    final db = await instance.database;
+    return db.query('pending_reports', orderBy: 'created_at ASC');
+  }
+
+  Future<void> deletePendingReport(String id) async {
+    final db = await instance.database;
+    await db.delete('pending_reports', where: 'id = ?', whereArgs: [id]);
   }
 
   Future<List<Map<String, dynamic>>> queryAllBugReports() async {

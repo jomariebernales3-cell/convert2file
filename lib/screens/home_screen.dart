@@ -3,11 +3,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../core/database_helper.dart';
 import 'dashboard_screen.dart';
 import '../services/auth_service.dart';
 import '../services/app_remote_config_service.dart';
+import '../services/announcement_service.dart';
+import '../services/report_service.dart';
 import '../services/document_parser.dart';
 import '../services/file_storage.dart';
 import '../services/local_llama_service.dart';
@@ -62,6 +65,9 @@ class _HomeScreenState extends State<HomeScreen> {
   int _focusedActionPage = _actionInitialPage;
   int _actionRailIndex = 0;
   AppRemoteConfig _remoteConfig = const AppRemoteConfig();
+  final _announcementService = AnnouncementService();
+  List<Map<String, dynamic>> _announcements = const [];
+  Set<String> _dismissedAnnouncementIds = <String>{};
 
   @override
   void initState() {
@@ -69,6 +75,8 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadHomeData();
     _loadChatHistory();
     _loadRemoteConfig();
+    _loadAnnouncements();
+    ReportService().retryPending();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTermsAgreement());
   }
 
@@ -256,8 +264,87 @@ class _HomeScreenState extends State<HomeScreen> {
     return key == null || _remoteConfig.featureEnabled(key);
   }
 
+  Future<void> _loadAnnouncements() async {
+    final values = await _announcementService.fetchActive();
+    final dismissed = await _announcementService.dismissedIds();
+    if (!mounted) return;
+    setState(() {
+      _announcements = values;
+      _dismissedAnnouncementIds = dismissed;
+    });
+  }
+
+  Color _announcementKindColor(String kind, AppColors colors) => switch (kind) {
+        'important' => colors.warning,
+        'maintenance' => colors.muted,
+        _ => colors.accent,
+      };
+
+  IconData _announcementKindIcon(String kind) => switch (kind) {
+        'important' => Icons.priority_high_rounded,
+        'maintenance' => Icons.build_circle_outlined,
+        _ => Icons.info_outline_rounded,
+      };
+
+  Widget _buildAnnouncementBanner() {
+    final visible = _announcements
+        .where((item) => !_dismissedAnnouncementIds.contains(item['id']?.toString()))
+        .toList(growable: false);
+    if (visible.isEmpty) return const SizedBox.shrink();
+    final notice = visible.first;
+    final colors = AppColors.of(context);
+    final kind = notice['kind']?.toString() ?? 'info';
+    final kindColor = _announcementKindColor(kind, colors);
+    final parsedLink = Uri.tryParse(notice['link_url']?.toString() ?? '');
+    final safeLink = parsedLink != null && parsedLink.scheme.toLowerCase() == 'https' && parsedLink.host.isNotEmpty;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      decoration: BoxDecoration(color: colors.surface, border: Border.all(color: colors.line), borderRadius: BorderRadius.circular(18)),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Container(width: 4, color: kindColor),
+          Expanded(child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Padding(padding: const EdgeInsets.only(top: 2), child: Icon(_announcementKindIcon(kind), size: 24, color: kindColor)),
+                const SizedBox(width: 10),
+                Expanded(child: Text(notice['title']?.toString() ?? 'Announcement', maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.text, fontSize: 15, fontWeight: FontWeight.w800))),
+                SizedBox(width: 44, height: 44, child: IconButton(
+                  tooltip: 'Dismiss announcement',
+                  onPressed: () async {
+                    final id = notice['id']?.toString();
+                    if (id == null) return;
+                    await _announcementService.dismiss(id);
+                    if (mounted) setState(() => _dismissedAnnouncementIds.add(id));
+                  },
+                  icon: const Icon(Icons.close),
+                )),
+              ]),
+              const SizedBox(height: 4),
+              Text(notice['body']?.toString() ?? '', maxLines: 3, overflow: TextOverflow.ellipsis, style: TextStyle(color: colors.muted)),
+              if (safeLink || visible.length > 1) ...[
+                const SizedBox(height: 6),
+                Wrap(spacing: 8, children: [
+                  if (safeLink) TextButton(
+                    onPressed: () => launchUrl(parsedLink!, mode: LaunchMode.externalApplication),
+                    child: Text(notice['link_label']?.toString().trim().isNotEmpty == true ? notice['link_label'].toString() : 'Learn more'),
+                  ),
+                  if (visible.length > 1) TextButton(
+                    onPressed: () => Navigator.of(context).pushNamed('/announcements'),
+                    child: Text('See all (${visible.length})'),
+                  ),
+                ]),
+              ],
+            ]),
+          )),
+        ]),
+      ),
+    );
+  }
   Widget _buildRemoteNotices() {
-    if (!_remoteConfig.maintenanceEnabled && !_remoteConfig.updateAvailable && _remoteConfig.announcements.isEmpty) {
+    if (!_remoteConfig.maintenanceEnabled && !_remoteConfig.updateAvailable) {
       return const SizedBox.shrink();
     }
     final colors = AppColors.of(context);
@@ -269,11 +356,6 @@ class _HomeScreenState extends State<HomeScreen> {
         if (_remoteConfig.maintenanceEnabled)
           _remoteNoticeCard(colors, Icons.build_outlined, 'Online maintenance',
               'Online services may be temporarily unavailable. Offline tools remain available.'),
-        ..._remoteConfig.announcements.map((notice) => _remoteNoticeCard(
-              colors, Icons.campaign_outlined,
-              notice['title']?.toString() ?? 'Announcement',
-              notice['message']?.toString() ?? '',
-            )),
       ],
     );
   }
@@ -312,19 +394,22 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _recentFiles = files
             .where(
-              (file) => !(file['kind'] as String? ?? '').startsWith('output_'),
+              (file) => !(file['kind'] as String? ?? '').startsWith('output_') &&
+                  file['kind'] != 'qr',
             )
             .take(3)
             .toList();
         _studySets = studySets;
         _totalFiles = files
             .where(
-              (file) => !(file['kind'] as String? ?? '').startsWith('output_'),
+              (file) => !(file['kind'] as String? ?? '').startsWith('output_') &&
+                  file['kind'] != 'qr',
             )
             .length;
         _totalOutputs = files
             .where(
-              (file) => (file['kind'] as String? ?? '').startsWith('output_'),
+              (file) => (file['kind'] as String? ?? '').startsWith('output_') ||
+                  file['kind'] == 'qr',
             )
             .length;
         _isLoading = false;
@@ -366,6 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
                 children: [
+                  _buildAnnouncementBanner(),
                   _buildWelcomeCard(),
                   _buildRemoteNotices(),
                   const SizedBox(height: 12),

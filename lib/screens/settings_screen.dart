@@ -5,6 +5,7 @@ import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
 import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
+import '../widgets/report_problem_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -569,6 +570,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 title: 'Export data',
                 subtitle: 'Back up your data',
                 onTap: _exportData,
+              ),
+              _buildActionTile(
+                icon: Icons.campaign_outlined,
+                title: 'Announcements',
+                subtitle: 'View current notices',
+                onTap: () => Navigator.of(context).pushNamed('/announcements'),
+              ),
+              _buildActionTile(
+                icon: Icons.report_problem_outlined,
+                title: 'Report a problem',
+                subtitle: 'Tell us about an issue',
+                onTap: () => showReportProblemSheet(context, area: 'other'),
               ),
               _buildActionTile(
                 icon: Icons.share_outlined,
