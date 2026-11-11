@@ -44,8 +44,16 @@
     .feature { padding:21px; border:1px solid var(--line); border-radius:18px; background:var(--panel); }
     .feature b { display:block; margin:10px 0 5px; }.feature p { margin:0; color:var(--muted); font-size:14px; }
     .symbol { color:var(--aqua); font-size:20px; }
+    .purpose { margin-top:74px; }
+    .purpose-heading { max-width:760px; margin:10px 0 12px; font-size:clamp(30px,4.5vw,48px); line-height:1.12; letter-spacing:-.045em; }
+    .purpose-intro { max-width:760px; margin:0; color:var(--muted); font-size:17px; }
+    .purpose-cards { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:14px; margin-top:26px; }
+    .purpose-card { padding:21px; border:1px solid var(--line); border-radius:18px; background:var(--panel); }
+    .purpose-card h3 { margin:0 0 8px; font-size:17px; }
+    .purpose-card p { margin:0; color:var(--muted); font-size:14px; }
     footer { padding:22px 0 32px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
     @media (max-width:760px) { main { padding:54px 0; }.hero { grid-template-columns:1fr; gap:34px; }.preview { max-width:520px; }.features { grid-template-columns:1fr; margin-top:48px; } }
+    @media (max-width:760px) { .purpose { margin-top:52px; }.purpose-cards { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
@@ -61,8 +69,7 @@
           <h1 id="headline">Make your study materials <span>work harder.</span></h1>
           <p class="lead">Convert2File helps organize learning materials into structured documents, study guides, and quiz drafts—all from one Android app.</p>
           <div class="actions">
-            <a class="button primary" id="download" href="#download" aria-disabled="true">Get the Android app</a>
-            <a class="button secondary" href="https://github.com/jomariebernales3-cell/convert2file">View project source</a>
+            <a class="button primary" id="download" href="#download" aria-disabled="true">Download Android App</a>
           </div>
           <div class="hint" id="download-hint">APK download link will be added here.</div>
         </div>
@@ -77,6 +84,27 @@
           </div>
         </div>
       </section>
+      <!-- EDIT THIS TEXT: draft purpose copy -->
+      <section class="purpose" id="purpose" aria-labelledby="purpose-heading">
+        <div class="eyebrow">Our purpose</div>
+        <h2 class="purpose-heading" id="purpose-heading">Built so students can study with or without internet</h2>
+        <p class="purpose-intro">Many students keep their lessons as PDF, Word and PowerPoint files and study on a phone with limited or unstable internet. Convert2File was created to turn those files into clean, ready-to-study materials directly on the phone.</p>
+        <div class="purpose-cards">
+          <article class="purpose-card">
+            <h3>Problem</h3>
+            <p>Online converters and AI tools need a good connection, can cost money, and upload your files to someone else's server.</p>
+          </article>
+          <article class="purpose-card">
+            <h3>Our answer</h3>
+            <p>Convert2File converts files, builds study guides and quizzes, and runs an offline AI model on your own phone, so your work stays on your device.</p>
+          </article>
+          <article class="purpose-card">
+            <h3>Who it is for</h3>
+            <p>Students and teachers who need to turn lessons and reviewers into study materials quickly, even without internet.</p>
+          </article>
+        </div>
+      </section>
+      <!-- END DRAFT PURPOSE COPY -->
       <section class="features" aria-label="App features">
         <article class="feature"><span class="symbol">↗</span><b>Start with your files</b><p>Use supported learning materials such as PDF, DOCX, and PPTX as a starting point.</p></article>
         <article class="feature"><span class="symbol">✦</span><b>Create study resources</b><p>Prepare structured documents, study guides, or editable quiz drafts.</p></article>
