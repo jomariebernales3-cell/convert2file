@@ -111,7 +111,21 @@
 
       <section id="page-audit" class="page" hidden>
         <p class="muted">Administrative changes are recorded here and cannot be edited from this portal.</p>
+        <div class="toolbar audit-toolbar">
+          <input id="audit-search" type="search" placeholder="Search actions, actors, targets, details…" aria-label="Search audit log">
+          <select id="audit-action-filter" aria-label="Filter by action"><option value="">All actions</option></select>
+          <select id="audit-target-filter" aria-label="Filter by target type"><option value="">All target types</option></select>
+          <select id="audit-actor-filter" aria-label="Filter by actor"><option value="">All actors</option></select>
+          <label class="audit-date-filter">From <input id="audit-date-from" type="date" aria-label="From date"></label>
+          <label class="audit-date-filter">To <input id="audit-date-to" type="date" aria-label="To date"></label>
+          <button id="audit-clear-filters" class="button">Clear filters</button>
+        </div>
+        <p id="audit-loaded-note" class="muted audit-loaded-note"></p>
         <div class="table-wrap"><table><thead><tr><th>Action</th><th>Actor</th><th>Target</th><th>Details</th><th>Date</th></tr></thead><tbody id="audit-body"></tbody></table></div>
+        <div id="audit-pagination" class="audit-pagination" hidden>
+          <span id="audit-range-info" class="muted"></span>
+          <div class="audit-page-controls"><button id="audit-prev" class="button">Previous</button><span id="audit-page-info" class="muted"></span><button id="audit-next" class="button">Next</button></div>
+        </div>
       </section>
     </main>
   </div>

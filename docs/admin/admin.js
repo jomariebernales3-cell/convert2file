@@ -24,6 +24,8 @@ let reports = [];
 const selectedReportIds = new Set();
 let admins = [];
 let auditEntries = [];
+let auditPage = 1;
+const auditPageSize = 20;
 let announcements = [];
 let editingAnnouncementId = null;
 let appSettings = null;
@@ -142,7 +144,7 @@ async function refreshData() {
     admins = role === 'owner'
       ? await queryRows('admin_users', 'user_id,role,created_by,created_at')
       : [];
-    drawDashboard(); drawUsers(); drawReports(); drawTeam(); drawAudit(); drawAnnouncements(); drawAppControl();
+    drawDashboard(); drawUsers(); drawReports(); drawTeam(); populateAuditFilters(); drawAudit(); drawAnnouncements(); drawAppControl();
     notice('Data refreshed.');
   } catch (error) {
     notice(`Could not load portal data: ${error.message}`, true);
@@ -250,10 +252,60 @@ function drawTeam() {
 }
 
 function drawAudit() {
-  $('#audit-body').innerHTML = auditEntries.map((entry) => {
+  const query = $('#audit-search').value.trim().toLowerCase();
+  const action = $('#audit-action-filter').value;
+  const targetType = $('#audit-target-filter').value;
+  const actorId = $('#audit-actor-filter').value;
+  const fromValue = $('#audit-date-from').value;
+  const toValue = $('#audit-date-to').value;
+  const from = fromValue ? new Date(`${fromValue}T00:00:00`) : null;
+  const to = toValue ? new Date(`${toValue}T23:59:59.999`) : null;
+  const matches = auditEntries.filter((entry) => {
+    const user = users.find((item) => item.id === entry.actor_id);
+    const searchable = `${entry.action} ${user?.email ?? 'System / removed account'} ${entry.target_type} ${entry.target_id} ${JSON.stringify(entry.details ?? {})}`.toLowerCase();
+    const createdAt = new Date(entry.created_at);
+    return (!query || searchable.includes(query)) && (!action || entry.action === action) &&
+      (!targetType || entry.target_type === targetType) && (!actorId || (actorId === 'system' ? !entry.actor_id : entry.actor_id === actorId)) &&
+      (!from || createdAt >= from) && (!to || createdAt <= to);
+  });
+  const pageCount = Math.max(1, Math.ceil(matches.length / auditPageSize));
+  auditPage = Math.min(auditPage, pageCount);
+  const startIndex = (auditPage - 1) * auditPageSize;
+  const pageEntries = matches.slice(startIndex, startIndex + auditPageSize);
+  $('#audit-body').innerHTML = pageEntries.map((entry) => {
     const user = users.find((item) => item.id === entry.actor_id);
     return `<tr><td><b>${esc(entry.action)}</b></td><td>${esc(user?.email ?? 'System / removed account')}</td><td>${esc(entry.target_type)} ${esc(entry.target_id)}</td><td>${esc(JSON.stringify(entry.details ?? {}))}</td><td>${esc(date(entry.created_at))}</td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="empty">No audit entries yet.</td></tr>';
+  }).join('') || `<tr><td colspan="5" class="empty">${auditEntries.length ? 'No matching audit entries.' : 'No audit entries yet.'}</td></tr>`;
+  $('#audit-page-info').textContent = `Page ${auditPage} of ${pageCount}`;
+  $('#audit-range-info').textContent = matches.length
+    ? `Showing ${startIndex + 1}–${Math.min(startIndex + auditPageSize, matches.length)} of ${matches.length}`
+    : 'Showing 0 of 0';
+  $('#audit-prev').disabled = auditPage <= 1;
+  $('#audit-next').disabled = auditPage >= pageCount;
+  $('#audit-pagination').hidden = matches.length <= auditPageSize;
+  $('#audit-loaded-note').textContent = auditEntries.length >= 500
+    ? 'Showing the newest 500 audit entries. Use the date filter to narrow this list.'
+    : `Showing all ${auditEntries.length} loaded audit entries.`;
+}
+
+function populateAuditFilters() {
+  const setOptions = (selector, values, placeholder) => {
+    const select = $(selector);
+    const selected = select.value;
+    const options = [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    select.innerHTML = `<option value="">${placeholder}</option>${options.map((value) => `<option value="${esc(value)}">${esc(value)}</option>`).join('')}`;
+    if (options.includes(selected)) select.value = selected;
+  };
+  setOptions('#audit-action-filter', auditEntries.map((entry) => entry.action), 'All actions');
+  setOptions('#audit-target-filter', auditEntries.map((entry) => entry.target_type), 'All target types');
+  const actorSelect = $('#audit-actor-filter');
+  const selectedActor = actorSelect.value;
+  const actors = [...new Map(auditEntries.map((entry) => {
+    const user = users.find((item) => item.id === entry.actor_id);
+    return [entry.actor_id || 'system', { id: entry.actor_id || 'system', label: user?.email ?? (entry.actor_id ? 'Removed account' : 'System / removed account') }];
+  })).values()].sort((a, b) => a.label.localeCompare(b.label));
+  actorSelect.innerHTML = `<option value="">All actors</option>${actors.map((item) => `<option value="${esc(item.id)}">${esc(item.label)}</option>`).join('')}`;
+  if (actors.some((item) => item.id === selectedActor)) actorSelect.value = selectedActor;
 }
 
 function drawAnnouncements() {
@@ -354,6 +406,23 @@ async function init() {
   $('#user-search').addEventListener('input', drawUsers);
   $('#user-status').addEventListener('change', drawUsers);
   $('#report-status').addEventListener('change', drawReports);
+  ['#audit-search', '#audit-action-filter', '#audit-target-filter', '#audit-actor-filter', '#audit-date-from', '#audit-date-to']
+    .forEach((selector) => $(selector).addEventListener(selector === '#audit-search' ? 'input' : 'change', () => {
+      auditPage = 1;
+      drawAudit();
+    }));
+  $('#audit-prev').addEventListener('click', () => { auditPage = Math.max(1, auditPage - 1); drawAudit(); });
+  $('#audit-next').addEventListener('click', () => { auditPage += 1; drawAudit(); });
+  $('#audit-clear-filters').addEventListener('click', () => {
+    $('#audit-search').value = '';
+    $('#audit-action-filter').value = '';
+    $('#audit-target-filter').value = '';
+    $('#audit-actor-filter').value = '';
+    $('#audit-date-from').value = '';
+    $('#audit-date-to').value = '';
+    auditPage = 1;
+    drawAudit();
+  });
   $('#reports-body').addEventListener('change', (event) => {
     const checkbox = event.target.closest('[data-report-select]');
     if (!checkbox) return;
