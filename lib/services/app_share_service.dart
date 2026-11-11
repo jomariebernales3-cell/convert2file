@@ -2,9 +2,20 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class AppShareService {
   static const _channel = MethodChannel('convert2file/app_share');
+  static const websiteUrl = 'https://jomariebernales3-cell.github.io/convert2file/';
+
+  static Future<void> shareWebsiteLink() async {
+    await SharePlus.instance.share(
+      ShareParams(
+        text: 'Download Convert2File for Android: $websiteUrl',
+        subject: 'Convert2File Android app',
+      ),
+    );
+  }
 
   static Future<void> shareApp() async {
     final installedApp = await _channel.invokeMapMethod<String, dynamic>(

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../services/app_share_service.dart';
 import '../services/auth_service.dart';
+import '../services/announcement_service.dart';
 import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
 import '../core/database_helper.dart';
@@ -18,11 +20,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = false;
   final LocalLlamaService _llama = LocalLlamaService.instance;
   Map<String, dynamic>? _stats;
+  final AnnouncementService _announcementService = AnnouncementService();
+  bool _hasUnreadAnnouncements = false;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
+    _loadAnnouncementUnread();
+  }
+
+  Future<void> _loadAnnouncementUnread() async {
+    final items = await _announcementService.fetchActive(forceRefresh: true);
+    final seen = await _announcementService.seenIds();
+    if (!mounted) return;
+    setState(() {
+      _hasUnreadAnnouncements = items.any(
+        (item) => !seen.contains(item['id']?.toString()),
+      );
+    });
   }
 
   Future<void> _loadStats() async {
@@ -84,9 +100,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _shareApp() async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              title: Text('Share Convert2File'),
+              subtitle: Text('Choose how you want to share the app.'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.android),
+              title: const Text('Default — share APK'),
+              subtitle: const Text('Share the installed app file'),
+              onTap: () => Navigator.pop(sheetContext, 'apk'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link),
+              title: const Text('Share website link'),
+              subtitle: const Text('Send the Convert2File download page'),
+              onTap: () => Navigator.pop(sheetContext, 'link'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.qr_code_2),
+              title: const Text('Show QR code'),
+              subtitle: const Text('Scan to open the download page'),
+              onTap: () => Navigator.pop(sheetContext, 'qr'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || choice == null) return;
+
+    if (choice == 'qr') {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Convert2File download link'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.all(12),
+                child: QrImageView(
+                  data: AppShareService.websiteUrl,
+                  size: 220,
+                  backgroundColor: Colors.white,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SelectableText(
+                AppShareService.websiteUrl,
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
-      await AppShareService.shareApp();
+      if (choice == 'link') {
+        await AppShareService.shareWebsiteLink();
+      } else {
+        await AppShareService.shareApp();
+      }
     } catch (e) {
       _showError('Share failed: $e');
     } finally {
@@ -575,7 +666,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 icon: Icons.campaign_outlined,
                 title: 'Announcements',
                 subtitle: 'View current notices',
-                onTap: () => Navigator.of(context).pushNamed('/announcements'),
+                trailing: _hasUnreadAnnouncements
+                    ? Semantics(
+                        label: 'Unread announcements',
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.error,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      )
+                    : null,
+                onTap: () async {
+                  await Navigator.of(context).pushNamed('/announcements');
+                  _loadAnnouncementUnread();
+                },
               ),
               _buildActionTile(
                 icon: Icons.report_problem_outlined,
@@ -604,6 +711,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     required VoidCallback onTap,
     bool isDestructive = false,
     bool showDivider = true,
+    Widget? trailing,
   }) {
     return InkWell(
       onTap: onTap,
@@ -650,6 +758,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                 ),
+                if (trailing != null) ...[
+                  trailing,
+                  const SizedBox(width: 10),
+                ],
                 Icon(Icons.chevron_right,
                     color: FigmaAppColors.subtext(context)),
               ],
