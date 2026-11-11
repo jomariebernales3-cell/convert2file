@@ -233,7 +233,7 @@ function openReport(id) {
       admin_note: $('#detail-notes').value,
     }).eq('id', report.id);
     if (error) {
-      const errorNode = #report-save-error;
+      const errorNode = $('#report-save-error');
       errorNode.textContent = error.message;
       errorNode.hidden = false;
       return;
