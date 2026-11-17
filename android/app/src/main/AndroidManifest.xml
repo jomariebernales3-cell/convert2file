@@ -15,8 +15,8 @@
         android:label="Convert2File"
         android:name="${applicationName}"
         android:requestLegacyExternalStorage="true"
-        android:icon="@drawable/convert2file_logo_v2"
-        android:roundIcon="@drawable/convert2file_logo_v2">
+        android:icon="@mipmap/convert2file_launcher"
+        android:roundIcon="@mipmap/convert2file_launcher">
         <activity
             android:name=".MainActivity"
             android:exported="true"
