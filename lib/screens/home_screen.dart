@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -70,6 +71,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   AppRemoteConfig _remoteConfig = const AppRemoteConfig();
   RealtimeChannel? _appControlChannel;
   RealtimeChannel? _announcementChannel;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   final AnnouncementService _announcementService = AnnouncementService();
   int _unreadAnnouncementCount = 0;
 
@@ -82,6 +84,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _loadRemoteConfig();
     _loadUnreadAnnouncementCount(forceRefresh: true);
     _subscribeToAppControlChanges();
+    _subscribeToConnectivityChanges();
     _subscribeToAnnouncementChanges();
     ReportService().retryPending();
     WidgetsBinding.instance.addPostFrameCallback((_) => _showTermsAgreement());
@@ -206,6 +209,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _connectivitySubscription?.cancel();
     final channel = _appControlChannel;
     if (channel != null) {
       unawaited(Supabase.instance.client.removeChannel(channel));
@@ -263,13 +267,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Future<void> _loadRemoteConfig() async {
     try {
-      final config = await const AppRemoteConfigService().load();
+      const service = AppRemoteConfigService();
+      final cached = await service.loadCached();
+      if (mounted) setState(() => _remoteConfig = cached);
+      final config = await service.refresh(fallback: cached);
       if (mounted) setState(() => _remoteConfig = config);
     } catch (_) {
       // Remote controls are optional; local tools stay available when offline.
     }
   }
 
+  void _subscribeToConnectivityChanges() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (results) {
+        if (results.any((result) => result != ConnectivityResult.none)) {
+          unawaited(_loadRemoteConfig());
+        }
+      },
+    );
+  }
   Future<void> _loadUnreadAnnouncementCount({bool forceRefresh = false}) async {
     try {
       final results = await Future.wait([

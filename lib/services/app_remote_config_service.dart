@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_config.dart';
@@ -19,6 +22,34 @@ class AppRemoteConfig {
 
   bool featureEnabled(String key) => featureFlags[key] != false;
 
+  factory AppRemoteConfig.fromJson(Map<String, dynamic> json) {
+    final rawFlags = json['feature_flags'];
+    final rawAnnouncements = json['announcements'];
+    return AppRemoteConfig(
+      maintenanceEnabled: json['maintenance_enabled'] == true,
+      latestVersion: json['latest_version']?.toString() ?? '1.0.26',
+      minimumSupportedVersion:
+          json['minimum_supported_version']?.toString() ?? '1.0.0',
+      featureFlags: rawFlags is Map
+          ? Map<String, dynamic>.from(rawFlags)
+          : const {},
+      announcements: rawAnnouncements is List
+          ? rawAnnouncements
+              .whereType<Map>()
+              .map((row) => Map<String, dynamic>.from(row))
+              .toList(growable: false)
+          : const [],
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'maintenance_enabled': maintenanceEnabled,
+        'latest_version': latestVersion,
+        'minimum_supported_version': minimumSupportedVersion,
+        'feature_flags': featureFlags,
+        'announcements': announcements,
+      };
+
   bool get updateAvailable => _compareVersions(latestVersion, '1.0.26') > 0;
 
   static int _compareVersions(String left, String right) {
@@ -33,30 +64,59 @@ class AppRemoteConfig {
 }
 
 class AppRemoteConfigService {
+  static const _cacheKey = 'app_remote_config_cache_v1';
+  static const _requestTimeout = Duration(seconds: 6);
+
   const AppRemoteConfigService();
 
   Future<AppRemoteConfig> load() async {
-    if (!SupabaseConfig.isConfigured) return const AppRemoteConfig();
-    final client = Supabase.instance.client;
-    final results = await Future.wait([
-      client.from('app_control_settings').select().eq('id', true).maybeSingle(),
-      client.from('admin_announcements').select('id,title,message,created_at')
-          .eq('status', 'active').order('created_at', ascending: false).limit(5),
-    ]);
-    final settings = results[0] as Map<String, dynamic>?;
-    final announcementRows = results[1] as List<dynamic>;
-    if (settings == null) return const AppRemoteConfig();
-    final flags = settings['feature_flags'];
-    return AppRemoteConfig(
-      maintenanceEnabled: settings['maintenance_enabled'] == true,
-      latestVersion: settings['latest_version']?.toString() ?? '1.0.26',
-      minimumSupportedVersion:
-          settings['minimum_supported_version']?.toString() ?? '1.0.0',
-      featureFlags: flags is Map ? Map<String, dynamic>.from(flags) : const {},
-      announcements: announcementRows
-          .whereType<Map>()
-          .map((row) => Map<String, dynamic>.from(row))
-          .toList(growable: false),
-    );
+    final cached = await loadCached();
+    return refresh(fallback: cached);
+  }
+
+  Future<AppRemoteConfig> loadCached() async {
+    final preferences = await SharedPreferences.getInstance();
+    final raw = preferences.getString(_cacheKey);
+    if (raw == null) return const AppRemoteConfig();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map) {
+        return AppRemoteConfig.fromJson(Map<String, dynamic>.from(decoded));
+      }
+    } catch (_) {
+      // Ignore malformed cache and use the built-in defaults.
+    }
+    return const AppRemoteConfig();
+  }
+
+  Future<AppRemoteConfig> refresh({AppRemoteConfig? fallback}) async {
+    final cached = fallback ?? await loadCached();
+    if (!SupabaseConfig.isConfigured) return cached;
+
+    try {
+      final client = Supabase.instance.client;
+      final settings = await client
+          .from('app_control_settings')
+          .select()
+          .eq('id', true)
+          .maybeSingle()
+          .timeout(_requestTimeout);
+      if (settings == null) return cached;
+
+      final flags = settings['feature_flags'];
+      final config = AppRemoteConfig(
+        maintenanceEnabled: settings['maintenance_enabled'] == true,
+        latestVersion: settings['latest_version']?.toString() ?? '1.0.26',
+        minimumSupportedVersion:
+            settings['minimum_supported_version']?.toString() ?? '1.0.0',
+        featureFlags: flags is Map ? Map<String, dynamic>.from(flags) : const {},
+      );
+      final preferences = await SharedPreferences.getInstance();
+      await preferences.setString(_cacheKey, jsonEncode(config.toJson()));
+      return config;
+    } catch (_) {
+      // Keep the last successful remote settings when the device is offline.
+      return cached;
+    }
   }
 }

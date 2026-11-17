@@ -1,6 +1,7 @@
 import '../widgets/report_problem_entry.dart';
 import 'dart:async';
 import 'dart:io';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:file_picker/file_picker.dart';
@@ -40,6 +41,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   int? _selectedCreateActionIndex;
   AppRemoteConfig _remoteConfig = const AppRemoteConfig();
   RealtimeChannel? _appControlChannel;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 
   bool _isLoading = false;
   String _statusMessage = '';
@@ -57,17 +59,30 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.addObserver(this);
     unawaited(_loadRemoteConfig());
     _subscribeToAppControlChanges();
+    _subscribeToConnectivityChanges();
   }
 
   Future<void> _loadRemoteConfig() async {
     try {
-      final config = await const AppRemoteConfigService().load();
+      const service = AppRemoteConfigService();
+      final cached = await service.loadCached();
+      if (mounted) setState(() => _remoteConfig = cached);
+      final config = await service.refresh(fallback: cached);
       if (mounted) setState(() => _remoteConfig = config);
     } catch (_) {
       // Keep local tools available when remote settings cannot be reached.
     }
   }
 
+  void _subscribeToConnectivityChanges() {
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (results) {
+        if (results.any((result) => result != ConnectivityResult.none)) {
+          unawaited(_loadRemoteConfig());
+        }
+      },
+    );
+  }
   void _subscribeToAppControlChanges() {
     if (!SupabaseConfig.isConfigured) return;
     _appControlChannel = Supabase.instance.client
@@ -107,6 +122,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _connectivitySubscription?.cancel();
     final channel = _appControlChannel;
     if (channel != null) unawaited(Supabase.instance.client.removeChannel(channel));
     _progressTimer?.cancel();
