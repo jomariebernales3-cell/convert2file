@@ -6,5 +6,5 @@
         android:width="144dp"
         android:height="144dp"
         android:gravity="center"
-        android:drawable="@drawable/convert2file_logo_v2" />
+        android:drawable="@drawable/hybrid_indicator" />
 </layer-list>

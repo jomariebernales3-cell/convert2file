@@ -20,7 +20,6 @@ import 'screens/qr_code_screen.dart';
 import 'screens/qr_output_screen.dart';
 import 'screens/announcements_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/splash_screen.dart';
 import 'screens/study_builder_screen.dart';
 import 'screens/text_to_file_screen.dart';
 
@@ -70,9 +69,8 @@ class SmartTemplateApp extends StatelessWidget {
             themeService.isDbzTheme ? AppColors.dbz : AppColors.night,
             Brightness.dark,
           ),
-          initialRoute: '/splash',
+          initialRoute: authService.isLoggedIn ? '/home' : '/login',
           routes: {
-            '/splash': (context) => const SplashScreen(),
             '/login': (context) => const LoginScreen(),
             '/forgot-password': (context) => ForgotPasswordScreen(
                   initialEmail: ModalRoute.of(context)?.settings.arguments as String?,
