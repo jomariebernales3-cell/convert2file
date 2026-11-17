@@ -24,13 +24,13 @@ class AnnouncementService {
     }
 
     final client = Supabase.instance.client;
-    final values = <Map<String, dynamic>>[];
-    var readSucceeded = false;
     final now = DateTime.now().toUtc().toIso8601String();
 
-    // The current admin page writes to `announcements`.
+    // The current admin portal writes to `announcements`. Do not merge the
+    // retired `admin_announcements` table, which can keep old notices active.
+    final List<dynamic> rows;
     try {
-      final rows = await client
+      rows = await client
           .from('announcements')
           .select(
             'id,title,body,kind,starts_at,ends_at,link_url,link_label,created_at',
@@ -40,40 +40,11 @@ class AnnouncementService {
           .or('ends_at.is.null,ends_at.gt.$now')
           .order('created_at', ascending: false)
           .limit(10);
-      values.addAll(rows.map((row) => Map<String, dynamic>.from(row)));
-      readSucceeded = true;
     } catch (_) {
-      // Continue to check the legacy table used by the previously published admin site.
+      return cached;
     }
 
-    // Older GitHub Pages versions publish through admin_publish_announcement().
-    try {
-      final legacyRows = await client
-          .from('admin_announcements')
-          .select('id,title,message,created_at')
-          .eq('status', 'active')
-          .order('created_at', ascending: false)
-          .limit(10);
-      values.addAll(legacyRows.map((row) {
-        final legacy = Map<String, dynamic>.from(row);
-        return <String, dynamic>{
-          'id': 'legacy-${legacy['id']}',
-          'title': legacy['title'],
-          'body': legacy['message'],
-          'kind': 'info',
-          'starts_at': legacy['created_at'],
-          'ends_at': null,
-          'link_url': null,
-          'link_label': null,
-          'created_at': legacy['created_at'],
-        };
-      }));
-      readSucceeded = true;
-    } catch (_) {
-      // This table may not exist in projects set up with only the new schema.
-    }
-
-    if (!readSucceeded) return cached;
+    final values = rows.map((row) => Map<String, dynamic>.from(row)).toList();
     values.sort((a, b) {
       final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
@@ -123,6 +94,7 @@ class AnnouncementService {
       return (jsonDecode(raw) as List)
           .whereType<Map>()
           .map((row) => Map<String, dynamic>.from(row))
+          .where((row) => !row['id'].toString().startsWith('legacy-'))
           .toList(growable: false);
     } catch (_) {
       return const [];
