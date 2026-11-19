@@ -54,6 +54,7 @@ function setTheme(choice) {
   const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   document.documentElement.dataset.theme = choice === 'system' ? (dark ? 'night' : 'day') : choice;
   $('#appearance').value = choice;
+  if ($('#mobile-appearance')) $('#mobile-appearance').value = choice;
 }
 
 function showLogin(message = '') {
@@ -192,9 +193,11 @@ function drawDashboard() {
 function drawUsers() {
   const q = $('#user-search').value.trim().toLowerCase();
   const status = $('#user-status').value;
+  $$('#user-status-pills [data-status]').forEach((button) => button.classList.toggle('active', button.dataset.status === status));
   const matches = users.filter((u) => (!status || u.account_status === status) &&
     `${u.display_name} ${u.email}`.toLowerCase().includes(q));
   $('#users-body').innerHTML = matches.map((u) => `<tr class="clickable" data-user="${esc(u.id)}"><td><b>${esc(u.display_name || 'Unnamed account')}</b></td><td>${esc(u.email)}</td><td>${badge(u.account_status)}</td><td>${esc(shortDate(u.created_at))}</td><td>${esc(date(u.last_seen_at))}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No accounts found.</td></tr>';
+  $('#users-cards').innerHTML = matches.map((u) => `<button type="button" class="mobile-data-card" data-user="${esc(u.id)}"><span class="mobile-card-main"><b>${esc(u.display_name || 'Unnamed account')}</b><span class="mobile-card-chevron" aria-hidden="true">›</span></span><span class="mobile-card-sub">${esc(u.email)}</span><span class="mobile-card-meta">${badge(u.account_status)} <span>Joined ${esc(shortDate(u.created_at))}</span></span></button>`).join('') || '<p class="empty mobile-empty">No accounts found.</p>';
 }
 
 function openUser(id) {
@@ -214,12 +217,16 @@ function openUser(id) {
 
 function drawReports() {
   const status = $('#report-status').value;
+  $$('#report-status-pills [data-status]').forEach((button) => button.classList.toggle('active', button.dataset.status === status));
   const matches = reports.filter((r) => !status || r.status === status);
   const allSelected = matches.length > 0 && matches.every((r) => selectedReportIds.has(r.id));
   $('#reports-body').innerHTML = matches.map((r) => `<tr class="clickable" data-report="${esc(r.id)}"><td><input class="report-select" type="checkbox" data-report-select="${esc(r.id)}" aria-label="Select report" ${selectedReportIds.has(r.id) ? 'checked' : ''}></td><td><b>${esc(r.area.replaceAll('_', ' '))}</b><small>${esc(r.description.slice(0, 90))}${r.description.length > 90 ? '…' : ''}</small></td><td>${esc(r.reporter_email || users.find((u) => u.id === r.user_id)?.email || 'Guest')}<small>${esc(r.app_version || 'App version unknown')} · ${esc(r.platform || r.device_info || 'Device not provided')}</small></td><td>${esc(shortDate(r.created_at))}</td><td>${badge(r.status)}</td></tr>`).join('') || '<tr><td colspan="5" class="empty">No reports found.</td></tr>';
+  $('#reports-cards').innerHTML = matches.map((r) => `<article class="mobile-data-card report-card" data-report-card="${esc(r.id)}"><label class="report-card-check"><input class="report-select" type="checkbox" data-report-select="${esc(r.id)}" aria-label="Select report" ${selectedReportIds.has(r.id) ? 'checked' : ''}></label><button class="report-card-open" type="button" data-report="${esc(r.id)}"><span class="mobile-card-main"><b>${esc(r.area.replaceAll('_', ' '))}</b>${badge(r.status)}</span><span class="mobile-card-sub">${esc(r.description.slice(0, 120))}${r.description.length > 120 ? '…' : ''}</span><span class="mobile-card-sub">${esc(r.reporter_email || users.find((u) => u.id === r.user_id)?.email || 'Guest')}</span><span class="mobile-card-meta">${esc(r.app_version || 'App version unknown')} · ${esc(shortDate(r.created_at))}</span><span class="mobile-card-chevron" aria-hidden="true">Open report ›</span></button></article>`).join('') || '<p class="empty mobile-empty">No reports found.</p>';
   $('#select-all-reports').checked = allSelected;
   $('#delete-selected-reports').disabled = selectedReportIds.size === 0;
   $('#delete-selected-reports').textContent = `Delete selected (${selectedReportIds.size})`;
+  $('#mobile-selected-count').textContent = `${selectedReportIds.size} selected`;
+  $('#mobile-bulk-actions').hidden = selectedReportIds.size === 0 || currentPage !== 'reports';
 }
 
 async function deleteProblemReports(reportIds, { all = false, confirmMessage } = {}) {
@@ -279,6 +286,10 @@ function drawTeam() {
     const user = users.find((item) => item.id === admin.user_id);
     return `<tr><td>${esc(user?.email ?? 'Account unavailable')}</td><td>${esc(user?.display_name ?? '—')}</td><td>${badge(admin.role)}</td><td>${esc(shortDate(admin.created_at))}</td></tr>`;
   }).join('') || '<tr><td colspan="4" class="empty">No admins found.</td></tr>';
+  $('#team-cards').innerHTML = admins.map((admin) => {
+    const user = users.find((item) => item.id === admin.user_id);
+    return `<article class="mobile-data-card"><span class="mobile-card-main"><b>${esc(user?.display_name ?? 'Account unavailable')}</b>${badge(admin.role)}</span><span class="mobile-card-sub">${esc(user?.email ?? 'Account unavailable')}</span><span class="mobile-card-meta">Added ${esc(shortDate(admin.created_at))}</span></article>`;
+  }).join('') || '<p class="empty mobile-empty">No admins found.</p>';
 }
 
 function drawAudit() {
@@ -306,6 +317,11 @@ function drawAudit() {
     const user = users.find((item) => item.id === entry.actor_id);
     return `<tr><td><b>${esc(entry.action)}</b></td><td>${esc(user?.email ?? 'System / removed account')}</td><td>${esc(entry.target_type)} ${esc(entry.target_id)}</td><td>${esc(JSON.stringify(entry.details ?? {}))}</td><td>${esc(date(entry.created_at))}</td></tr>`;
   }).join('') || `<tr><td colspan="5" class="empty">${auditEntries.length ? 'No matching audit entries.' : 'No audit entries yet.'}</td></tr>`;
+  $('#audit-cards').innerHTML = pageEntries.map((entry) => {
+    const user = users.find((item) => item.id === entry.actor_id);
+    const details = JSON.stringify(entry.details ?? {});
+    return `<article class="mobile-data-card"><span class="mobile-card-main"><b>${esc(entry.action)}</b></span><span class="mobile-card-sub">by ${esc(user?.email ?? 'System / removed account')}</span><span class="mobile-card-sub">${esc(entry.target_type)} ${esc(entry.target_id)}</span><span class="mobile-card-meta">${esc(date(entry.created_at))}</span><details class="audit-card-details"><summary>Details</summary><pre>${esc(details)}</pre></details></article>`;
+  }).join('') || `<p class="empty mobile-empty">${auditEntries.length ? 'No matching audit entries.' : 'No audit entries yet.'}</p>`;
   $('#audit-page-info').textContent = `Page ${auditPage} of ${pageCount}`;
   $('#audit-range-info').textContent = matches.length
     ? `Showing ${startIndex + 1}–${Math.min(startIndex + auditPageSize, matches.length)} of ${matches.length}`
@@ -316,6 +332,20 @@ function drawAudit() {
   $('#audit-loaded-note').textContent = auditEntries.length >= 500
     ? 'Showing the newest 500 audit entries. Use the date filter to narrow this list.'
     : `Showing all ${auditEntries.length} loaded audit entries.`;
+  drawActiveAuditFilters();
+}
+
+function drawActiveAuditFilters() {
+  const filters = [
+    ['#audit-action-filter', 'Action'], ['#audit-target-filter', 'Target'], ['#audit-actor-filter', 'Actor'],
+  ];
+  const chips = filters.flatMap(([selector, label]) => {
+    const select = $(selector);
+    return select.value ? [{ selector, label, value: select.selectedOptions[0]?.textContent ?? select.value }] : [];
+  });
+  if ($('#audit-date-from').value) chips.push({ selector: '#audit-date-from', label: 'From', value: $('#audit-date-from').value });
+  if ($('#audit-date-to').value) chips.push({ selector: '#audit-date-to', label: 'To', value: $('#audit-date-to').value });
+  $('#active-audit-filters').innerHTML = chips.map((chip) => `<button type="button" class="active-filter-chip" data-clear-filter="${chip.selector}">${esc(chip.label)}: ${esc(chip.value)} <span aria-hidden="true">×</span></button>`).join('');
 }
 
 function populateAuditFilters() {
@@ -459,13 +489,19 @@ function showPage(page) {
   currentPage = page;
   $$('.page').forEach((node) => { node.hidden = node.id !== `page-${page}`; });
   $$('.nav').forEach((node) => node.classList.toggle('active', node.dataset.page === page));
+  $$('#mobile-tabs [data-page]').forEach((node) => node.classList.toggle('active', node.dataset.page === page));
+  $('#more-tab').classList.toggle('active', !['dashboard', 'users', 'reports', 'announcements'].includes(page));
+  $('#mobile-bulk-actions').hidden = selectedReportIds.size === 0 || page !== 'reports';
+  $('#more-dialog').close();
   $('#page-title').textContent = ({ dashboard: 'Dashboard', users: 'Users', reports: 'Bug reports', announcements: 'Announcements', 'app-control': 'App control', 'app-info': 'App Info', team: 'Admin team', audit: 'Audit log' })[page];
+  $('#mobile-page-title').textContent = $('#page-title').textContent;
 }
 
 function initTheme() {
   const saved = localStorage.getItem('c2f-admin-theme') || 'system';
   setTheme(saved);
   $('#appearance').addEventListener('change', () => setTheme($('#appearance').value));
+  $('#mobile-appearance').addEventListener('change', () => setTheme($('#mobile-appearance').value));
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if ((localStorage.getItem('c2f-admin-theme') || 'system') === 'system') setTheme('system');
   });
@@ -487,7 +523,21 @@ async function init() {
   });
   $('#signout').addEventListener('click', async () => { await client.auth.signOut(); actor = account = null; role = null; showLogin(); });
   $('#refresh').addEventListener('click', refreshData);
+  $('#mobile-refresh').addEventListener('click', refreshData);
   $$('.nav').forEach((node) => node.addEventListener('click', () => showPage(node.dataset.page)));
+  $$('#mobile-tabs [data-page], .more-link').forEach((node) => node.addEventListener('click', () => showPage(node.dataset.page)));
+  $('#more-tab').addEventListener('click', () => $('#more-dialog').showModal());
+  $('#mobile-signout').addEventListener('click', async () => { $('#more-dialog').close(); await $('#signout').click(); });
+  $('#audit-open-filters').addEventListener('click', () => $('#audit-filter-dialog').showModal());
+  $('#audit-filter-apply').addEventListener('click', () => $('#audit-filter-dialog').close());
+  const auditToolbar = $('.audit-toolbar');
+  const auditFilterNodes = ['#audit-action-filter', '#audit-target-filter', '#audit-actor-filter', ...$$('.audit-date-filter'), '#audit-clear-filters'].map((s) => typeof s === 'string' ? $(s) : s);
+  const moveAuditFilters = () => {
+    const target = window.matchMedia('(max-width: 899px)').matches ? $('#audit-filter-fields') : auditToolbar;
+    auditFilterNodes.forEach((node) => target.append(node));
+  };
+  moveAuditFilters();
+  window.matchMedia('(max-width: 899px)').addEventListener('change', moveAuditFilters);
   $('#add-info-section').addEventListener('click', () => {
     if (!appInfoContent) return;
     const edited = readAppInfoEditors();
@@ -555,7 +605,19 @@ async function init() {
   });
   $('#user-search').addEventListener('input', drawUsers);
   $('#user-status').addEventListener('change', drawUsers);
+  $('#user-status-pills').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-status]');
+    if (!button) return;
+    $('#user-status').value = button.dataset.status;
+    drawUsers();
+  });
   $('#report-status').addEventListener('change', drawReports);
+  $('#report-status-pills').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-status]');
+    if (!button) return;
+    $('#report-status').value = button.dataset.status;
+    drawReports();
+  });
   ['#audit-search', '#audit-action-filter', '#audit-target-filter', '#audit-actor-filter', '#audit-date-from', '#audit-date-to']
     .forEach((selector) => $(selector).addEventListener(selector === '#audit-search' ? 'input' : 'change', () => {
       auditPage = 1;
@@ -572,6 +634,24 @@ async function init() {
     $('#audit-date-to').value = '';
     auditPage = 1;
     drawAudit();
+  });
+  $('#active-audit-filters').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-clear-filter]');
+    if (!button) return;
+    $(button.dataset.clearFilter).value = '';
+    auditPage = 1;
+    drawAudit();
+  });
+  $('#reports-cards').addEventListener('change', (event) => {
+    const checkbox = event.target.closest('[data-report-select]');
+    if (!checkbox) return;
+    if (checkbox.checked) selectedReportIds.add(checkbox.dataset.reportSelect);
+    else selectedReportIds.delete(checkbox.dataset.reportSelect);
+    drawReports();
+  });
+  $('#reports-cards').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-report]');
+    if (button) openReport(button.dataset.report);
   });
   $('#reports-body').addEventListener('change', (event) => {
     const checkbox = event.target.closest('[data-report-select]');
@@ -593,6 +673,17 @@ async function init() {
     if (ids.length) deleteProblemReports(ids, {
       confirmMessage: `Permanently delete ${ids.length} selected report${ids.length === 1 ? '' : 's'}? Each deletion will be recorded in the audit log.`,
     });
+  });
+  $('#mobile-delete-selected').addEventListener('click', () => $('#delete-selected-reports').click());
+  $('#mobile-resolve-selected').addEventListener('click', async () => {
+    const ids = [...selectedReportIds];
+    if (!ids.length) return;
+    const { error } = await client.from('problem_reports').update({ status: 'resolved' }).in('id', ids);
+    if (error) { notice(error.message, true); return; }
+    selectedReportIds.clear();
+    await refreshData();
+    showPage('reports');
+    notice(`Resolved ${ids.length} report${ids.length === 1 ? '' : 's'}.`);
   });
   $('#delete-all-reports').addEventListener('click', () => deleteProblemReports([], {
     all: true,
@@ -650,6 +741,7 @@ async function init() {
     showPage('app-control');
   });
   $('#users-body').addEventListener('click', (e) => { const row = e.target.closest('[data-user]'); if (row) openUser(row.dataset.user); });
+  $('#users-cards').addEventListener('click', (e) => { const card = e.target.closest('[data-user]'); if (card) openUser(card.dataset.user); });
   $('#reports-body').addEventListener('click', (e) => { if (e.target.closest('[data-report-select]')) return; const row = e.target.closest('[data-report]'); if (row) openReport(row.dataset.report); });
   $('#team-form').addEventListener('submit', async (event) => {
     event.preventDefault();
