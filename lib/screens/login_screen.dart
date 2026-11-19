@@ -72,7 +72,11 @@ class _LoginScreenState extends State<LoginScreen> {
         _showMessage(_friendlyAuthMessage(error.message), error: true);
       }
     } catch (error) {
-      setState(() => _formError = error.toString().replaceFirst('Bad state: ', ''));
+      final message = _friendlyAuthMessage(
+        error.toString().replaceFirst('Bad state: ', ''),
+      );
+      setState(() => _formError = message);
+      _showMessage(message, error: true);
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -110,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (error) {
       _showMessage(_friendlyAuthMessage(error.message), error: true);
     } catch (error) {
-      _showMessage(error.toString().replaceFirst('Bad state: ', ''), error: true);
+      _showMessage(_friendlyAuthMessage(error.toString()), error: true);
     } finally {
       if (mounted) setState(() => _isBusy = false);
     }
@@ -135,6 +139,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String _friendlyAuthMessage(String message) {
     final lower = message.toLowerCase();
+    if (lower.contains('no internet') ||
+        lower.contains('socketexception') ||
+        lower.contains('failed host lookup') ||
+        lower.contains('network is unreachable') ||
+        lower.contains('connection refused') ||
+        lower.contains('connection reset') ||
+        lower.contains('clientexception') ||
+        lower.contains('timeoutexception') ||
+        lower.contains('timed out') ||
+        lower.contains('failed to fetch') ||
+        lower.contains('network request failed')) {
+      return 'No internet connection. Sign-in needs internet. Connect and try again, or continue as a guest.';
+    }
     if (lower.contains('invalid login credentials'))
       return 'Incorrect email or password.';
     if (lower.contains('email not confirmed'))
@@ -265,6 +282,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                       controller: _passwordController,
                                       label: 'Password',
                                       icon: Icons.lock_outline,
+                                      helperText: _isSignUp
+                                          ? 'Use 8+ characters and at least 1 special character.'
+                                          : null,
                                       obscureText: _obscurePassword,
                                       textInputAction: TextInputAction.done,
                                       autofillHints: const [AutofillHints.password],
@@ -286,10 +306,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                               : Icons.visibility_outlined,
                                         ),
                                       ),
-                                      validator: (value) =>
-                                          (value == null || value.length < 6)
-                                              ? 'Use at least 6 characters'
-                                              : null,
+                                      validator: (value) {
+                                        if (_isSignUp) {
+                                          if (value == null) return 'Enter a password.';
+                                          return AuthService.passwordValidationError(value);
+                                        }
+                                        return (value == null || value.length < 6)
+                                            ? 'Enter your password.'
+                                            : null;
+                                      },
                                     ),
                                     if (!_isSignUp) ...[
                                       const SizedBox(height: 8),
@@ -506,6 +531,7 @@ class _LoginScreenState extends State<LoginScreen> {
     required String label,
     required IconData icon,
     String? Function(String?)? validator,
+    String? helperText,
     TextInputType? keyboardType,
     TextInputAction? textInputAction,
     Iterable<String>? autofillHints,
@@ -529,6 +555,7 @@ class _LoginScreenState extends State<LoginScreen> {
         style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
         decoration: InputDecoration(
           hintText: label,
+          helperText: helperText,
           hintStyle: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           prefixIcon: Icon(icon, color: Theme.of(context).colorScheme.onSurfaceVariant),
           suffixIcon: suffix,

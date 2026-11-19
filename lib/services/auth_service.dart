@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/database_helper.dart';
@@ -9,6 +10,13 @@ import 'supabase_config.dart';
 import 'theme_service.dart';
 
 class AuthService {
+  static String? passwordValidationError(String password) {
+    if (password.length < 8) return 'Use at least 8 characters.';
+    if (!RegExp(r'[^\w\s]').hasMatch(password)) {
+      return 'Include at least one special character, such as ! or #.';
+    }
+    return null;
+  }
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
@@ -85,6 +93,8 @@ class AuthService {
   }
 
   Future<void> updatePassword({required String password}) async {
+    final validationError = passwordValidationError(password);
+    if (validationError != null) throw AuthException(validationError);
     _requireSupabaseConfiguration();
     await Supabase.instance.client.auth.updateUser(
       UserAttributes(password: password),
@@ -97,6 +107,8 @@ class AuthService {
     required String email,
     required String password,
   }) async {
+    final validationError = passwordValidationError(password);
+    if (validationError != null) throw AuthException(validationError);
     _requireSupabaseConfiguration();
     await _ensureOnlineServicesAvailable();
 
@@ -127,11 +139,19 @@ class AuthService {
   }
 
   Future<void> _ensureOnlineServicesAvailable() async {
+    final connection = await Connectivity().checkConnectivity();
+    if (connection.isEmpty ||
+        connection.every((result) => result == ConnectivityResult.none)) {
+      throw const AuthException(
+        'No internet connection. Sign-in needs internet. Connect and try again, or continue as a guest.',
+      );
+    }
     final settings = await Supabase.instance.client
         .from('app_control_settings')
         .select('maintenance_enabled,minimum_supported_version')
         .eq('id', true)
-        .maybeSingle();
+        .maybeSingle()
+        .timeout(const Duration(seconds: 8));
     if (settings?['maintenance_enabled'] == true) {
       throw const AuthException(
           'Online services are under maintenance. You can continue in Guest mode.');
@@ -141,7 +161,6 @@ class AuthService {
       throw AuthException('Update required. Install version $minimum or newer to sign in.');
     }
   }
-
   int _compareVersions(String left, String right) {
     final a = left.split('.').map((part) => int.tryParse(part) ?? 0).toList();
     final b = right.split('.').map((part) => int.tryParse(part) ?? 0).toList();

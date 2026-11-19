@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../services/announcement_service.dart';
 import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
+import '../services/supabase_config.dart';
 import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
 import '../widgets/report_problem_sheet.dart';
@@ -811,7 +812,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         Text(
-                          'Version 1.0.26.29',
+                          'Version ${SupabaseConfig.displayAppVersion}',
                           style: TextStyle(
                             color: FigmaAppColors.subtext(context),
                             fontSize: 12,

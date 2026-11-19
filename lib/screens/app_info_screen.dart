@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/app_info_service.dart';
+import '../services/supabase_config.dart';
 
 class AppInfoScreen extends StatefulWidget {
   const AppInfoScreen({super.key});
@@ -151,9 +152,22 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
 
   static const _defaultReleaseNotes = [
     _ReleaseNote(
-      version: '1.0.26.29',
-      date: 'Current build',
+      version: SupabaseConfig.displayAppVersion,
+      date: 'November 19, 2026',
       isLatest: true,
+      features: [
+        'Let users attach screenshots to problem reports, including reports saved while offline.',
+        'Show Online Maintenance in the home greeting area with a wrench icon for guest and signed-in users.',
+      ],
+      fixes: [
+        'Show cached Update History immediately while refreshing managed content online.',
+        'Display the current app version in Settings and explain when sign-in needs an internet connection.',
+        'Require new and reset passwords to use at least 8 characters and one special character.',
+      ],
+    ),
+    _ReleaseNote(
+      version: '1.0.26.29',
+      date: 'Previous release',
       features: [
         'Refreshed App Info with current supported formats, privacy disclosures, capabilities, and limitations.',
         'Added APK, website-link, and QR-code choices to Share App in Settings.',

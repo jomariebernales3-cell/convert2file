@@ -157,8 +157,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   Future<void> _updatePassword() async {
     final password = _passwordController.text;
-    if (password.length < 6) {
-      _setMessage('Use at least 6 characters for your password.', error: true);
+    final validationError = AuthService.passwordValidationError(password);
+    if (validationError != null) {
+      _setMessage(validationError, error: true);
       return;
     }
     if (password != _confirmController.text) {
@@ -349,6 +350,11 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   Widget _passwordStep() => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          Text(
+            'Use at least 8 characters and include one special character.',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 8),
           _input(
             controller: _passwordController,
             label: 'New password',

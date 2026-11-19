@@ -14,7 +14,7 @@ class AppRemoteConfig {
 
   const AppRemoteConfig({
     this.maintenanceEnabled = false,
-    this.latestVersion = '1.0.26',
+    this.latestVersion = SupabaseConfig.appVersion,
     this.minimumSupportedVersion = '1.0.0',
     this.featureFlags = const {},
     this.announcements = const [],
@@ -27,7 +27,7 @@ class AppRemoteConfig {
     final rawAnnouncements = json['announcements'];
     return AppRemoteConfig(
       maintenanceEnabled: json['maintenance_enabled'] == true,
-      latestVersion: json['latest_version']?.toString() ?? '1.0.26',
+      latestVersion: json['latest_version']?.toString() ?? SupabaseConfig.appVersion,
       minimumSupportedVersion:
           json['minimum_supported_version']?.toString() ?? '1.0.0',
       featureFlags: rawFlags is Map
@@ -50,7 +50,8 @@ class AppRemoteConfig {
         'announcements': announcements,
       };
 
-  bool get updateAvailable => _compareVersions(latestVersion, '1.0.26') > 0;
+  bool get updateAvailable =>
+      _compareVersions(latestVersion, SupabaseConfig.appVersion) > 0;
 
   static int _compareVersions(String left, String right) {
     final a = left.split('.').map((part) => int.tryParse(part) ?? 0).toList();
@@ -106,7 +107,7 @@ class AppRemoteConfigService {
       final flags = settings['feature_flags'];
       final config = AppRemoteConfig(
         maintenanceEnabled: settings['maintenance_enabled'] == true,
-        latestVersion: settings['latest_version']?.toString() ?? '1.0.26',
+        latestVersion: settings['latest_version']?.toString() ?? SupabaseConfig.appVersion,
         minimumSupportedVersion:
             settings['minimum_supported_version']?.toString() ?? '1.0.0',
         featureFlags: flags is Map ? Map<String, dynamic>.from(flags) : const {},
