@@ -83,7 +83,10 @@ class SmartTemplateApp extends StatelessWidget {
             '/app-info': (context) => const AppInfoScreen(),
             '/bug-report': (context) => const BugReportScreen(),
             '/profile': (context) => const ProfileScreen(),
-            '/settings': (context) => const SettingsScreen(),
+            '/settings': (context) => SettingsScreen(
+                  focusOfflineAi:
+                      ModalRoute.of(context)?.settings.arguments == 'offline-ai',
+                ),
             '/ai-model': (context) => const AiModelScreen(),
             '/study-builder': (context) => const StudyBuilderScreen(),
             '/generate-quiz': (context) => const StudyBuilderScreen(generateQuizOnly: true),

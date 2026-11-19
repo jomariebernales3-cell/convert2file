@@ -11,13 +11,16 @@ import '../widgets/figma_app_chrome.dart';
 import '../widgets/report_problem_sheet.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.focusOfflineAi = false});
+
+  final bool focusOfflineAi;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final GlobalKey _aiSectionKey = GlobalKey();
   bool _isLoading = false;
   final LocalLlamaService _llama = LocalLlamaService.instance;
   Map<String, dynamic>? _stats;
@@ -29,6 +32,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _loadStats();
     _loadAnnouncementUnread();
+    if (widget.focusOfflineAi) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final sectionContext = _aiSectionKey.currentContext;
+        if (sectionContext != null) {
+          Scrollable.ensureVisible(
+            sectionContext,
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOut,
+            alignment: 0.05,
+          );
+        }
+      });
+    }
   }
 
   Future<void> _loadAnnouncementUnread() async {
@@ -233,7 +249,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 24),
                 _buildThemeSection(),
                 const SizedBox(height: 24),
-                _buildAiSection(),
+                KeyedSubtree(
+                  key: _aiSectionKey,
+                  child: _buildAiSection(),
+                ),
                 const SizedBox(height: 24),
                 _buildStatsSection(),
                 const SizedBox(height: 24),

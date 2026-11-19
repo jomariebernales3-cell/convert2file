@@ -872,9 +872,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       borderRadius: BorderRadius.circular(18),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
-        onTap: isEnabled
-            ? () => Navigator.of(context).pushNamed('/offline-ai')
-            : null,
+        onTap: isEnabled ? _openOfflineAiAssistant : null,
         child: Container(
           constraints: const BoxConstraints(minHeight: 84),
           padding: const EdgeInsets.all(16),
@@ -926,6 +924,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+  }
+
+  void _openOfflineAiAssistant() {
+    final route = LocalLlamaService.instance.hasModel
+        ? '/offline-ai'
+        : '/settings';
+    Navigator.of(context).pushNamed(
+      route,
+      arguments: route == '/settings' ? 'offline-ai' : null,
     );
   }
 

@@ -7,6 +7,7 @@ Use this list when preparing the next public release notes. Current app version:
 - Users can attach an optional screenshot to a problem report. Reports and screenshots remain queued offline and send after connectivity returns; admins can open screenshots from the private report portal.
 - Online Maintenance replaces the home greeting and shows a wrench icon for guest and signed-in users.
 - Admin-managed app controls stay cached for offline use.
+- Tapping Offline AI Assistant opens Settings at the GGUF setup section when no model is imported.
 
 ## Bugs fixed and behavior improved
 
