@@ -7,7 +7,6 @@ import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
 import '../services/supabase_config.dart';
 import '../services/app_info_service.dart';
-import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
 import '../widgets/report_problem_sheet.dart';
 
@@ -21,7 +20,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = false;
   final LocalLlamaService _llama = LocalLlamaService.instance;
-  Map<String, dynamic>? _stats;
   final AnnouncementService _announcementService = AnnouncementService();
   bool _hasUnreadAnnouncements = false;
   String _aboutVersion = SupabaseConfig.displayAppVersion;
@@ -29,7 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _loadStats();
     _loadAnnouncementUnread();
     _loadManagedAppVersion();
   }
@@ -55,30 +52,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         (item) => !seen.contains(item['id']?.toString()),
       );
     });
-  }
-
-  Future<void> _loadStats() async {
-    try {
-      final files = await DatabaseHelper.instance.queryAllFiles();
-      final users = await DatabaseHelper.instance.queryAllUsers();
-      final logs = await DatabaseHelper.instance.queryAllLogs();
-
-      int totalSize = 0;
-      for (final file in files) {
-        totalSize += (file['size_bytes'] as int? ?? 0);
-      }
-
-      setState(() {
-        _stats = {
-          'total_files': files.length,
-          'total_users': users.length,
-          'total_logs': logs.length,
-          'total_size': totalSize,
-        };
-      });
-    } catch (e) {
-      debugPrint('Failed to load stats: $e');
-    }
   }
 
   Future<void> _clearCache() async {
@@ -250,8 +223,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 24),
                 _buildAiSection(),
                 const SizedBox(height: 24),
-                _buildStatsSection(),
-                const SizedBox(height: 24),
                 _buildActionsSection(),
                 const SizedBox(height: 24),
                 _buildAboutSection(),
@@ -409,9 +380,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               segments: const [
                 ButtonSegment(value: AppThemeChoice.day, label: Text('Day')),
-                ButtonSegment(value: AppThemeChoice.dbz, label: Text('DBZ')),
-                ButtonSegment(value: AppThemeChoice.night, label: Text('Night')),
                 ButtonSegment(value: AppThemeChoice.system, label: Text('System')),
+                ButtonSegment(value: AppThemeChoice.night, label: Text('Night')),
               ],
               selected: selectedMainTheme,
               onSelectionChanged: (selection) async {
@@ -423,61 +393,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatsSection() {
-    if (_stats == null) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Storage',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        FigmaCard(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Icon(Icons.storage_outlined,
-                      color: Theme.of(context).colorScheme.primary, size: 28),
-                  const SizedBox(width: 12),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _formatBytes(_stats!['total_size'] as int),
-                        style: const TextStyle(
-                            fontSize: 21, fontWeight: FontWeight.w800),
-                      ),
-                      Text(
-                        'Used on this device',
-                        style: TextStyle(
-                            color: FigmaAppColors.subtext(context),
-                            fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  _buildStatItem('Files', _stats!['total_files'].toString()),
-                  _buildStatItem('Users', _stats!['total_users'].toString()),
-                  _buildStatItem('Logs', _stats!['total_logs'].toString()),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
@@ -629,27 +544,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ],
         );
       },
-    );
-  }
-
-  Widget _buildStatItem(String label, String value) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: TextStyle(
-              color: FigmaAppColors.subtext(context),
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -861,14 +755,5 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ],
     );
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 }

@@ -64,22 +64,6 @@ class AppColors extends ThemeExtension<AppColors> {
     warning: Color(0xFFFBBF24),
   );
 
-  static const dbz = AppColors(
-    background: Color(0xFF060913),
-    surface: Color(0xFF0E1322),
-    surface2: Color(0xFF151B30),
-    line: Color(0xFF232A47),
-    text: Color(0xFFF1F5F9),
-    muted: Color(0xFF97A3BB),
-    accent: Color(0xFF67E8F9),
-    accentInk: Color(0xFF04222A),
-    highlight: Color(0xFF67E8F9),
-    highlightInk: Color(0xFF04222A),
-    highlightGlow: Color.fromARGB(71, 103, 232, 249),
-    danger: Color(0xFFFCA5A5),
-    warning: Color(0xFFFBBF24),
-  );
-
   static AppColors of(BuildContext context) =>
       Theme.of(context).extension<AppColors>()!;
 

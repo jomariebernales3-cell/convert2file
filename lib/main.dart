@@ -66,7 +66,7 @@ class SmartTemplateApp extends StatelessWidget {
           themeMode: themeService.themeMode,
           theme: _buildAppTheme(AppColors.day, Brightness.light),
           darkTheme: _buildAppTheme(
-            themeService.isDbzTheme ? AppColors.dbz : AppColors.night,
+            AppColors.night,
             Brightness.dark,
           ),
           initialRoute: authService.isLoggedIn ? '/home' : '/login',

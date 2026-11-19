@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum AppThemeChoice { day, night, dbz, system }
+enum AppThemeChoice { day, system, night }
 
 class ThemeService extends ChangeNotifier {
   static final ThemeService instance = ThemeService._();
@@ -14,11 +14,10 @@ class ThemeService extends ChangeNotifier {
   AppThemeChoice _themeChoice = _defaultThemeChoice;
 
   AppThemeChoice get themeChoice => _themeChoice;
-  bool get isDbzTheme => _themeChoice == AppThemeChoice.dbz;
   ThemeMode get themeMode => switch (_themeChoice) {
         AppThemeChoice.day => ThemeMode.light,
         AppThemeChoice.system => ThemeMode.system,
-        AppThemeChoice.night || AppThemeChoice.dbz => ThemeMode.dark,
+        AppThemeChoice.night => ThemeMode.dark,
       };
 
   Future<void> init({int? userId}) async {
@@ -45,7 +44,11 @@ class ThemeService extends ChangeNotifier {
     }
 
     final prefs = await SharedPreferences.getInstance();
-    _themeChoice = _themeFromName(prefs.getString(_userThemeKey));
+    final savedTheme = prefs.getString(_userThemeKey);
+    _themeChoice = _themeFromName(savedTheme);
+    if (savedTheme != null && savedTheme != _themeChoice.name) {
+      await prefs.setString(_userThemeKey, _themeChoice.name);
+    }
     if (notify) notifyListeners();
   }
 
@@ -63,12 +66,10 @@ class ThemeService extends ChangeNotifier {
   String get _userThemeKey => '${_themeKey}_user_$_currentUserId';
 
   AppThemeChoice _themeFromName(String? name) {
-    return switch (name) {
-      'day' || 'light' => AppThemeChoice.day,
-      'dbz' => AppThemeChoice.dbz,
-      'night' => AppThemeChoice.night,
-      'system' => AppThemeChoice.system,
-      _ => _defaultThemeChoice,
-    };
+    if (name == 'light') return AppThemeChoice.day;
+    for (final choice in AppThemeChoice.values) {
+      if (choice.name == name) return choice;
+    }
+    return _defaultThemeChoice;
   }
 }
