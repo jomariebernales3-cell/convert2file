@@ -6,6 +6,7 @@ import '../services/announcement_service.dart';
 import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
 import '../services/supabase_config.dart';
+import '../services/app_info_service.dart';
 import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
 import '../widgets/report_problem_sheet.dart';
@@ -23,12 +24,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? _stats;
   final AnnouncementService _announcementService = AnnouncementService();
   bool _hasUnreadAnnouncements = false;
+  String _aboutVersion = SupabaseConfig.displayAppVersion;
 
   @override
   void initState() {
     super.initState();
     _loadStats();
     _loadAnnouncementUnread();
+    _loadManagedAppVersion();
+  }
+
+  Future<void> _loadManagedAppVersion() async {
+    final service = AppInfoService();
+    _applyManagedAppVersion(await service.loadCachedContent());
+    _applyManagedAppVersion(await service.refreshContent());
+  }
+
+  void _applyManagedAppVersion(Map<String, dynamic>? content) {
+    final version = AppInfoService.latestVersionFromContent(content);
+    if (!mounted || version == null || version == _aboutVersion) return;
+    setState(() => _aboutVersion = version);
   }
 
   Future<void> _loadAnnouncementUnread() async {
@@ -812,7 +827,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           ),
                         ),
                         Text(
-                          'Version ${SupabaseConfig.displayAppVersion}',
+                          'Version $_aboutVersion',
                           style: TextStyle(
                             color: FigmaAppColors.subtext(context),
                             fontSize: 12,

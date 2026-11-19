@@ -8,6 +8,18 @@ import 'supabase_config.dart';
 class AppInfoService {
   static const _cacheKey = 'managed_app_info_content_v1';
 
+  static String? latestVersionFromContent(Map<String, dynamic>? content) {
+    final releaseNotes = content?['release_notes'];
+    if (releaseNotes is! List) return null;
+
+    for (final entry in releaseNotes) {
+      if (entry is! Map || entry['is_latest'] != true) continue;
+      final version = entry['version']?.toString().trim();
+      if (version != null && version.isNotEmpty) return version;
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>?> loadCachedContent() async {
     final preferences = await SharedPreferences.getInstance();
     return _decode(preferences.getString(_cacheKey));
