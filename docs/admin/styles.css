@@ -181,3 +181,9 @@ input,select,textarea,button{max-width:100%}
   .bottom-tabs button{font-size:10px}
   .app-info-editor-heading>.button{font-size:12px}
 }
+@media(max-width:899px){
+  #announcement-history>.row{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}
+  #announcement-history>.row>div:first-child{min-width:0;overflow-wrap:anywhere}
+  #announcement-history .announcement-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:8px;width:100%}
+  #announcement-history .announcement-actions .button{width:100%;min-width:0;min-height:44px;padding:8px 10px}
+}
