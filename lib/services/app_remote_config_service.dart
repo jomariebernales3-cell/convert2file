@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'supabase_config.dart';
+import 'app_version_service.dart';
 
 class AppRemoteConfig {
   final bool maintenanceEnabled;
@@ -12,13 +13,14 @@ class AppRemoteConfig {
   final Map<String, dynamic> featureFlags;
   final List<Map<String, dynamic>> announcements;
 
-  const AppRemoteConfig({
+  AppRemoteConfig({
     this.maintenanceEnabled = false,
-    this.latestVersion = SupabaseConfig.appVersion,
+    String? latestVersion,
     this.minimumSupportedVersion = '1.0.0',
     this.featureFlags = const {},
     this.announcements = const [],
-  });
+  }) : latestVersion =
+            latestVersion ?? AppVersionService.cachedVersion ?? '0.0.0';
 
   bool featureEnabled(String key) => featureFlags[key] != false;
 
@@ -27,12 +29,13 @@ class AppRemoteConfig {
     final rawAnnouncements = json['announcements'];
     return AppRemoteConfig(
       maintenanceEnabled: json['maintenance_enabled'] == true,
-      latestVersion: json['latest_version']?.toString() ?? SupabaseConfig.appVersion,
+      latestVersion: json['latest_version']?.toString() ??
+          AppVersionService.cachedVersion ??
+          '0.0.0',
       minimumSupportedVersion:
           json['minimum_supported_version']?.toString() ?? '1.0.0',
-      featureFlags: rawFlags is Map
-          ? Map<String, dynamic>.from(rawFlags)
-          : const {},
+      featureFlags:
+          rawFlags is Map ? Map<String, dynamic>.from(rawFlags) : const {},
       announcements: rawAnnouncements is List
           ? rawAnnouncements
               .whereType<Map>()
@@ -50,8 +53,10 @@ class AppRemoteConfig {
         'announcements': announcements,
       };
 
-  bool get updateAvailable =>
-      _compareVersions(latestVersion, SupabaseConfig.appVersion) > 0;
+  bool get updateAvailable {
+    final installed = AppVersionService.cachedVersion;
+    return installed != null && _compareVersions(latestVersion, installed) > 0;
+  }
 
   static int _compareVersions(String left, String right) {
     final a = left.split('.').map((part) => int.tryParse(part) ?? 0).toList();
@@ -76,9 +81,10 @@ class AppRemoteConfigService {
   }
 
   Future<AppRemoteConfig> loadCached() async {
+    await AppVersionService.loadInstalledVersion();
     final preferences = await SharedPreferences.getInstance();
     final raw = preferences.getString(_cacheKey);
-    if (raw == null) return const AppRemoteConfig();
+    if (raw == null) return AppRemoteConfig();
     try {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
@@ -87,10 +93,11 @@ class AppRemoteConfigService {
     } catch (_) {
       // Ignore malformed cache and use the built-in defaults.
     }
-    return const AppRemoteConfig();
+    return AppRemoteConfig();
   }
 
   Future<AppRemoteConfig> refresh({AppRemoteConfig? fallback}) async {
+    await AppVersionService.loadInstalledVersion();
     final cached = fallback ?? await loadCached();
     if (!SupabaseConfig.isConfigured) return cached;
 
@@ -107,10 +114,13 @@ class AppRemoteConfigService {
       final flags = settings['feature_flags'];
       final config = AppRemoteConfig(
         maintenanceEnabled: settings['maintenance_enabled'] == true,
-        latestVersion: settings['latest_version']?.toString() ?? SupabaseConfig.appVersion,
+        latestVersion: settings['latest_version']?.toString() ??
+            AppVersionService.cachedVersion ??
+            '0.0.0',
         minimumSupportedVersion:
             settings['minimum_supported_version']?.toString() ?? '1.0.0',
-        featureFlags: flags is Map ? Map<String, dynamic>.from(flags) : const {},
+        featureFlags:
+            flags is Map ? Map<String, dynamic>.from(flags) : const {},
       );
       final preferences = await SharedPreferences.getInstance();
       await preferences.setString(_cacheKey, jsonEncode(config.toJson()));

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../services/app_info_service.dart';
-import '../services/supabase_config.dart';
+import '../services/app_version_service.dart';
 
 class AppInfoScreen extends StatefulWidget {
   const AppInfoScreen({super.key});
@@ -27,6 +27,22 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   }
 
   Future<void> _loadManagedContent() async {
+    final installedVersion = await AppVersionService.loadInstalledVersion();
+    if (mounted && installedVersion != null && _releaseNotes.first.version == 'Unknown') {
+      final latest = _defaultReleaseNotes.first;
+      setState(() {
+        _releaseNotes = [
+          _ReleaseNote(
+            version: installedVersion,
+            date: latest.date,
+            isLatest: latest.isLatest,
+            features: latest.features,
+            fixes: latest.fixes,
+          ),
+          ..._defaultReleaseNotes.skip(1),
+        ];
+      });
+    }
     final service = AppInfoService();
     final cached = await service.loadCachedContent();
     if (mounted && cached != null) _applyManagedContent(cached);
@@ -152,7 +168,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
 
   static const _defaultReleaseNotes = [
     _ReleaseNote(
-      version: SupabaseConfig.displayAppVersion,
+      version: 'Unknown',
       date: 'November 19, 2026',
       isLatest: true,
       features: [

@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/database_helper.dart';
 import '../models/user_model.dart';
 import 'supabase_config.dart';
+import 'app_version_service.dart';
 import 'theme_service.dart';
 
 class AuthService {
@@ -199,21 +200,18 @@ class AuthService {
           'Online services are under maintenance. You can continue in Guest mode.');
     }
     final minimum = settings?['minimum_supported_version']?.toString();
+    final installedVersion = await AppVersionService.loadInstalledVersion();
+    if (installedVersion == null) {
+      throw const AuthException(
+        'Could not read this app’s installed version. Restart the app and try again.',
+      );
+    }
     if (minimum != null &&
-        _compareVersions(SupabaseConfig.appVersion, minimum) < 0) {
+        installedVersion != null &&
+        AppVersionService.isBelowMinimum(installedVersion, minimum)) {
       throw AuthException(
           'Update required. Install version $minimum or newer to sign in.');
     }
-  }
-
-  int _compareVersions(String left, String right) {
-    final a = left.split('.').map((part) => int.tryParse(part) ?? 0).toList();
-    final b = right.split('.').map((part) => int.tryParse(part) ?? 0).toList();
-    for (var i = 0; i < (a.length > b.length ? a.length : b.length); i++) {
-      final difference = (i < a.length ? a[i] : 0) - (i < b.length ? b[i] : 0);
-      if (difference != 0) return difference.sign;
-    }
-    return 0;
   }
 
   void _requireSupabaseConfiguration() {
@@ -252,8 +250,10 @@ class AuthService {
         .eq('id', true)
         .maybeSingle();
     final minimum = control?['minimum_supported_version']?.toString();
+    final installedVersion = AppVersionService.cachedVersion;
     if (minimum != null &&
-        _compareVersions(SupabaseConfig.appVersion, minimum) < 0) {
+        installedVersion != null &&
+        AppVersionService.isBelowMinimum(installedVersion, minimum)) {
       await client.auth.signOut();
       _currentUser = null;
       throw AuthException(

@@ -10,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/database_helper.dart';
 import '../services/auth_service.dart';
 import '../services/supabase_config.dart';
+import '../services/app_version_service.dart';
 
 class BugReportScreen extends StatefulWidget {
   const BugReportScreen({super.key});
@@ -150,7 +151,8 @@ class _BugReportScreenState extends State<BugReportScreen> {
           'user_id': Supabase.instance.client.auth.currentUser!.id,
           'title': subject,
           'description': message,
-          'app_version': SupabaseConfig.appVersion,
+          'app_version':
+              await AppVersionService.loadInstalledVersion() ?? 'Unknown',
           'device_info': {'platform': Platform.operatingSystem, 'version': Platform.operatingSystemVersion},
         });
       }

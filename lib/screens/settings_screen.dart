@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../services/announcement_service.dart';
 import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
-import '../services/supabase_config.dart';
+import '../services/app_version_service.dart';
 import '../services/app_info_service.dart';
 import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
@@ -23,7 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final LocalLlamaService _llama = LocalLlamaService.instance;
   final AnnouncementService _announcementService = AnnouncementService();
   bool _hasUnreadAnnouncements = false;
-  String _aboutVersion = SupabaseConfig.displayAppVersion;
+  String _aboutVersion = 'Loading…';
   int _profileFileCount = 0;
   int _profileStudySetCount = 0;
   int _profileOutputCount = 0;
@@ -34,6 +34,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadAnnouncementUnread();
     _loadManagedAppVersion();
     _loadProfileSummary();
+    _loadInstalledAppVersion();
+  }
+
+  Future<void> _loadInstalledAppVersion() async {
+    final version = await AppVersionService.loadInstalledVersion();
+    if (!mounted || version == null || _aboutVersion != 'Loading…') return;
+    setState(() => _aboutVersion = version);
   }
 
   Future<void> _loadProfileSummary() async {

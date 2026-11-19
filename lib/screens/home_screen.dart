@@ -68,7 +68,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   PageController? _actionPageController;
   int _focusedActionPage = _actionInitialPage;
   int _actionRailIndex = 0;
-  AppRemoteConfig _remoteConfig = const AppRemoteConfig();
+  AppRemoteConfig _remoteConfig = AppRemoteConfig();
   RealtimeChannel? _appControlChannel;
   RealtimeChannel? _announcementChannel;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;

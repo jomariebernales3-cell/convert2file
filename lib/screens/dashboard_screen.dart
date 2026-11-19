@@ -39,7 +39,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   File? _dataFile;
   String? _dataFileName;
   int? _selectedCreateActionIndex;
-  AppRemoteConfig _remoteConfig = const AppRemoteConfig();
+  AppRemoteConfig _remoteConfig = AppRemoteConfig();
   RealtimeChannel? _appControlChannel;
   StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
 

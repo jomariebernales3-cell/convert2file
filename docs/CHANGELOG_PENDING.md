@@ -20,4 +20,4 @@ Use this list when preparing the next public release notes. Current app version:
 - Sign-in reports when there is no internet connection and suggests guest mode.
 - New account passwords and password resets require at least 8 characters and one special character.
 - Retired announcements no longer reappear from old cached announcement data.
-- The release version now matches the admin minimum-version format, preventing the newest APK from being rejected at sign-in.
+- Sign-in and update checks now read the installed package version and build number, then compare them with the admin minimum-version setting.

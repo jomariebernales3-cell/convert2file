@@ -57,6 +57,7 @@ dependencies:
   connectivity_plus: ^7.1.1
   llama_flutter_android: 0.2.6
   url_launcher: ^6.3.2
+  package_info_plus: 8.3.1
 
 dev_dependencies:
   flutter_test:
