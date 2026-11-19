@@ -16,7 +16,7 @@ Use this list when preparing the next public release notes. Current app version:
 ## Bugs fixed and behavior improved
 
 - Cached Update History appears immediately offline while the app refreshes managed release notes in the background.
-- The Settings About card shows the admin-marked current release version and uses cached release history offline.
+- The Settings About card shows the admin-marked current release version, refreshes after returning from App Info or resuming the app, and uses cached release history offline.
 - Sign-in reports when there is no internet connection and suggests guest mode.
 - New account passwords and password resets require at least 8 characters and one special character.
 - Retired announcements no longer reappear from old cached announcement data.

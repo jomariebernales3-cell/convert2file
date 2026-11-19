@@ -18,7 +18,8 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   bool _isLoading = false;
   final LocalLlamaService _llama = LocalLlamaService.instance;
   final AnnouncementService _announcementService = AnnouncementService();
@@ -31,10 +32,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadAnnouncementUnread();
     _loadManagedAppVersion();
     _loadProfileSummary();
     _loadInstalledAppVersion();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _loadManagedAppVersion();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _loadInstalledAppVersion() async {
@@ -70,6 +83,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final service = AppInfoService();
     _applyManagedAppVersion(await service.loadCachedContent());
     _applyManagedAppVersion(await service.refreshContent());
+  }
+
+  Future<void> _openAppInfo() async {
+    await Navigator.of(context).pushNamed('/app-info');
+    if (mounted) await _loadManagedAppVersion();
   }
 
   void _applyManagedAppVersion(Map<String, dynamic>? content) {
@@ -793,7 +811,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pushNamed('/app-info'),
+                  onPressed: _openAppInfo,
                   icon: const Icon(Icons.info_outline),
                   label: const Text('APP INFO & UPDATE HISTORY'),
                 ),
