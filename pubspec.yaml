@@ -1,6 +1,6 @@
 name: convert2file
 description: Convert2File Android App - Full document generation system
-version: 1.0.27+30
+version: 3.0.1+30
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

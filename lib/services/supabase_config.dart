@@ -1,7 +1,7 @@
 /// Defaults target the new project. Build-time values can still override them.
 /// Never use a Supabase service-role key in a mobile app.
 class SupabaseConfig {
-  static const appVersion = '1.0.27';
+  static const appVersion = '3.0.1.30';
   static const appBuildNumber = '30';
   static const displayAppVersion = appVersion;
   // These defaults let local development run with `flutter run -d <device>`.

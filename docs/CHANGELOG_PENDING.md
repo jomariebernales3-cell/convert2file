@@ -1,6 +1,6 @@
 # Pending release notes
 
-Use this list when preparing the next public release notes. Current app version: 1.0.27 (build 30).
+Use this list when preparing the next public release notes. Current app version: 3.0.1 (build 30).
 
 ## Features added
 
@@ -20,3 +20,4 @@ Use this list when preparing the next public release notes. Current app version:
 - Sign-in reports when there is no internet connection and suggests guest mode.
 - New account passwords and password resets require at least 8 characters and one special character.
 - Retired announcements no longer reappear from old cached announcement data.
+- The release version now matches the admin minimum-version format, preventing the newest APK from being rejected at sign-in.
