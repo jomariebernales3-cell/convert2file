@@ -8,10 +8,14 @@ import 'supabase_config.dart';
 class AppInfoService {
   static const _cacheKey = 'managed_app_info_content_v1';
 
-  Future<Map<String, dynamic>?> fetchContent() async {
+  Future<Map<String, dynamic>?> loadCachedContent() async {
     final preferences = await SharedPreferences.getInstance();
-    final cached = _decode(preferences.getString(_cacheKey));
-    if (!SupabaseConfig.isConfigured) return cached;
+    return _decode(preferences.getString(_cacheKey));
+  }
+
+  Future<Map<String, dynamic>?> refreshContent() async {
+    if (!SupabaseConfig.isConfigured) return null;
+    final preferences = await SharedPreferences.getInstance();
 
     try {
       final result = await Supabase.instance.client
@@ -23,8 +27,13 @@ class AppInfoService {
       await preferences.setString(_cacheKey, jsonEncode(content));
       return content;
     } catch (_) {
-      return cached;
+      return null;
     }
+  }
+
+  Future<Map<String, dynamic>?> fetchContent() async {
+    final cached = await loadCachedContent();
+    return await refreshContent() ?? cached;
   }
 
   Map<String, dynamic>? _decode(String? value) {

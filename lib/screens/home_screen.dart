@@ -352,7 +352,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildRemoteNotices() {
-    if (!_remoteConfig.maintenanceEnabled && !_remoteConfig.updateAvailable) {
+    if (!_remoteConfig.updateAvailable) {
       return const SizedBox.shrink();
     }
     final colors = AppColors.of(context);
@@ -361,9 +361,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         if (_remoteConfig.updateAvailable)
           _remoteNoticeCard(colors, Icons.system_update_alt, 'Update available',
               'Version ${_remoteConfig.latestVersion} is available. Check the Convert2File GitHub Releases page.'),
-        if (_remoteConfig.maintenanceEnabled)
-          _remoteNoticeCard(colors, Icons.build_outlined, 'Online maintenance',
-              'Online services may be temporarily unavailable. Offline tools remain available.'),
       ],
     );
   }
@@ -544,6 +541,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   Widget _buildWelcomeCard() {
+    final maintenanceEnabled = _remoteConfig.maintenanceEnabled;
     final userName = _authService.currentUser?.name ?? 'Guest User';
     final colors = AppColors.of(context);
 
@@ -563,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Good day, $userName',
+            maintenanceEnabled ? 'Online maintenance' : 'Good day, $userName',
             style: TextStyle(
               color: colors.text,
               fontSize: 18,
@@ -572,7 +570,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 6),
           Text(
-            'Upload files, generate study materials, and keep your work saved on this device.',
+            maintenanceEnabled
+                ? 'Online services may be temporarily unavailable. Offline tools remain available.'
+                : 'Upload files, generate study materials, and keep your work saved on this device.',
             style: TextStyle(color: colors.muted, fontSize: 14, height: 1.5),
           ),
         ],

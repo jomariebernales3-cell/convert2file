@@ -26,8 +26,15 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
   }
 
   Future<void> _loadManagedContent() async {
-    final content = await AppInfoService().fetchContent();
-    if (!mounted || content == null) return;
+    final service = AppInfoService();
+    final cached = await service.loadCachedContent();
+    if (mounted && cached != null) _applyManagedContent(cached);
+
+    final refreshed = await service.refreshContent();
+    if (mounted && refreshed != null) _applyManagedContent(refreshed);
+  }
+
+  void _applyManagedContent(Map<String, dynamic> content) {
     try {
       final sections = (content['sections'] as List)
           .map((value) => Map<String, dynamic>.from(value as Map))
@@ -54,6 +61,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
               ))
           .toList(growable: false);
       if (sections.isEmpty || releases.isEmpty) return;
+      if (!mounted) return;
       setState(() {
         _additionalInfo = sections;
         _releaseNotes = releases;
