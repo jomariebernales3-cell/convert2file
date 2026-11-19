@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -12,11 +13,18 @@ import 'theme_service.dart';
 class AuthService {
   static String? passwordValidationError(String password) {
     if (password.length < 8) return 'Use at least 8 characters.';
+    if (!RegExp(r'[A-Z]').hasMatch(password)) {
+      return 'Include at least one uppercase letter.';
+    }
+    if (!RegExp(r'\d').hasMatch(password)) {
+      return 'Include at least one number.';
+    }
     if (!RegExp(r'[^\w\s]').hasMatch(password)) {
       return 'Include at least one special character, such as ! or #.';
     }
     return null;
   }
+
   static final AuthService _instance = AuthService._internal();
   factory AuthService() => _instance;
   AuthService._internal();
@@ -33,11 +41,15 @@ class AuthService {
 
   Future<void> init() async {
     if (!SupabaseConfig.isConfigured) return;
-    _authSubscription ??= Supabase.instance.client.auth.onAuthStateChange.listen((state) async {
+    _authSubscription ??=
+        Supabase.instance.client.auth.onAuthStateChange.listen((state) async {
       if (state.event == AuthChangeEvent.signedOut) {
         _currentUser = null;
-      } else if (state.event == AuthChangeEvent.tokenRefreshed && state.session != null) {
-        try { await _syncAuthUser(state.session!.user); } on Object { /* Preserve offline use. */ }
+      } else if (state.event == AuthChangeEvent.tokenRefreshed &&
+          state.session != null) {
+        try {
+          await _syncAuthUser(state.session!.user);
+        } on Object {/* Preserve offline use. */}
       }
     });
     final authUser = Supabase.instance.client.auth.currentUser;
@@ -75,6 +87,7 @@ class AuthService {
       email: email.trim(),
     );
   }
+
   Future<void> sendPasswordRecoveryCode({required String email}) async {
     _requireSupabaseConfiguration();
     await Supabase.instance.client.auth.resetPasswordForEmail(email.trim());
@@ -90,6 +103,35 @@ class AuthService {
       token: code.trim(),
       email: email.trim(),
     );
+  }
+
+  Future<void> changePasswordWithCurrent({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final validationError = passwordValidationError(newPassword);
+    if (validationError != null) throw AuthException(validationError);
+    final user = await requireLocalUser();
+    final authUser = SupabaseConfig.isConfigured
+        ? Supabase.instance.client.auth.currentUser
+        : null;
+    if (authUser == null || user.supabaseUserId == null) {
+      throw const AuthException(
+          'Sign in to an account before changing its password.');
+    }
+    if (newPassword == currentPassword) {
+      throw const AuthException(
+          'Choose a new password that differs from the current password.');
+    }
+    await _ensureOnlineServicesAvailable();
+    final verified = await Supabase.instance.client.auth.signInWithPassword(
+      email: user.email,
+      password: currentPassword,
+    );
+    if (verified.user?.id != authUser.id) {
+      throw const AuthException('The current password is incorrect.');
+    }
+    await updatePassword(password: newPassword);
   }
 
   Future<void> updatePassword({required String password}) async {
@@ -157,10 +199,13 @@ class AuthService {
           'Online services are under maintenance. You can continue in Guest mode.');
     }
     final minimum = settings?['minimum_supported_version']?.toString();
-    if (minimum != null && _compareVersions(SupabaseConfig.appVersion, minimum) < 0) {
-      throw AuthException('Update required. Install version $minimum or newer to sign in.');
+    if (minimum != null &&
+        _compareVersions(SupabaseConfig.appVersion, minimum) < 0) {
+      throw AuthException(
+          'Update required. Install version $minimum or newer to sign in.');
     }
   }
+
   int _compareVersions(String left, String right) {
     final a = left.split('.').map((part) => int.tryParse(part) ?? 0).toList();
     final b = right.split('.').map((part) => int.tryParse(part) ?? 0).toList();
@@ -192,20 +237,27 @@ class AuthService {
         .eq('id', authUser.id)
         .maybeSingle();
     if (profileResponse == null) {
-      throw const AuthException('Your account profile is not ready yet. Please try again shortly.');
+      throw const AuthException(
+          'Your account profile is not ready yet. Please try again shortly.');
     }
     if (profileResponse['account_status'] != 'active') {
       await client.auth.signOut();
       _currentUser = null;
-      throw const AuthException('This account is suspended. Contact the project administrator.');
+      throw const AuthException(
+          'This account is suspended. Contact the project administrator.');
     }
-    final control = await client.from('app_control_settings')
-        .select('minimum_supported_version').eq('id', true).maybeSingle();
+    final control = await client
+        .from('app_control_settings')
+        .select('minimum_supported_version')
+        .eq('id', true)
+        .maybeSingle();
     final minimum = control?['minimum_supported_version']?.toString();
-    if (minimum != null && _compareVersions(SupabaseConfig.appVersion, minimum) < 0) {
+    if (minimum != null &&
+        _compareVersions(SupabaseConfig.appVersion, minimum) < 0) {
       await client.auth.signOut();
       _currentUser = null;
-      throw AuthException('Update required. Install version $minimum or newer to continue.');
+      throw AuthException(
+          'Update required. Install version $minimum or newer to continue.');
     }
     await client.rpc('record_my_login');
     final email = authUser.email;
@@ -236,12 +288,35 @@ class AuthService {
     await ThemeService.instance.loadForUser(_currentUser!.id);
   }
 
+  Future<UserModel> resetGuestProfile() async {
+    final user = await requireLocalUser();
+    if (user.supabaseUserId != null ||
+        user.email != 'guest@convert2file.local') {
+      throw StateError('Only the local guest profile can be reset.');
+    }
+    if (user.profileImagePath != null) {
+      final image = File(user.profileImagePath!);
+      if (await image.exists()) await image.delete();
+    }
+    await DatabaseHelper.instance.updateUserProfile(user.id!, {
+      'name': 'Guest User',
+      'bio': null,
+      'phone': null,
+      'location': null,
+      'profile_image_path': null,
+    });
+    final data = await DatabaseHelper.instance.getUserById(user.id!);
+    _currentUser = UserModel.fromMap(data!);
+    return _currentUser!;
+  }
+
   Future<UserModel?> updateProfile({
     String? name,
     String? bio,
     String? phone,
     String? location,
     String? profileImagePath,
+    bool clearProfileImage = false,
   }) async {
     final user = await requireLocalUser();
     final values = <String, dynamic>{};
@@ -249,14 +324,21 @@ class AuthService {
     if (bio != null) values['bio'] = bio;
     if (phone != null) values['phone'] = phone;
     if (location != null) values['location'] = location;
-    if (profileImagePath != null) {
+    if (clearProfileImage) {
+      values['profile_image_path'] = null;
+    } else if (profileImagePath != null) {
       values['profile_image_path'] = profileImagePath;
     }
 
     if (values.isEmpty) return user;
 
-    if (SupabaseConfig.isConfigured && Supabase.instance.client.auth.currentUser != null && values.containsKey('name')) {
-      await Supabase.instance.client.from('profiles').update({'display_name': values['name']}).eq('id', Supabase.instance.client.auth.currentUser!.id);
+    if (SupabaseConfig.isConfigured &&
+        Supabase.instance.client.auth.currentUser != null &&
+        values.containsKey('name')) {
+      await Supabase.instance.client
+          .from('profiles')
+          .update({'display_name': values['name']}).eq(
+              'id', Supabase.instance.client.auth.currentUser!.id);
     }
     await DatabaseHelper.instance.updateUserProfile(user.id!, values);
     final userData = await DatabaseHelper.instance.getUserById(user.id!);

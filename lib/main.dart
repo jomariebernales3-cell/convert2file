@@ -16,6 +16,11 @@ import 'screens/forgot_password_screen.dart';
 import 'screens/app_info_screen.dart';
 import 'screens/bug_report_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/edit_profile_screen.dart';
+import 'screens/change_password_screen.dart';
+import 'screens/app_lock_settings_screen.dart';
+import 'widgets/app_lock_gate.dart';
+import 'services/app_lock_service.dart';
 import 'screens/qr_code_screen.dart';
 import 'screens/qr_output_screen.dart';
 import 'screens/announcements_screen.dart';
@@ -45,6 +50,7 @@ void main() async {
   }
   await ThemeService.instance.init(userId: authService.currentUser?.id);
   await LocalLlamaService.instance.init();
+  await AppLockService.instance.initialize();
 
   runApp(SmartTemplateApp(authService: authService));
 }
@@ -61,6 +67,8 @@ class SmartTemplateApp extends StatelessWidget {
       builder: (context, _) {
         final themeService = ThemeService.instance;
         return MaterialApp(
+          builder: (context, child) =>
+              AppLockGate(child: child ?? const SizedBox.shrink()),
           title: 'Convert2File',
           debugShowCheckedModeBanner: false,
           themeMode: themeService.themeMode,
@@ -73,23 +81,30 @@ class SmartTemplateApp extends StatelessWidget {
           routes: {
             '/login': (context) => const LoginScreen(),
             '/forgot-password': (context) => ForgotPasswordScreen(
-                  initialEmail: ModalRoute.of(context)?.settings.arguments as String?,
+                  initialEmail:
+                      ModalRoute.of(context)?.settings.arguments as String?,
                 ),
             '/home': (context) => const HomeScreen(),
             '/offline-ai': (context) => const OfflineAiChatScreen(),
             '/dashboard': (context) => const DashboardScreen(),
             '/history': (context) => const HistoryScreen(),
-            '/saved-files': (context) => const HistoryScreen(savedFilesMode: true),
+            '/saved-files': (context) =>
+                const HistoryScreen(savedFilesMode: true),
             '/app-info': (context) => const AppInfoScreen(),
             '/bug-report': (context) => const BugReportScreen(),
             '/profile': (context) => const ProfileScreen(),
+            '/edit-profile': (context) => const EditProfileScreen(),
+            '/change-password': (context) => const ChangePasswordScreen(),
+            '/app-lock': (context) => const AppLockSettingsScreen(),
             '/settings': (context) => const SettingsScreen(),
             '/ai-model': (context) => const AiModelScreen(),
             '/study-builder': (context) => const StudyBuilderScreen(),
-            '/generate-quiz': (context) => const StudyBuilderScreen(generateQuizOnly: true),
+            '/generate-quiz': (context) =>
+                const StudyBuilderScreen(generateQuizOnly: true),
             '/qr-code': (context) => const QrCodeScreen(),
             '/qr-output': (context) => QrOutputScreen(
-                  file: ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>,
+                  file: ModalRoute.of(context)!.settings.arguments
+                      as Map<String, dynamic>,
                 ),
             '/announcements': (context) => const AnnouncementsScreen(),
             '/text-to-file': (context) => const TextToFileScreen(),

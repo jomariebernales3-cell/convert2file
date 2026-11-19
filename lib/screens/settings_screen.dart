@@ -7,6 +7,8 @@ import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
 import '../services/supabase_config.dart';
 import '../services/app_info_service.dart';
+import '../services/study_preferences_service.dart';
+import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
 import '../widgets/report_problem_sheet.dart';
 
@@ -23,12 +25,123 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final AnnouncementService _announcementService = AnnouncementService();
   bool _hasUnreadAnnouncements = false;
   String _aboutVersion = SupabaseConfig.displayAppVersion;
+  int _profileFileCount = 0;
+  int _profileStudySetCount = 0;
+  int _profileOutputCount = 0;
+  String _defaultOutputFormat = 'docx';
+  bool _studyReminderEnabled = false;
+  int _studyReminderHour = 19;
+  int _studyReminderMinute = 0;
 
   @override
   void initState() {
     super.initState();
     _loadAnnouncementUnread();
     _loadManagedAppVersion();
+    _loadProfileSummary();
+    _loadStudyPreferences();
+  }
+
+  Future<void> _loadStudyPreferences() async {
+    final service = StudyPreferencesService();
+    final format = await service.defaultOutputFormat();
+    final enabled = await service.reminderEnabled();
+    final time = await service.reminderTime();
+    if (!mounted) return;
+    setState(() {
+      _defaultOutputFormat = format;
+      _studyReminderEnabled = enabled;
+      _studyReminderHour = time.hour;
+      _studyReminderMinute = time.minute;
+    });
+  }
+
+  Future<void> _loadProfileSummary() async {
+    try {
+      final user = await AuthService().requireLocalUser();
+      final files = await DatabaseHelper.instance.queryFilesByUser(user.id!);
+      final studySets =
+          await DatabaseHelper.instance.queryStudySetsByUser(user.id!);
+      if (!mounted) return;
+      setState(() {
+        _profileFileCount = files.where((file) {
+          final kind = file['kind'] as String? ?? '';
+          return !kind.startsWith('output_') && kind != 'qr';
+        }).length;
+        _profileOutputCount = files.where((file) {
+          final kind = file['kind'] as String? ?? '';
+          return kind.startsWith('output_') || kind == 'qr';
+        }).length;
+        _profileStudySetCount = studySets.length;
+      });
+    } catch (error) {
+      debugPrint('Failed to load Settings profile summary: $error');
+    }
+  }
+
+  Future<void> _selectDefaultOutputFormat() async {
+    const formats = {
+      'docx': 'DOCX',
+      'pdf': 'PDF',
+      'html': 'HTML',
+      'txt': 'TXT'
+    };
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(title: Text('Default output format')),
+            for (final entry in formats.entries)
+              ListTile(
+                title: Text(entry.value),
+                trailing: _defaultOutputFormat == entry.key
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.pop(sheetContext, entry.key),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null) return;
+    await StudyPreferencesService().setDefaultOutputFormat(selected);
+    if (mounted) setState(() => _defaultOutputFormat = selected);
+  }
+
+  Future<void> _setStudyReminder(bool enabled) async {
+    try {
+      final saved = await StudyPreferencesService().setReminderEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _studyReminderEnabled = saved && enabled);
+      if (!saved) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Allow notifications to enable study reminders.'),
+          ),
+        );
+      }
+    } catch (error) {
+      _showError('Could not update study reminder: $error');
+    }
+  }
+
+  Future<void> _selectStudyReminderTime() async {
+    final time = await showTimePicker(
+      context: context,
+      initialTime:
+          TimeOfDay(hour: _studyReminderHour, minute: _studyReminderMinute),
+    );
+    if (time == null) return;
+    await StudyPreferencesService().setReminderTime(time.hour, time.minute);
+    if (mounted) {
+      setState(() {
+        _studyReminderHour = time.hour;
+        _studyReminderMinute = time.minute;
+      });
+    }
   }
 
   Future<void> _loadManagedAppVersion() async {
@@ -198,7 +311,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message)),
+      SnackBar(
+          backgroundColor: Theme.of(context).colorScheme.error,
+          content: Text(message)),
     );
   }
 
@@ -220,6 +335,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _buildProfileSection(),
                 const SizedBox(height: 24),
                 _buildThemeSection(),
+                const SizedBox(height: 24),
+                _buildStudyPreferencesSection(),
                 const SizedBox(height: 24),
                 _buildAiSection(),
                 const SizedBox(height: 24),
@@ -244,7 +361,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           if (_isLoading)
             Container(
-              color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.54),
+              color:
+                  Theme.of(context).colorScheme.scrim.withValues(alpha: 0.54),
               child: const Center(child: CircularProgressIndicator()),
             ),
         ],
@@ -256,11 +374,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final user = AuthService().currentUser;
     final name = user?.name ?? 'Guest User';
     final email = user?.email ?? 'Local workspace';
-    final parts =
-        name.trim().split(RegExp(r'\s+')).where((part) => part.isNotEmpty);
-    final initials = parts.take(2).map((part) => part[0]).join().toUpperCase();
+    final initials = name
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0])
+        .join()
+        .toUpperCase();
 
     return FigmaCard(
+      padding: const EdgeInsets.all(16),
       child: Column(
         children: [
           Row(
@@ -289,64 +413,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    Text(name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
                     const SizedBox(height: 3),
-                    Text(
-                      email,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: FigmaAppColors.subtext(context),
-                        fontSize: 13,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .primary
-                            .withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                      child: Text(
-                        user?.role.toUpperCase() ?? 'USER',
+                    Text(email,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
+                            color: FigmaAppColors.subtext(context),
+                            fontSize: 13)),
+                    const SizedBox(height: 6),
+                    Text(user?.role.toUpperCase() ?? 'USER',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800)),
                   ],
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              _profileCount('Files', _profileFileCount),
+              _profileCount('Study sets', _profileStudySetCount),
+              _profileCount('Outputs', _profileOutputCount),
+            ],
+          ),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
+            child: ElevatedButton.icon(
               onPressed: () => Navigator.of(context).pushNamed('/profile'),
-              icon: const Icon(Icons.edit_outlined),
-              label: const Text('Edit profile'),
+              icon: const Icon(Icons.person_outline),
+              label: const Text('View profile'),
             ),
           ),
         ],
@@ -354,6 +463,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _profileCount(String label, int count) => Expanded(
+        child: Column(
+          children: [
+            Text('$count',
+                style:
+                    const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: FigmaAppColors.subtext(context), fontSize: 12)),
+          ],
+        ),
+      );
   Widget _buildThemeSection() {
     final themeService = ThemeService.instance;
     final selectedMainTheme = <AppThemeChoice>{themeService.themeChoice};
@@ -373,15 +496,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: SegmentedButton<AppThemeChoice>(
               showSelectedIcon: false,
               style: ButtonStyle(
-                padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 2)),
+                padding: const WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 2)),
                 side: WidgetStatePropertyAll(
                   BorderSide(color: FigmaAppColors.border(context)),
                 ),
               ),
               segments: const [
                 ButtonSegment(value: AppThemeChoice.day, label: Text('Day')),
-                ButtonSegment(value: AppThemeChoice.system, label: Text('System')),
-                ButtonSegment(value: AppThemeChoice.night, label: Text('Night')),
+                ButtonSegment(
+                    value: AppThemeChoice.system, label: Text('System')),
+                ButtonSegment(
+                    value: AppThemeChoice.night, label: Text('Night')),
               ],
               selected: selectedMainTheme,
               onSelectionChanged: (selection) async {
@@ -393,6 +519,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildStudyPreferencesSection() {
+    final reminderTime = TimeOfDay(
+      hour: _studyReminderHour,
+      minute: _studyReminderMinute,
+    ).format(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Study preferences',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 12),
+        FigmaCard(
+          padding: EdgeInsets.zero,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.description_outlined),
+                title: const Text('Default output'),
+                subtitle: const Text('Used when converting files'),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(_defaultOutputFormat.toUpperCase()),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.chevron_right),
+                  ],
+                ),
+                onTap: _selectDefaultOutputFormat,
+              ),
+              Divider(height: 1, color: FigmaAppColors.border(context)),
+              ListTile(
+                leading: const Icon(Icons.notifications_none_outlined),
+                title: const Text('Study reminder'),
+                subtitle: Text(_studyReminderEnabled
+                    ? 'Every day at $reminderTime'
+                    : 'Off · tap to choose a time'),
+                onTap: _studyReminderEnabled ? _selectStudyReminderTime : null,
+                trailing: Switch(
+                  value: _studyReminderEnabled,
+                  onChanged: _setStudyReminder,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -655,7 +833,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: [
                       Text(title,
                           style: TextStyle(
-                              color: isDestructive ? Theme.of(context).colorScheme.error : null,
+                              color: isDestructive
+                                  ? Theme.of(context).colorScheme.error
+                                  : null,
                               fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(

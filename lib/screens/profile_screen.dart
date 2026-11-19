@@ -2,12 +2,11 @@ import 'dart:io';
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../core/database_helper.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
+import '../services/file_storage.dart';
 import '../widgets/figma_app_chrome.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -18,322 +17,280 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final _authService = AuthService();
-  final _nameController = TextEditingController();
-  final _bioController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _locationController = TextEditingController();
-  final _picker = ImagePicker();
-
-  bool _isSaving = false;
+  final _auth = AuthService();
   List<int> _activityCounts = List.filled(7, 0);
+  List<Map<String, dynamic>> _recentLogs = [];
+  int _materialCount = 0;
+  int _outputCount = 0;
+  int _studySetCount = 0;
+  bool _busy = false;
 
   @override
   void initState() {
     super.initState();
-    _syncUserFields();
-    _loadActivity();
+    _loadProfileData();
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _bioController.dispose();
-    _phoneController.dispose();
-    _locationController.dispose();
-    super.dispose();
-  }
-
-  void _syncUserFields() {
-    final user = _authService.currentUser;
-    _nameController.text = user?.name ?? '';
-    _bioController.text = user?.bio ?? '';
-    _phoneController.text = user?.phone ?? '';
-    _locationController.text = user?.location ?? '';
-  }
-
-  Future<void> _loadActivity() async {
-    final userId = (await _authService.requireLocalUser()).id!;
-
-    final logs = await DatabaseHelper.instance.queryLogsByUser(userId);
+  Future<void> _loadProfileData() async {
+    final user = await _auth.requireLocalUser();
+    final files = await DatabaseHelper.instance.queryFilesByUser(user.id!);
+    final sets = await DatabaseHelper.instance.queryStudySetsByUser(user.id!);
+    final logs = await DatabaseHelper.instance.queryLogsByUser(user.id!);
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day)
         .subtract(const Duration(days: 6));
     final counts = List.filled(7, 0);
-
     for (final log in logs) {
-      final createdAt = DateTime.tryParse(log['created_at'] as String? ?? '');
-      if (createdAt == null) continue;
-
-      final day = DateTime(createdAt.year, createdAt.month, createdAt.day);
+      final created = DateTime.tryParse(log['created_at'] as String? ?? '');
+      if (created == null) continue;
+      final day = DateTime(created.year, created.month, created.day);
       final offset = day.difference(start).inDays;
-      if (offset >= 0 && offset < counts.length) {
-        counts[offset] += 1;
-      }
+      if (offset >= 0 && offset < counts.length) counts[offset]++;
     }
-
-    if (mounted) setState(() => _activityCounts = counts);
+    final materials = files.where((file) {
+      final kind = file['kind'] as String? ?? '';
+      return !kind.startsWith('output_') && kind != 'qr';
+    }).length;
+    final outputs = files.length - materials;
+    if (!mounted) return;
+    setState(() {
+      _materialCount = materials;
+      _outputCount = outputs;
+      _studySetCount = sets.length;
+      _activityCounts = counts;
+      _recentLogs = logs.take(5).toList();
+    });
   }
 
-  Future<void> _pickProfileImage() async {
-    final user = await _authService.requireLocalUser();
-
-    final image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 82,
-      maxWidth: 900,
+  Future<void> _clearHistory() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear saved outputs?'),
+        content: const Text(
+            'This deletes converted outputs and QR records saved on this device. Your source files and study sets stay in place.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Clear outputs')),
+        ],
+      ),
     );
-    if (image == null) return;
-
-    final docs = await getApplicationDocumentsDirectory();
-    final profileDir = Directory('${docs.path}/smart_template/profile_images');
-    if (!await profileDir.exists()) {
-      await profileDir.create(recursive: true);
-    }
-
-    final extension = p.extension(image.path).isEmpty
-        ? '.jpg'
-        : p.extension(image.path).toLowerCase();
-    final targetPath =
-        p.join(profileDir.path, 'user_${user.id}_profile$extension');
-    await File(image.path).copy(targetPath);
-
-    await _authService.updateProfile(profileImagePath: targetPath);
-    if (mounted) {
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile image updated')),
-      );
+    if (confirm != true) return;
+    setState(() => _busy = true);
+    try {
+      final user = await _auth.requireLocalUser();
+      final files = await DatabaseHelper.instance.queryFilesByUser(user.id!);
+      final outputIds = files
+          .where((file) {
+            final kind = file['kind'] as String? ?? '';
+            return kind.startsWith('output_') || kind == 'qr';
+          })
+          .map((file) => file['id'] as int)
+          .toList();
+      await FileStorage.deleteFiles(outputIds);
+      await _loadProfileData();
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Saved outputs cleared.')));
+    } catch (error) {
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not clear outputs: $error')));
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
-  Future<void> _saveProfile() async {
-    setState(() => _isSaving = true);
-    try {
-      await _authService.updateProfile(
-        name: _nameController.text.trim(),
-        bio: _bioController.text.trim(),
-        phone: _phoneController.text.trim(),
-        location: _locationController.text.trim(),
-      );
-      await _loadActivity();
-      if (mounted) {
-        setState(() {});
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile saved')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-              backgroundColor: Theme.of(context).colorScheme.error, content: Text('Save failed: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
+  Future<void> _resetGuestProfile() async {
+    final user = _auth.currentUser;
+    if (user == null ||
+        user.supabaseUserId != null ||
+        user.email != 'guest@convert2file.local') return;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset guest profile?'),
+        content: const Text(
+            'This resets the guest name, bio, contact details, and profile photo on this device. Saved files remain.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Reset profile')),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+    await _auth.resetGuestProfile();
+    if (mounted) setState(() {});
   }
 
   Future<void> _signOut() async {
-    await _authService.signOut();
-    if (mounted) {
+    await _auth.signOut();
+    if (mounted)
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (_) => false);
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final user = _authService.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       return const FigmaAppShell(
-        title: 'Local Profile',
-        subtitle: 'Your local system identity',
-        selectedIndex: 2,
-        child: Center(child: CircularProgressIndicator()),
-      );
+          title: 'Profile',
+          subtitle: 'Your account and study activity',
+          selectedIndex: 2,
+          child: Center(child: CircularProgressIndicator()));
     }
-
     return FigmaAppShell(
-      title: 'Local Profile',
-      subtitle: 'Your local system identity',
+      title: 'Profile',
+      subtitle: 'Your account and study activity',
       selectedIndex: 2,
       showBack: true,
       child: Stack(
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          RefreshIndicator(
+            onRefresh: _loadProfileData,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
               children: [
-                _buildProfileHeader(),
-                const SizedBox(height: 20),
-                _buildProfileForm(),
-                const SizedBox(height: 20),
-                _buildActivityCard(),
-                const SizedBox(height: 32),
+                _profileHero(user),
+                const SizedBox(height: 16),
+                _securityCard(user),
+                const SizedBox(height: 16),
+                _activityCard(),
+                const SizedBox(height: 16),
+                _recentActivityCard(),
+                const SizedBox(height: 16),
+                _dataActionsCard(user),
+                const SizedBox(height: 16),
                 OutlinedButton.icon(
-                  onPressed: _signOut,
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Sign out'),
-                ),
-                const SizedBox(height: 32),
+                    onPressed: _signOut,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Sign out')),
               ],
             ),
           ),
-          if (_isSaving)
-            Container(
-              color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
-              child: const Center(child: CircularProgressIndicator()),
-            ),
+          if (_busy)
+            const Positioned.fill(
+                child: ColoredBox(
+                    color: Color(0x55000000),
+                    child: Center(child: CircularProgressIndicator()))),
         ],
       ),
     );
   }
 
-  Widget _buildProfileHeader() {
-    final user = _authService.currentUser!;
+  Widget _profileHero(UserModel user) {
     final imagePath = user.profileImagePath;
     final hasImage = imagePath != null && File(imagePath).existsSync();
-
     return FigmaCard(
-      padding: const EdgeInsets.all(16),
-      child: Row(
+      child: Column(
         children: [
-          Stack(
+          CircleAvatar(
+              radius: 42,
+              backgroundImage: hasImage ? FileImage(File(imagePath)) : null,
+              child: hasImage
+                  ? null
+                  : Text(user.name.isEmpty ? '?' : user.name[0].toUpperCase(),
+                      style: const TextStyle(fontSize: 28))),
+          const SizedBox(height: 12),
+          Text(user.name,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleLarge
+                  ?.copyWith(fontWeight: FontWeight.bold)),
+          Text(user.email,
+              style: TextStyle(color: Theme.of(context).hintColor)),
+          const SizedBox(height: 8),
+          Chip(
+              visualDensity: VisualDensity.compact,
+              label: Text(user.role.toUpperCase())),
+          if ((user.bio ?? '').isNotEmpty)
+            Text(user.bio!, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+              onPressed: () async {
+                final changed =
+                    await Navigator.of(context).pushNamed('/edit-profile');
+                if (changed == true && mounted) setState(() {});
+              },
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('Edit profile')),
+          const SizedBox(height: 8),
+          Row(
             children: [
-              CircleAvatar(
-                radius: 42,
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                backgroundImage: hasImage ? FileImage(File(imagePath)) : null,
-                child: hasImage
-                    ? null
-                    : Text(
-                        user.name.substring(0, 1).toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 30,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-              ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: IconButton.filled(
-                  onPressed: _pickProfileImage,
-                  icon: const Icon(Icons.camera_alt, size: 18),
-                ),
-              ),
+              _countTile('Materials', _materialCount),
+              _countTile('Study sets', _studySetCount),
+              _countTile('Outputs', _outputCount),
             ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  user.name,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  user.email,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Theme.of(context).hintColor),
-                ),
-                const SizedBox(height: 8),
-                Chip(
-                  visualDensity: VisualDensity.compact,
-                  label: Text(user.role.toUpperCase()),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildProfileForm() {
+  Widget _countTile(String label, int count) => Expanded(
+          child: Column(children: [
+        Text('$count',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        Text(label,
+            textAlign: TextAlign.center, style: const TextStyle(fontSize: 12))
+      ]));
+
+  Widget _securityCard(UserModel user) {
+    final hasAccount = user.supabaseUserId != null;
     return FigmaCard(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Profile Info',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              prefixIcon: Icon(Icons.person),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _bioController,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              labelText: 'Bio',
-              prefixIcon: Icon(Icons.notes),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _phoneController,
-            keyboardType: TextInputType.phone,
-            decoration: const InputDecoration(
-              labelText: 'Phone',
-              prefixIcon: Icon(Icons.phone),
-            ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _locationController,
-            decoration: const InputDecoration(
-              labelText: 'Location',
-              prefixIcon: Icon(Icons.location_on),
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _isSaving ? null : _saveProfile,
-              icon: const Icon(Icons.save),
-              label: const Text('SAVE PROFILE'),
-            ),
-          ),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(
+            padding: EdgeInsets.fromLTRB(8, 10, 8, 4),
+            child: Text('Account and security',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+        ListTile(
+            leading: const Icon(Icons.person_outline),
+            title: const Text('Edit profile'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).pushNamed('/edit-profile')),
+        ListTile(
+            leading: const Icon(Icons.password),
+            title: const Text('Change password'),
+            subtitle: Text(hasAccount
+                ? 'Update your account password'
+                : 'Sign in to an account to change its password'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: hasAccount
+                ? () => Navigator.of(context).pushNamed('/change-password')
+                : null),
+        ListTile(
+            leading: const Icon(Icons.phonelink_lock_outlined),
+            title: const Text('App lock'),
+            subtitle: const Text('Protect this device with a six digit PIN'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).pushNamed('/app-lock')),
+      ]),
     );
   }
 
-  Widget _buildActivityCard() {
-    final maxCount = _activityCounts.fold<int>(1, (max, count) {
-      return count > max ? count : max;
-    });
-
+  Widget _activityCard() {
+    final maxCount = _activityCounts.fold<int>(
+      1,
+      (max, count) => count > max ? count : max,
+    );
     return FigmaCard(
-      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Local Activity',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
+          const Text('Activity · last 7 days',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
           SizedBox(
-            height: 190,
+            height: 170,
             child: BarChart(
               BarChartData(
                 alignment: BarChartAlignment.spaceAround,
@@ -342,41 +299,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 gridData: const FlGridData(show: false),
                 titlesData: FlTitlesData(
                   leftTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                      sideTitles: SideTitles(showTitles: false)),
                   topTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                      sideTitles: SideTitles(showTitles: false)),
                   rightTitles: const AxisTitles(
-                    sideTitles: SideTitles(showTitles: false),
-                  ),
+                      sideTitles: SideTitles(showTitles: false)),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
                         final labels = _dayLabels();
                         final index = value.toInt();
-                        if (index < 0 || index >= labels.length) {
+                        if (index < 0 || index >= labels.length)
                           return const SizedBox.shrink();
-                        }
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
-                          child: Text(
-                            labels[index],
-                            style: const TextStyle(fontSize: 11),
-                          ),
+                          child: Text(labels[index],
+                              style: const TextStyle(fontSize: 11)),
                         );
                       },
                     ),
                   ),
                 ),
                 barGroups: [
-                  for (var i = 0; i < _activityCounts.length; i++)
+                  for (var index = 0; index < _activityCounts.length; index++)
                     BarChartGroupData(
-                      x: i,
+                      x: index,
                       barRods: [
                         BarChartRodData(
-                          toY: _activityCounts[i].toDouble(),
+                          toY: _activityCounts[index].toDouble(),
                           width: 16,
                           borderRadius: BorderRadius.circular(5),
                           color: Theme.of(context).colorScheme.primary,
@@ -392,14 +343,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _recentActivityCard() => FigmaCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Padding(
+              padding: EdgeInsets.fromLTRB(8, 8, 8, 4),
+              child: Text('Recent activity',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          if (_recentLogs.isEmpty)
+            const ListTile(title: Text('No recent activity yet')),
+          for (final log in _recentLogs)
+            ListTile(
+                dense: true,
+                leading: const Icon(Icons.history),
+                title: Text(log['message'] as String? ??
+                    log['event_type'] as String? ??
+                    'Activity'),
+                subtitle: Text(log['created_at'] as String? ?? '')),
+        ]),
+      );
+
+  Widget _dataActionsCard(UserModel user) => FigmaCard(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Padding(
+              padding: EdgeInsets.fromLTRB(8, 8, 8, 4),
+              child: Text('Data and sharing',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
+          ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Clear history'),
+              subtitle: const Text('Remove saved outputs from this device'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: _clearHistory),
+          if (user.supabaseUserId == null &&
+              user.email == 'guest@convert2file.local')
+            ListTile(
+                leading: const Icon(Icons.restart_alt),
+                title: const Text('Reset guest profile'),
+                subtitle: const Text('Reset profile details; keep saved files'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: _resetGuestProfile),
+        ]),
+      );
+
   List<String> _dayLabels() {
     const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     final now = DateTime.now();
     final start = DateTime(now.year, now.month, now.day)
         .subtract(const Duration(days: 6));
-    return List.generate(7, (index) {
-      final weekday = start.add(Duration(days: index)).weekday;
-      return labels[weekday - 1];
-    });
+    return List.generate(
+        7, (index) => labels[start.add(Duration(days: index)).weekday - 1]);
   }
 }
