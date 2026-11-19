@@ -930,11 +930,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void _openOfflineAiAssistant() {
     final route = LocalLlamaService.instance.hasModel
         ? '/offline-ai'
-        : '/settings';
-    Navigator.of(context).pushNamed(
-      route,
-      arguments: route == '/settings' ? 'offline-ai' : null,
-    );
+        : '/ai-model';
+    Navigator.of(context).pushNamed(route);
   }
 
   Future<void> _askOfflineAi() async {

@@ -68,6 +68,7 @@ class _AiModelScreenState extends State<AiModelScreen> {
           subtitle: 'Llama GGUF model manager',
           selectedIndex: 2,
           showBack: true,
+          showProfile: false,
           child: Stack(
             children: [
               SingleChildScrollView(

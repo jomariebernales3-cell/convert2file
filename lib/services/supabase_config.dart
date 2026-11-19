@@ -3,7 +3,7 @@
 class SupabaseConfig {
   static const appVersion = '1.0.27';
   static const appBuildNumber = '30';
-  static const displayAppVersion = '${appVersion}.${appBuildNumber}';
+  static const displayAppVersion = appVersion;
   // These defaults let local development run with `flutter run -d <device>`.
   // Build-time values may still override them for another Supabase project.
   static const url = String.fromEnvironment(
