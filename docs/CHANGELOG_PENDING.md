@@ -10,7 +10,6 @@ Use this list when preparing the next public release notes. Current app version:
 - The Appearance selector now offers Day, System, and Night; System is centered and the DBZ theme was removed.
 - Removed Settings storage usage statistics and their unused database queries.
 - Tapping Offline AI Assistant opens the Offline AI model setup screen when no GGUF model is imported.
-- Settings now includes a local default output format and an optional daily study reminder.
 - Profile now shows study counts and recent activity, with profile editing, account password controls, and an optional local PIN app lock.
 - Guest users can reset profile details, and saved converted outputs can be cleared without deleting source files or study sets.
 

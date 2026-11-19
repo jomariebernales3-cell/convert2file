@@ -82,23 +82,6 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "convert2file/study_reminder")
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "requestPermission" -> requestNotificationPermission(result)
-                    "schedule" -> {
-                        val hour = call.argument<Int>("hour") ?: 19
-                        val minute = call.argument<Int>("minute") ?: 0
-                        StudyReminderReceiver.schedule(this, hour, minute)
-                        result.success(true)
-                    }
-                    "cancel" -> {
-                        StudyReminderReceiver.cancel(this)
-                        result.success(true)
-                    }
-                    else -> result.notImplemented()
-                }
-            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, offlineAiChannelName)
             .setMethodCallHandler { call, result ->
                 when (call.method) {

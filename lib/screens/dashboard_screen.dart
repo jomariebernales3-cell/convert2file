@@ -9,7 +9,6 @@ import 'package:path/path.dart' as path;
 import '../services/file_storage.dart';
 import '../services/app_remote_config_service.dart';
 import '../services/supabase_config.dart';
-import '../services/study_preferences_service.dart';
 import '../services/document_parser.dart';
 import '../services/data_extractor.dart';
 import '../services/template_engine.dart';
@@ -58,20 +57,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    unawaited(_loadDefaultOutputFormat());
     unawaited(_loadRemoteConfig());
     _subscribeToAppControlChanges();
     _subscribeToConnectivityChanges();
-  }
-
-  Future<void> _loadDefaultOutputFormat() async {
-    final format = await StudyPreferencesService().defaultOutputFormat();
-    if (!mounted) return;
-    setState(() {
-      _selectedFormats
-        ..clear()
-        ..add(format);
-    });
   }
 
   Future<void> _loadRemoteConfig() async {

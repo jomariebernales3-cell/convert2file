@@ -7,7 +7,6 @@ import '../services/theme_service.dart';
 import '../services/local_llama_service.dart';
 import '../services/supabase_config.dart';
 import '../services/app_info_service.dart';
-import '../services/study_preferences_service.dart';
 import '../core/database_helper.dart';
 import '../widgets/figma_app_chrome.dart';
 import '../widgets/report_problem_sheet.dart';
@@ -28,10 +27,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   int _profileFileCount = 0;
   int _profileStudySetCount = 0;
   int _profileOutputCount = 0;
-  String _defaultOutputFormat = 'docx';
-  bool _studyReminderEnabled = false;
-  int _studyReminderHour = 19;
-  int _studyReminderMinute = 0;
 
   @override
   void initState() {
@@ -39,21 +34,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadAnnouncementUnread();
     _loadManagedAppVersion();
     _loadProfileSummary();
-    _loadStudyPreferences();
-  }
-
-  Future<void> _loadStudyPreferences() async {
-    final service = StudyPreferencesService();
-    final format = await service.defaultOutputFormat();
-    final enabled = await service.reminderEnabled();
-    final time = await service.reminderTime();
-    if (!mounted) return;
-    setState(() {
-      _defaultOutputFormat = format;
-      _studyReminderEnabled = enabled;
-      _studyReminderHour = time.hour;
-      _studyReminderMinute = time.minute;
-    });
   }
 
   Future<void> _loadProfileSummary() async {
@@ -76,71 +56,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
     } catch (error) {
       debugPrint('Failed to load Settings profile summary: $error');
-    }
-  }
-
-  Future<void> _selectDefaultOutputFormat() async {
-    const formats = {
-      'docx': 'DOCX',
-      'pdf': 'PDF',
-      'html': 'HTML',
-      'txt': 'TXT'
-    };
-    final selected = await showModalBottomSheet<String>(
-      context: context,
-      showDragHandle: true,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const ListTile(title: Text('Default output format')),
-            for (final entry in formats.entries)
-              ListTile(
-                title: Text(entry.value),
-                trailing: _defaultOutputFormat == entry.key
-                    ? const Icon(Icons.check)
-                    : null,
-                onTap: () => Navigator.pop(sheetContext, entry.key),
-              ),
-          ],
-        ),
-      ),
-    );
-    if (selected == null) return;
-    await StudyPreferencesService().setDefaultOutputFormat(selected);
-    if (mounted) setState(() => _defaultOutputFormat = selected);
-  }
-
-  Future<void> _setStudyReminder(bool enabled) async {
-    try {
-      final saved = await StudyPreferencesService().setReminderEnabled(enabled);
-      if (!mounted) return;
-      setState(() => _studyReminderEnabled = saved && enabled);
-      if (!saved) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Allow notifications to enable study reminders.'),
-          ),
-        );
-      }
-    } catch (error) {
-      _showError('Could not update study reminder: $error');
-    }
-  }
-
-  Future<void> _selectStudyReminderTime() async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime:
-          TimeOfDay(hour: _studyReminderHour, minute: _studyReminderMinute),
-    );
-    if (time == null) return;
-    await StudyPreferencesService().setReminderTime(time.hour, time.minute);
-    if (mounted) {
-      setState(() {
-        _studyReminderHour = time.hour;
-        _studyReminderMinute = time.minute;
-      });
     }
   }
 
@@ -336,8 +251,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(height: 24),
                 _buildThemeSection(),
                 const SizedBox(height: 24),
-                _buildStudyPreferencesSection(),
-                const SizedBox(height: 24),
                 _buildAiSection(),
                 const SizedBox(height: 24),
                 _buildActionsSection(),
@@ -519,58 +432,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStudyPreferencesSection() {
-    final reminderTime = TimeOfDay(
-      hour: _studyReminderHour,
-      minute: _studyReminderMinute,
-    ).format(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Study preferences',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        FigmaCard(
-          padding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.description_outlined),
-                title: const Text('Default output'),
-                subtitle: const Text('Used when converting files'),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(_defaultOutputFormat.toUpperCase()),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.chevron_right),
-                  ],
-                ),
-                onTap: _selectDefaultOutputFormat,
-              ),
-              Divider(height: 1, color: FigmaAppColors.border(context)),
-              ListTile(
-                leading: const Icon(Icons.notifications_none_outlined),
-                title: const Text('Study reminder'),
-                subtitle: Text(_studyReminderEnabled
-                    ? 'Every day at $reminderTime'
-                    : 'Off · tap to choose a time'),
-                onTap: _studyReminderEnabled ? _selectStudyReminderTime : null,
-                trailing: Switch(
-                  value: _studyReminderEnabled,
-                  onChanged: _setStudyReminder,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 
