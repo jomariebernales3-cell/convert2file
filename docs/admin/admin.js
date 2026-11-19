@@ -107,6 +107,15 @@ async function queryRows(table, fields, orderField = 'created_at') {
   return data ?? [];
 }
 
+async function queryProblemReports() {
+  try {
+    return await queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,source_file_path,output_file_path,screenshot_file_path,status,admin_note,created_at');
+  } catch (error) {
+    if (!String(error.message).includes('screenshot_file_path')) throw error;
+    return queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,source_file_path,output_file_path,status,admin_note,created_at');
+  }
+}
+
 async function refreshData() {
   if (!actor) return;
   $('#refresh').disabled = true;
@@ -131,7 +140,7 @@ async function refreshData() {
     showPortal();
     [users, reports, auditEntries] = await Promise.all([
       queryRows('profiles', 'id,email,display_name,account_status,created_at,last_seen_at'),
-      queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,status,admin_note,created_at'),
+      queryProblemReports(),
       queryRows('admin_audit_log', 'id,actor_id,action,target_type,target_id,details,created_at'),
     ]);
     [announcements, appSettings, appInfoContent] = await Promise.all([
@@ -226,11 +235,21 @@ async function deleteProblemReports(reportIds, { all = false, confirmMessage } =
   return true;
 }
 
-function openReport(id) {
+async function openReport(id) {
   const report = reports.find((item) => item.id === id); if (!report) return;
   const reporter = users.find((item) => item.id === report.user_id);
   const context = JSON.stringify(report.context ?? {}, null, 2);
-  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p><details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
+  let screenshotLink = '';
+  if (report.screenshot_file_path) {
+    try {
+      const { data, error } = await client.storage.from('report-files')
+        .createSignedUrl(report.screenshot_file_path, 3600);
+      if (!error && data?.signedUrl) {
+        screenshotLink = `<p><a href="${esc(data.signedUrl)}" target="_blank" rel="noopener">View attached screenshot</a></p>`;
+      }
+    } catch (_) {}
+  }
+  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
   $('#save-report').addEventListener('click', async () => {

@@ -560,14 +560,30 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            maintenanceEnabled ? 'Online maintenance' : 'Good day, $userName',
-            style: TextStyle(
-              color: colors.text,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
+          if (maintenanceEnabled)
+            Row(
+              children: [
+                Icon(Icons.build_outlined, color: colors.accent, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Online maintenance',
+                  style: TextStyle(
+                    color: colors.text,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            )
+          else
+            Text(
+              'Good day, $userName',
+              style: TextStyle(
+                color: colors.text,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
             ),
-          ),
           const SizedBox(height: 6),
           Text(
             maintenanceEnabled

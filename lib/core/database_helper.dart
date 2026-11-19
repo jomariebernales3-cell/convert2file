@@ -19,7 +19,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 8,
+      version: 9,
       onCreate: _createDB,
       onUpgrade: _upgradeDB,
     );
@@ -53,6 +53,14 @@ class DatabaseHelper {
       await db.execute("UPDATE users SET role = 'user' WHERE role = 'admin'");
     }
     if (oldVersion < 8) await _createPendingReportsTable(db);
+    if (oldVersion < 9) {
+      final columns = await db.rawQuery('PRAGMA table_info(pending_reports)');
+      if (!columns.any((column) => column['name'] == 'screenshot_local_path')) {
+        await db.execute(
+          'ALTER TABLE pending_reports ADD COLUMN screenshot_local_path TEXT',
+        );
+      }
+    }
   }
 
   Future<void> _createDB(Database db, int version) async {
@@ -161,6 +169,7 @@ class DatabaseHelper {
         payload_json TEXT NOT NULL,
         source_local_path TEXT,
         output_local_path TEXT,
+        screenshot_local_path TEXT,
         created_at TEXT NOT NULL
       )
     ''');

@@ -1,6 +1,8 @@
 import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/file_storage.dart';
 import '../services/report_service.dart';
 
 Future<void> showReportProblemSheet(BuildContext context, {required String area, Map<String, dynamic> contextInfo = const {}, String? sourceFilePath, String? outputFilePath}) => showModalBottomSheet<void>(
@@ -33,7 +35,7 @@ class _ReportProblemSheetState extends State<ReportProblemSheet> {
   late String _area;
   late bool _includeEmail;
   bool _source = false, _output = false, _technical = true, _sending = false, _sent = false, _offline = false;
-  String? _error, _id;
+  String? _error, _id, _screenshotPath, _screenshotName;
   @override
   void initState() { super.initState(); _area = areas.containsKey(widget.area) ? widget.area : 'other'; _includeEmail = AuthService().isLoggedIn; }
   @override
@@ -42,12 +44,48 @@ class _ReportProblemSheetState extends State<ReportProblemSheet> {
     final file = File(path); final name = file.uri.pathSegments.last;
     try { final size = file.lengthSync(); return '$name · ${size < 1048576 ? '${(size / 1024).ceil()} KB' : '${(size / 1048576).toStringAsFixed(1)} MB'}'; } catch (_) { return name; }
   }
+  Future<void> _pickScreenshot() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty || !mounted) return;
+    final image = result.files.first;
+    if (image.size > 10 * 1024 * 1024) {
+      setState(() => _error = 'Screenshots must be 10 MB or smaller.');
+      return;
+    }
+    try {
+      final directory = await FileStorage.cachePath;
+      final extension = image.name.contains('.')
+          ? '.${image.name.split('.').last.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '')}'
+          : '.png';
+      final destination = '$directory/report_screenshot_${DateTime.now().microsecondsSinceEpoch}$extension';
+      if (image.bytes != null) {
+        await File(destination).writeAsBytes(image.bytes!);
+      } else if (image.path != null) {
+        await File(image.path!).copy(destination);
+      } else {
+        setState(() => _error = 'Could not read that screenshot. Please choose another image.');
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _screenshotPath = destination;
+        _screenshotName = image.name;
+        _error = null;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _error = 'Could not save that screenshot. Please try again.');
+    }
+  }
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.length < 10 || text.length > 2000) { setState(() => _error = 'Enter 10 to 2,000 characters about the problem.'); return; }
     setState(() { _sending = true; _error = null; });
     try {
-      final result = await _service.submit(ReportDraft(area: _area, description: text, contextInfo: widget.contextInfo, sourceFilePath: widget.sourceFilePath, outputFilePath: widget.outputFilePath, attachSource: _source, attachOutput: _output, includeTechnicalDetails: _technical, includeEmail: _includeEmail));
+      final result = await _service.submit(ReportDraft(area: _area, description: text, contextInfo: widget.contextInfo, sourceFilePath: widget.sourceFilePath, outputFilePath: widget.outputFilePath, attachSource: _source, attachOutput: _output, screenshotFilePath: _screenshotPath, includeTechnicalDetails: _technical, includeEmail: _includeEmail));
       if (mounted) setState(() { _id = result.id; _offline = result.savedOffline; _sent = true; });
     } on ReportServiceException catch (e) { if (mounted) setState(() => _error = e.message); }
     catch (_) { if (mounted) setState(() => _error = 'Could not save the report. Please try again.'); }
@@ -73,6 +111,14 @@ class _ReportProblemSheetState extends State<ReportProblemSheet> {
       const SizedBox(height: 6),
       if (widget.sourceFilePath != null) _toggle('Attach the original file', _fileSummary(widget.sourceFilePath!), _source, (v) => setState(() => _source = v)),
       if (widget.outputFilePath != null) _toggle('Attach the converted file', _fileSummary(widget.outputFilePath!), _output, (v) => setState(() => _output = v)),
+      OutlinedButton.icon(
+        onPressed: _sending ? null : _pickScreenshot,
+        icon: const Icon(Icons.screenshot_outlined),
+        label: Text(_screenshotName == null
+            ? 'Attach screenshot (optional)'
+            : 'Screenshot: $_screenshotName'),
+      ),
+      const SizedBox(height: 8),
       _toggle('Include technical details', 'Platform and options used', _technical, (v) => setState(() => _technical = v)),
       if (AuthService().isLoggedIn) _toggle('Include my email so you can reply', AuthService().currentUser?.email, _includeEmail, (v) => setState(() => _includeEmail = v)),
       Text('Files are sent to the Convert2File team only to fix this problem. Do not attach files with private information.', style: TextStyle(color: colors.onSurfaceVariant, fontSize: 12)),

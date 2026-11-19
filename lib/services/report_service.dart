@@ -16,6 +16,7 @@ class ReportDraft {
   final Map<String, dynamic> contextInfo;
   final String? sourceFilePath;
   final String? outputFilePath;
+  final String? screenshotFilePath;
   final bool attachSource;
   final bool attachOutput;
   final bool includeTechnicalDetails;
@@ -27,6 +28,7 @@ class ReportDraft {
     this.contextInfo = const {},
     this.sourceFilePath,
     this.outputFilePath,
+    this.screenshotFilePath,
     this.attachSource = false,
     this.attachOutput = false,
     this.includeTechnicalDetails = true,
@@ -59,15 +61,14 @@ class ReportService {
     }
     final source = draft.attachSource ? draft.sourceFilePath : null;
     final output = draft.attachOutput ? draft.outputFilePath : null;
-    if ((source != null ? 1 : 0) + (output != null ? 1 : 0) > 2) {
-      throw const ReportServiceException('Attach no more than two files.');
-    }
+    final screenshot = draft.screenshotFilePath;
     await _checkFileSize(source);
     await _checkFileSize(output);
+    await _checkFileSize(screenshot);
     final reportId = _newUuid();
     await _recordAttempt();
 
-    final copiedFiles = await _copyAttachments(reportId, source, output);
+    final copiedFiles = await _copyAttachments(reportId, source, output, screenshot);
     final authUser = SupabaseConfig.isConfigured
         ? Supabase.instance.client.auth.currentUser
         : null;
@@ -85,7 +86,12 @@ class ReportService {
 
     try {
       if (!SupabaseConfig.isConfigured) throw const SocketException('Supabase is unavailable');
-      await _send(row, copiedFiles.sourcePath, copiedFiles.outputPath);
+      await _send(
+        row,
+        copiedFiles.sourcePath,
+        copiedFiles.outputPath,
+        copiedFiles.screenshotPath,
+      );
       await _deleteLocalCopies(copiedFiles);
       await retryPending();
       return ReportSubmissionResult(id: reportId, savedOffline: false);
@@ -95,6 +101,7 @@ class ReportService {
         'payload_json': jsonEncode(row),
         'source_local_path': copiedFiles.sourcePath,
         'output_local_path': copiedFiles.outputPath,
+        'screenshot_local_path': copiedFiles.screenshotPath,
         'created_at': DateTime.now().toIso8601String(),
       });
       return ReportSubmissionResult(id: reportId, savedOffline: true);
@@ -117,8 +124,9 @@ class ReportService {
         final paths = _CopiedAttachments(
           sourcePath: item['source_local_path'] as String?,
           outputPath: item['output_local_path'] as String?,
+          screenshotPath: item['screenshot_local_path'] as String?,
         );
-        await _send(row, paths.sourcePath, paths.outputPath);
+        await _send(row, paths.sourcePath, paths.outputPath, paths.screenshotPath);
         await _deleteLocalCopies(paths);
         await DatabaseHelper.instance.deletePendingReport(item['id'] as String);
       } catch (_) {
@@ -131,6 +139,7 @@ class ReportService {
     Map<String, dynamic> row,
     String? sourcePath,
     String? outputPath,
+    String? screenshotPath,
   ) async {
     final client = Supabase.instance.client;
     final reportId = row['id'] as String;
@@ -141,6 +150,10 @@ class ReportService {
     if (outputPath != null) {
       final key = await _upload(client, reportId, outputPath, 'output_');
       row['output_file_path'] = key;
+    }
+    if (screenshotPath != null) {
+      final key = await _upload(client, reportId, screenshotPath, 'screenshot_');
+      row['screenshot_file_path'] = key;
     }
     try {
       await client.from('problem_reports').insert(row);
@@ -158,11 +171,18 @@ class ReportService {
     final file = File(localPath);
     final name = _safeFileName(file.uri.pathSegments.last);
     final key = 'reports/$reportId/$prefix$name';
+    final contentType = prefix == 'screenshot_'
+        ? switch (name.split('.').last.toLowerCase()) {
+            'jpg' || 'jpeg' => 'image/jpeg',
+            'webp' => 'image/webp',
+            _ => 'image/png',
+          }
+        : 'application/octet-stream';
     try {
       await client.storage.from('report-files').uploadBinary(
             key,
             await file.readAsBytes(),
-            fileOptions: const FileOptions(contentType: 'application/octet-stream'),
+            fileOptions: FileOptions(contentType: contentType),
           );
     } catch (error) {
       final text = error.toString().toLowerCase();
@@ -188,8 +208,11 @@ class ReportService {
     String id,
     String? source,
     String? output,
+    String? screenshot,
   ) async {
-    if (source == null && output == null) return const _CopiedAttachments();
+    if (source == null && output == null && screenshot == null) {
+      return const _CopiedAttachments();
+    }
     final base = await FileStorage.cachePath;
     final directory = Directory('$base/report_pending/$id');
     await directory.create(recursive: true);
@@ -205,11 +228,12 @@ class ReportService {
     return _CopiedAttachments(
       sourcePath: await copy(source, 'source_'),
       outputPath: await copy(output, 'output_'),
+      screenshotPath: await copy(screenshot, 'screenshot_'),
     );
   }
 
   Future<void> _deleteLocalCopies(_CopiedAttachments paths) async {
-    for (final path in [paths.sourcePath, paths.outputPath]) {
+    for (final path in [paths.sourcePath, paths.outputPath, paths.screenshotPath]) {
       if (path == null) continue;
       try {
         final file = File(path);
@@ -280,5 +304,6 @@ class ReportService {
 class _CopiedAttachments {
   final String? sourcePath;
   final String? outputPath;
-  const _CopiedAttachments({this.sourcePath, this.outputPath});
+  final String? screenshotPath;
+  const _CopiedAttachments({this.sourcePath, this.outputPath, this.screenshotPath});
 }
