@@ -102,8 +102,10 @@
         <form id="app-settings-form" class="card app-settings-form">
           <h2>Versions</h2>
           <div class="version-fields"><label>Latest version<input id="latest-version" maxlength="32" required></label><label>Minimum supported version<input id="minimum-version" maxlength="32" required></label></div>
+          <label>Android APK download URL<input id="apk-download-url" type="url" maxlength="1000" placeholder="https://github.com/owner/repo/releases/download/..."></label>
+          <p class="muted">The website's Download button uses this link. GitHub releases update it automatically; save here to override the current link.</p>
           <p class="muted">Users below the minimum may be asked to update once the app enforces this setting.</p>
-          <button class="button primary" type="submit">Save versions</button>
+          <button class="button primary" type="submit">Save app settings</button>
         </form>
         <article class="card"><h2>Feature switches</h2><div id="feature-switches"></div></article>
       </section>

@@ -104,15 +104,21 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.release_version }}
           ENFORCE_MINIMUM: ${{ inputs.enforce_minimum }}
         run: |
+          APK_DOWNLOAD_URL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.assets[] | select(.name == "Convert2File.apk") | .browser_download_url' | head -n 1)"
+          if [[ -z "$APK_DOWNLOAD_URL" ]]; then
+            echo "Could not find the APK asset URL on release $RELEASE_TAG."
+            exit 1
+          fi
           MINIMUM_VERSION=""
           if [[ "${ENFORCE_MINIMUM,,}" == "true" ]]; then
             MINIMUM_VERSION="$RELEASE_VERSION"
           fi
-          BODY="$(jq -n --arg latest "v$RELEASE_VERSION" --arg minimum "$MINIMUM_VERSION" \
-            '{p_latest_version:$latest,p_minimum_supported_version:(if $minimum == "" then null else $minimum end)}')"
+          BODY="$(jq -n --arg latest "v$RELEASE_VERSION" --arg minimum "$MINIMUM_VERSION" --arg apk_url "$APK_DOWNLOAD_URL" \
+            '{p_latest_version:$latest,p_minimum_supported_version:(if $minimum == "" then null else $minimum end),p_apk_download_url:$apk_url}')"
           curl --fail-with-body --silent --show-error \
             "$SUPABASE_URL/rest/v1/rpc/ci_publish_app_release_version" \
             -X POST \

@@ -412,6 +412,7 @@ function drawAppControl() {
   $('#maintenance-enabled').checked = appSettings.maintenance_enabled;
   $('#latest-version').value = appSettings.latest_version;
   $('#minimum-version').value = appSettings.minimum_supported_version;
+  $('#apk-download-url').value = appSettings.apk_download_url ?? '';
   const flags = appSettings.feature_flags ?? {};
   $('#feature-switches').innerHTML = featureDefinitions.map(([key, title, description]) => `<div class="control-row"><div><b>${esc(title)}</b><small>${esc(description)}</small></div><label class="switch"><input type="checkbox" data-feature="${esc(key)}" ${flags[key] !== false ? 'checked' : ''}><span></span></label></div>`).join('');
 }
@@ -477,6 +478,7 @@ async function saveAppSettings(changes, auditLabel) {
     p_latest_version: changes.latest_version ?? appSettings.latest_version,
     p_minimum_supported_version: changes.minimum_supported_version ?? appSettings.minimum_supported_version,
     p_feature_flags: changes.feature_flags ?? appSettings.feature_flags,
+    p_apk_download_url: changes.apk_download_url ?? appSettings.apk_download_url ?? '',
   });
   if (error) { notice(error.message, true); return false; }
   await refreshData();
@@ -731,7 +733,11 @@ async function init() {
   });
   $('#app-settings-form').addEventListener('submit', async (event) => {
     event.preventDefault();
-    await saveAppSettings({ latest_version: $('#latest-version').value.trim(), minimum_supported_version: $('#minimum-version').value.trim() }, 'Version settings saved.');
+    await saveAppSettings({
+      latest_version: $('#latest-version').value.trim(),
+      minimum_supported_version: $('#minimum-version').value.trim(),
+      apk_download_url: $('#apk-download-url').value.trim(),
+    }, 'App settings saved.');
     showPage('app-control');
   });
   $('#feature-switches').addEventListener('change', async (event) => {
