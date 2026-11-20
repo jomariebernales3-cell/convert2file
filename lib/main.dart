@@ -27,32 +27,87 @@ import 'screens/announcements_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/study_builder_screen.dart';
 import 'screens/text_to_file_screen.dart';
+import 'widgets/animated_startup_splash.dart';
 
-void main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  if (SupabaseConfig.isConfigured) {
-    await Supabase.initialize(
-      url: SupabaseConfig.url,
-      anonKey: SupabaseConfig.anonKey,
+  runApp(const Convert2FileBootstrap());
+}
+
+class Convert2FileBootstrap extends StatefulWidget {
+  const Convert2FileBootstrap({super.key});
+
+  @override
+  State<Convert2FileBootstrap> createState() => _Convert2FileBootstrapState();
+}
+
+class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
+  AuthService? _authService;
+  Object? _startupError;
+  bool _supabaseInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    if (_startupError != null) {
+      setState(() => _startupError = null);
+    }
+    try {
+      if (SupabaseConfig.isConfigured && !_supabaseInitialized) {
+        await Supabase.initialize(
+          url: SupabaseConfig.url,
+          anonKey: SupabaseConfig.anonKey,
+        );
+        _supabaseInitialized = true;
+      }
+
+      final authService = AuthService();
+      try {
+        await authService.init().timeout(const Duration(seconds: 8));
+      } on Object {
+        // Continue to the app if cached authentication data is unavailable.
+      }
+      await ThemeService.instance.init(userId: authService.currentUser?.id);
+      await LocalLlamaService.instance.init();
+      await AppLockService.instance.initialize();
+
+      if (!mounted) return;
+      setState(() => _authService = authService);
+    } on Object catch (error) {
+      if (!mounted) return;
+      setState(() => _startupError = error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final authService = _authService;
+    if (authService != null) {
+      return SmartTemplateApp(authService: authService);
+    }
+
+    return AnimatedBuilder(
+      animation: ThemeService.instance,
+      builder: (context, _) => MaterialApp(
+        title: 'Convert2File',
+        debugShowCheckedModeBanner: false,
+        themeMode: ThemeService.instance.themeMode,
+        theme: _buildAppTheme(AppColors.day, Brightness.light),
+        darkTheme: _buildAppTheme(AppColors.night, Brightness.dark),
+        home: AnimatedStartupSplash(
+            error: _startupError, onRetry: _initializeApp),
+      ),
     );
   }
-
-  final authService = AuthService();
-  try {
-    await authService.init().timeout(const Duration(seconds: 8));
-  } on Object {
-    // Never keep the app on the native launch screen because of stale cache.
-  }
-  await ThemeService.instance.init(userId: authService.currentUser?.id);
-  await LocalLlamaService.instance.init();
-  await AppLockService.instance.initialize();
-
-  runApp(SmartTemplateApp(authService: authService));
 }
 
 class SmartTemplateApp extends StatelessWidget {
