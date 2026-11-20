@@ -54,14 +54,14 @@ jobs:
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           if [[ -z "$KEYSTORE_BASE64" ]]; then
             echo "Missing repository secret ANDROID_KEYSTORE_BASE64"
             exit 1
           fi
-          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SERVICE_ROLE_KEY" ]]; then
-            echo "Set the SUPABASE_URL Actions variable and SUPABASE_SERVICE_ROLE_KEY Actions secret."
+          if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SECRET_KEY" ]]; then
+            echo "Set the SUPABASE_URL Actions variable and SUPABASE_SECRET_KEY Actions secret."
             exit 1
           fi
 
@@ -103,7 +103,7 @@ jobs:
       - name: Sync published version to Supabase
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           RELEASE_VERSION: ${{ inputs.release_version }}
           ENFORCE_MINIMUM: ${{ inputs.enforce_minimum }}
         run: |
@@ -116,8 +116,7 @@ jobs:
           curl --fail-with-body --silent --show-error \
             "$SUPABASE_URL/rest/v1/rpc/ci_publish_app_release_version" \
             -X POST \
-            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
-            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
             -H "Content-Type: application/json" \
             --data "$BODY"
 
