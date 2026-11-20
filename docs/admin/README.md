@@ -22,6 +22,17 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
 7. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
 8. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
 
+## Publishing an Android release
+
+The GitHub Actions workflow **Build Android release APK** is the source for the APK version. Before using it:
+
+1. Apply `supabase/migrations/202611200001_ci_publish_app_release_version.sql` to the same Supabase project configured above and in `lib/services/supabase_config.dart`.
+2. In the repository's **Settings → Secrets and variables → Actions**, add the `SUPABASE_URL` repository variable and `SUPABASE_SERVICE_ROLE_KEY` repository secret. Use the project's service-role key only as a GitHub Actions secret. Never put it in this portal, the Flutter app, or source control.
+3. In **Actions → Build Android release APK → Run workflow**, enter the four-part version, for example `3.0.2.31`. The workflow builds the APK with that exact installed version, creates a draft GitHub release, updates the admin latest version, and publishes the release.
+4. Leave **enforce minimum** off to keep the current sign-in requirement. Turn it on only when you intend to require users to install this release; the minimum is changed after the APK is built.
+
+The existing `ANDROID_KEYSTORE_BASE64` Actions secret is also required. After publishing, the website's Download button points to GitHub's latest release automatically.
+
 ## First admin
 
 The Owner account is bootstrapped in SQL. To add Admin/Support accounts, create the Auth user in Supabase Dashboard first; the Owner can then assign that account's email from Admin team. The portal does not create or invite Auth users and has no service-role credential.
