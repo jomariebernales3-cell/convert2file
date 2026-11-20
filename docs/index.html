@@ -119,19 +119,33 @@
     <footer>Convert2File · A student project built with Flutter, created with help from OpenAI Codex.</footer>
   </div>
   <script>
-    // Download the latest published Android APK from GitHub Releases.
-    const apkUrl = "https://github.com/jomariebernales3-cell/convert2file/releases/latest/download/Convert2File.apk";
+    // Fall back to the current APK, then resolve the newest published APK asset.
+    const fallbackApkUrl = "https://github.com/jomariebernales3-cell/convert2file/releases/download/v3.0.2.31/Convert2File_v3.0.2.31_.apk";
     const download = document.getElementById("download");
     const hint = document.getElementById("download-hint");
-    if (apkUrl) {
-      download.href = apkUrl;
-      download.target = "_blank";
-      download.rel = "noopener noreferrer";
-      download.removeAttribute("aria-disabled");
-      hint.textContent = "Download the Android APK from GitHub Releases.";
-    } else {
-      download.addEventListener("click", event => event.preventDefault());
-    }
+    download.href = fallbackApkUrl;
+    download.target = "_blank";
+    download.rel = "noopener noreferrer";
+    download.removeAttribute("aria-disabled");
+    hint.textContent = "Download the latest Android APK from GitHub Releases.";
+
+    fetch("https://api.github.com/repos/jomariebernales3-cell/convert2file/releases?per_page=20", {
+      headers: { Accept: "application/vnd.github+json" }
+    }).then(response => {
+      if (!response.ok) throw new Error("GitHub releases are unavailable.");
+      return response.json();
+    }).then(releases => {
+      const release = releases.find(item => !item.draft && item.assets?.some(asset =>
+        asset.name.toLowerCase().endsWith(".apk")
+      ));
+      const apk = release?.assets?.find(asset => asset.name.toLowerCase().endsWith(".apk"));
+      if (apk?.browser_download_url) {
+        download.href = apk.browser_download_url;
+        hint.textContent = `Download the latest Android APK (${release.tag_name}).`;
+      }
+    }).catch(() => {
+      // Keep the direct current-release link if GitHub's release API is unavailable.
+    });
   </script>
 </body>
 </html>

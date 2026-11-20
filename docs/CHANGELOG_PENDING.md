@@ -16,7 +16,7 @@ For the next Android APK after the current release, **v3.0.2.30**.
 ## Changes added today — 2026-11-20
 
 - Added a GitHub Actions release input that sets the APK's four-part version, creates a version-tagged GitHub release, and syncs the latest version to admin app controls after the build succeeds. Minimum-version enforcement is optional and stays unchanged by default.
-- Updated the website's Android download button to always download the latest published GitHub release.
+- Updated the website to find the newest published APK asset from GitHub Releases, including releases with versioned APK filenames or prerelease status.
 - Replaced the Flutter startup loading screen with the supplied DBZ logo artwork and a continuously animated arc. The logo, arc, and background match the selected light or dark theme.
 - Replaced the Android native launch-screen hourglass with the corresponding light or dark logo and matching loading ring, so the new logo appears from the first launch frame.
 - The animated startup screen remains visible while Supabase, authentication, theme, Offline AI, and app-lock initialization runs. It offers a retry action if startup initialization fails.
