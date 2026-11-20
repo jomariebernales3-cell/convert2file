@@ -16,6 +16,7 @@ For the next Android APK after the current release, **v3.0.2.30**.
 ## Changes added today — 2026-11-20
 
 - Replaced the Flutter startup loading screen with the supplied DBZ logo artwork and a continuously animated arc. The logo, arc, and background match the selected light or dark theme.
+- Replaced the Android native launch-screen hourglass with the corresponding light or dark logo and matching loading ring, so the new logo appears from the first launch frame.
 - The animated startup screen remains visible while Supabase, authentication, theme, Offline AI, and app-lock initialization runs. It offers a retry action if startup initialization fails.
 
 ## Bugs fixed and behavior improved

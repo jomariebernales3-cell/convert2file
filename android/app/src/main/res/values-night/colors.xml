@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="native_splash_background">#000000</color>
+    <color name="native_splash_track">#3A3A3A</color>
+    <color name="native_splash_arc">#FFFFFF</color>
 </resources>

@@ -1,28 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="144dp"
-    android:height="144dp"
-    android:viewportWidth="432"
-    android:viewportHeight="432">
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#CDD7E5"
-        android:strokeWidth="16"
-        android:pathData="M216,100 A116,116 0,1 1,216,332 A116,116 0,1 1,216,100" />
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#4F62EA"
-        android:strokeWidth="16"
-        android:strokeLineCap="round"
-        android:pathData="M216,100 A116,116 0,0 1,316,157" />
-    <path
-        android:fillColor="#00000000"
-        android:strokeColor="#4F62EA"
-        android:strokeWidth="10"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:pathData="M188,176 H244 M192,180 C192,198 202,207 216,216 C230,207 240,198 240,180 M192,252 C192,234 202,225 216,216 C230,225 240,234 240,252 M188,256 H244" />
-    <path
-        android:fillColor="#4F62EA"
-        android:pathData="M199,185 H233 C231,198 223,205 216,210 C209,205 201,198 199,185 Z M199,247 H233 C231,234 223,227 216,222 C209,227 201,234 199,247 Z" />
-</vector>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@drawable/splash_ring" />
+    <item
+        android:width="76dp"
+        android:height="76dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/splash_logo"
+            android:gravity="fill" />
+    </item>
+</layer-list>
