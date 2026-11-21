@@ -29,6 +29,7 @@ For the next Android APK after the current release, **v3.0.2.30**.
 - Made the report details body scroll while keeping Save, Delete, and Close fixed in the dialog footer.
 - Redesigned App Info editing with remembered category tabs, item counts, collapsed one-at-a-time editors, live row summaries, update-history search, and confirmation before removal. Existing Supabase fields, ordering, validation, and save RPC remain in use.
 - Update history now shows six versions per page, with Previous/Next controls that work with the existing search.
+- On phones up to 700px, App Info items open in a full-screen editor sheet with a fixed Save/Remove footer; edits save from the shared in-memory data state. The mobile Save App Info bar sits above the existing bottom navigation.
 
 ## Bugs fixed and behavior improved
 

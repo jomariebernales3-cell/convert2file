@@ -110,7 +110,7 @@
         <article class="card"><h2>Feature switches</h2><div id="feature-switches"></div></article>
       </section>
 
-      <section id="page-app-info" class="page" hidden>
+      <section id="page-app-info" class="page app-info-page" hidden>
         <div class="app-info-intro card">
           <div class="app-info-intro-mark" aria-hidden="true">✦</div>
           <div class="app-info-intro-copy">
@@ -172,6 +172,19 @@
       </section>
     </main>
   </div>
+
+  <section id="app-info-sheet" class="app-info-sheet" role="dialog" aria-modal="true" aria-labelledby="app-info-sheet-title" aria-hidden="true" inert hidden>
+    <header class="app-info-sheet-header">
+      <button id="app-info-sheet-back" class="app-info-sheet-back" type="button"><span aria-hidden="true">‹</span><span id="app-info-sheet-back-label">Back</span></button>
+      <h2 id="app-info-sheet-title" class="app-info-sheet-title"></h2>
+      <span class="app-info-sheet-spacer" aria-hidden="true"></span>
+    </header>
+    <div id="app-info-sheet-body" class="app-info-sheet-body"></div>
+    <footer class="app-info-sheet-footer">
+      <button id="app-info-sheet-remove" class="button danger" type="button">Remove</button>
+      <button id="app-info-sheet-save" class="button primary" type="button">Save App Info</button>
+    </footer>
+  </section>
 
   <dialog id="user-dialog" class="dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="user-detail"></div></dialog>
   <dialog id="report-dialog" class="dialog report-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="report-detail"></div></dialog>
