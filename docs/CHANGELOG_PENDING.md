@@ -28,6 +28,7 @@ For the next Android APK after the current release, **v3.0.2.30**.
 - Added a saved “Reply to user” field under internal admin notes in the report details dialog.
 - Made the report details body scroll while keeping Save, Delete, and Close fixed in the dialog footer.
 - Redesigned App Info editing with remembered category tabs, item counts, collapsed one-at-a-time editors, live row summaries, update-history search, and confirmation before removal. Existing Supabase fields, ordering, validation, and save RPC remain in use.
+- Update history now shows six versions per page, with Previous/Next controls that work with the existing search.
 
 ## Bugs fixed and behavior improved
 

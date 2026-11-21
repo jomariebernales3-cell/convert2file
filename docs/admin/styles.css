@@ -84,6 +84,10 @@
 .app-info-fields .version-fields{margin-top:10px}
 .app-info-item-actions{display:flex;justify-content:flex-end}
 .app-info-history-no-results{padding:16px;text-align:center;color:var(--muted)}
+.app-info-pagination{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:16px}
+.app-info-pagination[hidden]{display:none}
+.app-info-pagination span{min-width:180px;color:var(--muted);font-size:12px;text-align:center}
+.app-info-pagination .button{min-height:40px}
 .app-info-tab:focus-visible,.app-info-accordion-header:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 @media(prefers-reduced-motion:reduce){.app-info-accordion-panel,.app-info-chevron{transition:none}}
 @media(max-width:680px){
@@ -91,6 +95,9 @@
   .app-info-toolbar-actions{width:100%;justify-content:flex-start}
   .app-info-toolbar-actions .button{min-height:42px}
   .app-info-history-search{grid-template-columns:1fr;gap:6px}
+  .app-info-pagination{gap:8px}
+  .app-info-pagination span{min-width:0;flex:1;font-size:11px}
+  .app-info-pagination .button{padding:8px 10px}
   .app-info-accordion-header{gap:9px;padding:9px 10px}
   .app-info-accordion-summary{align-items:flex-start;flex-direction:column;gap:2px}
   .app-info-accordion-meta{font-size:11px}

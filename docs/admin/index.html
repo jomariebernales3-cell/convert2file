@@ -135,6 +135,11 @@
           <div id="app-info-releases" class="app-info-editors"></div>
           <div id="app-info-releases-empty" class="app-info-empty" hidden><span aria-hidden="true">↗</span><div><b>No update history entries yet</b><small>Add an entry to share version details with app users.</small></div></div>
           <p id="app-info-history-no-results" class="app-info-history-no-results" hidden>No update history entries match your search.</p>
+          <nav id="app-info-history-pagination" class="app-info-pagination" aria-label="Update history pages" hidden>
+            <button id="app-info-history-previous" class="button" type="button">Previous</button>
+            <span id="app-info-history-page-status" aria-live="polite"></span>
+            <button id="app-info-history-next" class="button" type="button">Next</button>
+          </nav>
         </section>
         <div class="app-info-save-bar"><div><b>Ready to publish your changes?</b><small>Saving updates the App Info content for users.</small></div><button id="save-app-info" class="button primary">Save App Info</button></div>
       </section>

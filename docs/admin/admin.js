@@ -34,6 +34,8 @@ let currentPage = 'dashboard';
 let appInfoActiveTab = 'sections';
 let appInfoOpenSectionIndex = null;
 let appInfoOpenReleaseIndex = null;
+let appInfoReleasePage = 1;
+const APP_INFO_RELEASES_PER_PAGE = 6;
 let reportRealtimeChannel = null;
 let reportRefreshTimer = null;
 const featureDefinitions = [
@@ -520,15 +522,26 @@ function setAppInfoTab(tab, remember = true, focus = false) {
 
 function filterAppInfoReleases() {
   const query = $('#app-info-history-search').value.trim().toLocaleLowerCase();
-  let visible = 0;
-  $('#app-info-releases').querySelectorAll('[data-info-release]').forEach((row) => {
+  const matchingRows = [...$('#app-info-releases').querySelectorAll('[data-info-release]')].filter((row) => {
     const version = row.querySelector('[data-release-version]').value;
     const date = row.querySelector('[data-release-date]').value;
-    const matches = `${version} ${date}`.toLocaleLowerCase().includes(query);
-    row.hidden = !matches;
-    if (matches) visible++;
+    return `${version} ${date}`.toLocaleLowerCase().includes(query);
   });
-  $('#app-info-history-no-results').hidden = !appInfoContent || appInfoContent.release_notes.length === 0 || visible > 0;
+  const pageCount = Math.max(1, Math.ceil(matchingRows.length / APP_INFO_RELEASES_PER_PAGE));
+  appInfoReleasePage = Math.min(Math.max(1, appInfoReleasePage), pageCount);
+  const firstVisibleIndex = (appInfoReleasePage - 1) * APP_INFO_RELEASES_PER_PAGE;
+  const visibleRows = new Set(matchingRows.slice(firstVisibleIndex, firstVisibleIndex + APP_INFO_RELEASES_PER_PAGE));
+  $('#app-info-releases').querySelectorAll('[data-info-release]').forEach((row) => { row.hidden = !visibleRows.has(row); });
+
+  const hasEntries = Boolean(appInfoContent?.release_notes.length);
+  $('#app-info-history-no-results').hidden = !hasEntries || matchingRows.length > 0;
+  const pagination = $('#app-info-history-pagination');
+  pagination.hidden = matchingRows.length <= APP_INFO_RELEASES_PER_PAGE;
+  $('#app-info-history-previous').disabled = appInfoReleasePage <= 1;
+  $('#app-info-history-next').disabled = appInfoReleasePage >= pageCount;
+  const from = matchingRows.length ? firstVisibleIndex + 1 : 0;
+  const to = Math.min(firstVisibleIndex + APP_INFO_RELEASES_PER_PAGE, matchingRows.length);
+  $('#app-info-history-page-status').textContent = `Page ${appInfoReleasePage} of ${pageCount} · Showing ${from}–${to} of ${matchingRows.length}`;
 }
 
 function captureAppInfoEditors() {
@@ -690,6 +703,7 @@ async function init() {
     appInfoContent.release_notes.forEach((entry) => { entry.is_latest = false; });
     appInfoContent.release_notes.unshift({ version: '', date: '', is_latest: true, features: [], fixes: [] });
     appInfoOpenReleaseIndex = 0;
+    appInfoReleasePage = 1;
     $('#app-info-history-search').value = '';
     drawAppInfo();
     $('#app-info-releases [data-release-version]')?.focus();
@@ -735,7 +749,19 @@ async function init() {
     updateAppInfoHeader(event.target);
     if (event.target.matches('[data-release-version], [data-release-date]')) filterAppInfoReleases();
   });
-  $('#app-info-history-search').addEventListener('input', filterAppInfoReleases);
+  $('#app-info-history-search').addEventListener('input', () => {
+    appInfoReleasePage = 1;
+    filterAppInfoReleases();
+  });
+  $('#app-info-history-previous').addEventListener('click', () => {
+    if (appInfoReleasePage <= 1) return;
+    appInfoReleasePage--;
+    filterAppInfoReleases();
+  });
+  $('#app-info-history-next').addEventListener('click', () => {
+    appInfoReleasePage++;
+    filterAppInfoReleases();
+  });
   $('#app-info-releases').addEventListener('change', (event) => {
     if (!event.target.matches('[data-release-latest]')) return;
     if (event.target.checked) {
