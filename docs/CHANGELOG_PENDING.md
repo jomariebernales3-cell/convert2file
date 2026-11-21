@@ -22,6 +22,12 @@ For the next Android APK after the current release, **v3.0.2.30**.
 - Replaced the Android launch-screen hourglass with a looping, theme-aware DBZ arc animation in Android's system splash screen. Android 12 and newer keep that same animated screen visible while app initialization runs, then open the app directly; older Android versions use the matching native animated loader. Reduced the ring diameter and made the moving arc electric blue in both themes while keeping the DBZ logo the same size.
 - Startup errors now show a retry screen after the native launch screen is dismissed.
 
+## Admin portal updates — 2026-11-21
+
+- Bug reports now show a live badge for new reports (a dot for one, a count through 99, then 99+), with Supabase Realtime updating the portal without manual refresh.
+- Added a saved “Reply to user” field under internal admin notes in the report details dialog.
+- Made the report details body scroll while keeping Save, Delete, and Close fixed in the dialog footer.
+
 ## Bugs fixed and behavior improved
 
 - Retired announcements no longer reappear from old cached announcement data.

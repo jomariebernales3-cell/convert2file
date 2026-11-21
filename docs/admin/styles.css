@@ -55,6 +55,23 @@
 /* Phone portal layout: retain the desktop sidebar and tables at 900px and above. */
 .mobile-topbar,.mobile-page-title,.bottom-tabs,.mobile-card-list,.audit-open-filters,.mobile-filter-pills{display:none}
 .mobile-bulk-actions{display:none}
+
+.nav[data-page="reports"]{position:relative}
+.report-notification{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;margin-left:auto;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;font-size:11px;font-weight:800;line-height:1}
+.report-notification.dot{position:absolute;top:7px;right:8px;min-width:9px;width:9px;height:9px;padding:0}
+#report-dialog[open]{display:flex;flex-direction:column;max-height:min(90vh,860px);overflow:hidden}
+#report-dialog #report-detail{display:flex;min-height:0;flex:1;flex-direction:column;overflow:hidden}
+#report-dialog .report-dialog-scroll{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain;padding:0 2px 4px 0}
+#report-dialog .report-dialog-scroll h2{margin-top:0}
+#report-dialog .detail-actions{flex:none;position:static;margin:14px 0 0;padding:14px 0 0;border-top:1px solid var(--line);background:var(--surface)}
+
+@media(max-width:680px){
+  #mobile-tabs button[data-page="reports"]{position:relative}
+  #mobile-tabs .report-notification{position:absolute;top:2px;right:calc(50% - 26px);margin:0}
+  #mobile-tabs .report-notification.dot{top:4px;right:calc(50% - 24px)}
+  #report-dialog[open]{display:flex;max-height:min(90dvh,900px);overflow:hidden}
+  #report-dialog .detail-actions{margin:12px 0 0;padding:12px 0 calc(env(safe-area-inset-bottom));background:var(--surface)}
+}
 html,body{max-width:100%;overflow-x:clip}
 .main,.page,.card,.panel,.toolbar,.columns,.app-info-content-block{min-width:0}
 input,select,textarea,button{max-width:100%}

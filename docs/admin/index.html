@@ -27,7 +27,7 @@
       <nav aria-label="Admin pages">
         <button class="nav active" data-page="dashboard">▦ <span>Dashboard</span></button>
         <button class="nav" data-page="users">♙ <span>Users</span></button>
-        <button class="nav" data-page="reports">⚑ <span>Bug reports</span></button>
+        <button class="nav" data-page="reports">⚑ <span>Bug reports</span><span id="reports-badge-sidebar" class="report-notification" hidden></span></button>
         <button class="nav" data-page="announcements">◖ <span>Announcements</span></button>
         <button class="nav" data-page="app-control">☷ <span>App control</span></button>
         <button class="nav" data-page="app-info">ⓘ <span>App Info</span></button>
@@ -163,11 +163,11 @@
   </div>
 
   <dialog id="user-dialog" class="dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="user-detail"></div></dialog>
-  <dialog id="report-dialog" class="dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="report-detail"></div></dialog>
+  <dialog id="report-dialog" class="dialog report-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><div id="report-detail"></div></dialog>
   <dialog id="audit-filter-dialog" class="dialog filter-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><h2>Audit log filters</h2><div id="audit-filter-fields"></div><button id="audit-filter-apply" class="button primary" type="button">Apply filters</button></dialog>
   <dialog id="more-dialog" class="dialog more-dialog"><form method="dialog"><button class="dialog-close" aria-label="Close">×</button></form><h2>More</h2><nav aria-label="More admin pages"><button class="more-link" data-page="app-control">App control</button><button class="more-link" data-page="app-info">App info</button><button class="more-link owner-only" data-page="team">Admin team</button><button class="more-link" data-page="audit">Audit log</button></nav><label class="appearance-label">Appearance<select id="mobile-appearance" aria-label="Appearance"><option value="system">System</option><option value="day">Day</option><option value="night">Night</option><option value="dbz">DBZ</option></select></label><button id="mobile-signout" class="button ghost">Sign out</button></dialog>
   <div id="mobile-bulk-actions" class="mobile-bulk-actions" hidden><span id="mobile-selected-count">0 selected</span><button id="mobile-resolve-selected" class="button">Resolve</button><button id="mobile-delete-selected" class="button danger">Delete</button></div>
-  <nav id="mobile-tabs" class="bottom-tabs" aria-label="Main admin pages"><button class="active" data-page="dashboard"><span aria-hidden="true">▦</span><span>Dashboard</span></button><button data-page="users"><span aria-hidden="true">♙</span><span>Users</span></button><button data-page="reports"><span aria-hidden="true">⚑</span><span>Reports</span></button><button data-page="announcements"><span aria-hidden="true">◖</span><span>News</span></button><button id="more-tab" type="button"><span aria-hidden="true">•••</span><span>More</span></button></nav>
+  <nav id="mobile-tabs" class="bottom-tabs" aria-label="Main admin pages"><button class="active" data-page="dashboard"><span aria-hidden="true">▦</span><span>Dashboard</span></button><button data-page="users"><span aria-hidden="true">♙</span><span>Users</span></button><button data-page="reports"><span aria-hidden="true">⚑</span><span>Reports</span><span id="reports-badge-mobile" class="report-notification" hidden></span></button><button data-page="announcements"><span aria-hidden="true">◖</span><span>News</span></button><button id="more-tab" type="button"><span aria-hidden="true">•••</span><span>More</span></button></nav>
   <script type="module" src="admin.js"></script>
 </body>
 </html>

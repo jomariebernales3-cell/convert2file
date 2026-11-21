@@ -31,6 +31,8 @@ let editingAnnouncementId = null;
 let appSettings = null;
 let appInfoContent = null;
 let currentPage = 'dashboard';
+let reportRealtimeChannel = null;
+let reportRefreshTimer = null;
 const featureDefinitions = [
   ['offline_ai', 'AI assistant', 'Show the offline AI chat'],
   ['quiz_generator', 'Quiz generator', 'Allow quiz creation'],
@@ -99,6 +101,7 @@ async function loadActor() {
   await client.rpc('record_my_login');
   showPortal();
   await refreshData();
+  subscribeToProblemReports();
   return true;
 }
 
@@ -109,11 +112,40 @@ async function queryRows(table, fields, orderField = 'created_at') {
 }
 
 async function queryProblemReports() {
+  return queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,source_file_path,output_file_path,screenshot_file_path,status,admin_note,admin_reply,created_at');
+}
+
+function stopProblemReportSubscription() {
+  if (reportRefreshTimer) window.clearTimeout(reportRefreshTimer);
+  reportRefreshTimer = null;
+  if (reportRealtimeChannel) client?.removeChannel(reportRealtimeChannel);
+  reportRealtimeChannel = null;
+}
+
+function subscribeToProblemReports() {
+  if (!actor || reportRealtimeChannel) return;
+  reportRealtimeChannel = client.channel('admin-problem-report-updates')
+    .on('postgres_changes', {
+      event: '*', schema: 'public', table: 'problem_reports',
+    }, () => {
+      window.clearTimeout(reportRefreshTimer);
+      reportRefreshTimer = window.setTimeout(() => refreshProblemReports(), 250);
+    })
+    .subscribe((status) => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        notice('Live report updates are unavailable. Use Refresh to check for new reports.', true);
+      }
+    });
+}
+
+async function refreshProblemReports() {
+  if (!actor) return;
   try {
-    return await queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,source_file_path,output_file_path,screenshot_file_path,status,admin_note,created_at');
+    reports = await queryProblemReports();
+    drawReports();
+    drawDashboard();
   } catch (error) {
-    if (!String(error.message).includes('screenshot_file_path')) throw error;
-    return queryRows('problem_reports', 'id,user_id,reporter_email,area,description,app_version,platform,device_info,context,source_file_path,output_file_path,status,admin_note,created_at');
+    notice(`Could not update reports: ${error.message}`, true);
   }
 }
 
@@ -216,6 +248,14 @@ function openUser(id) {
 }
 
 function drawReports() {
+  const newReportCount = reports.filter((report) => report.status === 'new').length;
+  for (const selector of ['#reports-badge-sidebar', '#reports-badge-mobile']) {
+    const badgeNode = $(selector);
+    badgeNode.hidden = newReportCount === 0;
+    badgeNode.classList.toggle('dot', newReportCount === 1);
+    badgeNode.textContent = newReportCount === 1 ? '' : newReportCount > 99 ? '99+' : String(newReportCount);
+    badgeNode.setAttribute('aria-label', `${newReportCount} new report${newReportCount === 1 ? '' : 's'}`);
+  }
   const status = $('#report-status').value;
   $$('#report-status-pills [data-status]').forEach((button) => button.classList.toggle('active', button.dataset.status === status));
   const matches = reports.filter((r) => !status || r.status === status);
@@ -256,13 +296,15 @@ async function openReport(id) {
       }
     } catch (_) {}
   }
-  $('#report-detail').innerHTML = `<h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button class="button" onclick="document.querySelector('#report-dialog').close()">Close</button></div>`;
+  $('#report-detail').innerHTML = `<div class="report-dialog-scroll"><h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><label class="appearance-label">Reply to user<textarea id="detail-reply" rows="4" maxlength="8000" placeholder="Write a reply to the person who submitted this report">${esc(report.admin_reply)}</textarea></label></div><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button id="close-report" class="button" type="button">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
+  $('#close-report').addEventListener('click', () => $('#report-dialog').close());
   $('#save-report').addEventListener('click', async () => {
     const { error } = await client.from('problem_reports').update({
       status: $('#detail-status').value,
       admin_note: $('#detail-notes').value,
+      admin_reply: $('#detail-reply').value,
     }).eq('id', report.id);
     if (error) {
       const errorNode = $('#report-save-error');
@@ -760,7 +802,7 @@ async function init() {
   });
 
   client.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_OUT' || !session) { actor = account = null; role = null; showLogin(); }
+    if (event === 'SIGNED_OUT' || !session) { stopProblemReportSubscription(); actor = account = null; role = null; showLogin(); }
   });
   const { data: { session } } = await client.auth.getSession();
   if (!session) { showLogin(); return; }

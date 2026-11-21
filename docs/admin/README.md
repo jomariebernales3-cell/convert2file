@@ -18,9 +18,11 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
    where lower(email) = lower('owner@example.com');
    ```
 
-6. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
-7. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
-8. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
+6. Run `supabase/migrations/202611210002_admin_report_realtime_replies.sql` to add the report reply field and enable live report change events for the portal.
+
+7. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
+8. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
+9. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
 
 ## Publishing an Android release
 
