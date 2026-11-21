@@ -124,7 +124,10 @@ jobs:
             echo "Invalid release tag: '$RELEASE_TAG'"
             exit 1
           fi
-          APK_DOWNLOAD_URL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.assets[] | select(.name == "Convert2File.apk") | .browser_download_url' | head -n 1)"
+          # The release is still a draft at this point. GitHub's tag lookup API
+          # may omit draft releases, so construct the stable download URL from
+          # the release tag and the asset name that was uploaded above.
+          APK_DOWNLOAD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/Convert2File.apk"
           if [[ ! "$APK_DOWNLOAD_URL" =~ ^https://[^[:space:]]+$ ]]; then
             echo "Could not find the APK asset URL on release $RELEASE_TAG."
             exit 1
