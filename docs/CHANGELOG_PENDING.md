@@ -33,6 +33,10 @@ For the next Android APK after the current release, **v3.0.2.30**.
 - Update history now shows six versions per page, with Previous/Next controls that work with the existing search.
 - On phones up to 700px, App Info items open in a full-screen editor sheet with a fixed Save/Remove footer; edits save from the shared in-memory data state. The mobile Save App Info bar sits above the existing bottom navigation.
 
+## Release workflow — 2026-11-21
+
+- GitHub Actions now checks each release APK against the active v3.0.2.33 signing certificate and stops before publication if the signing key changes.
+
 ## Bugs fixed and behavior improved
 
 - Retired announcements no longer reappear from old cached announcement data.

@@ -85,6 +85,24 @@ jobs:
           VERSION_CODE: ${{ steps.release_version.outputs.version_code }}
         run: flutter build apk --release --build-name="$VERSION_NAME" --build-number="$VERSION_CODE"
 
+      - name: Verify APK signing certificate
+        run: |
+          APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          if [[ -z "$APKSIGNER" ]]; then
+            echo "Android apksigner was not found."
+            exit 1
+          fi
+          CERT_SHA256="$("$APKSIGNER" verify --print-certs "$APK_PATH" | awk -F': ' '/SHA-256 digest:/ { print tolower($NF); exit }')"
+          EXPECTED_SHA256="3ed361dab4f09417da14ae337ab7f9fc789a82b6cc84a1e4b594f336f845f3a2"
+          if [[ "$CERT_SHA256" != "$EXPECTED_SHA256" ]]; then
+            echo "APK signing certificate changed. Refusing to publish an incompatible update."
+            echo "Expected: $EXPECTED_SHA256"
+            echo "Found:    ${CERT_SHA256:-missing}"
+            exit 1
+          fi
+          echo "APK signing certificate matches the active release key."
+
       - name: Prepare APK for release
         run: cp build/app/outputs/flutter-apk/app-release.apk Convert2File.apk
 
