@@ -89,6 +89,7 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
       if (!mounted) return;
       setState(() => _startupError = error);
     } finally {
+      await WidgetsBinding.instance.endOfFrame;
       await _dismissNativeSplash();
     }
   }

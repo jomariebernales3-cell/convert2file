@@ -19,6 +19,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.core.content.FileProvider
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import java.io.File
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -30,20 +31,27 @@ class MainActivity : FlutterActivity() {
     private val startupSplashChannelName = "convert2file/startup_splash"
     private var permissionRequestResult: MethodChannel.Result? = null
     private var offlineAiTaskActive = false
-    private var startupSplashView: StartupSplashView? = null
+    private var legacyStartupSplashView: LegacyStartupSplashView? = null
+    @Volatile
+    private var startupReady = false
 
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        val splashScreen = installSplashScreen()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            splashScreen.setKeepOnScreenCondition { !startupReady }
+        }
         super.onCreate(savedInstanceState)
-        val content = findViewById<FrameLayout>(android.R.id.content)
-        val splash = StartupSplashView(this)
-        startupSplashView = splash
-        content.addView(
-            splash,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            val splash = LegacyStartupSplashView(this)
+            legacyStartupSplashView = splash
+            findViewById<FrameLayout>(android.R.id.content).addView(
+                splash,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT
+                )
             )
-        )
+        }
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -161,10 +169,11 @@ class MainActivity : FlutterActivity() {
                     result.notImplemented()
                     return@setMethodCallHandler
                 }
-                startupSplashView?.let { splash ->
+                startupReady = true
+                legacyStartupSplashView?.let { splash ->
                     (splash.parent as? ViewGroup)?.removeView(splash)
                 }
-                startupSplashView = null
+                legacyStartupSplashView = null
                 result.success(null)
             }
     }
@@ -219,26 +228,30 @@ class MainActivity : FlutterActivity() {
     }
 }
 
-private class StartupSplashView(context: android.content.Context) : View(context) {
+private class LegacyStartupSplashView(context: android.content.Context) : View(context) {
     private val nightMode =
         (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
     private val backgroundColor = if (nightMode) Color.BLACK else Color.WHITE
-    private val trackColor = if (nightMode) Color.rgb(58, 58, 58) else Color.rgb(224, 224, 224)
-    private val arcColor = if (nightMode) Color.WHITE else Color.BLACK
-    private val logo: Bitmap = BitmapFactory.decodeResource(resources, R.drawable.splash_logo)
-    private val logoPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val trackPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = trackColor
-        style = Paint.Style.STROKE
+    private val frames: List<Bitmap> = intArrayOf(
+        R.drawable.splash_frame_00,
+        R.drawable.splash_frame_01,
+        R.drawable.splash_frame_02,
+        R.drawable.splash_frame_03,
+        R.drawable.splash_frame_04,
+        R.drawable.splash_frame_05,
+        R.drawable.splash_frame_06,
+        R.drawable.splash_frame_07,
+        R.drawable.splash_frame_08,
+        R.drawable.splash_frame_09,
+        R.drawable.splash_frame_10,
+        R.drawable.splash_frame_11
+    ).map { resourceId ->
+        BitmapFactory.decodeResource(resources, resourceId)
+            ?: error("Could not load Android startup splash frame.")
     }
-    private val arcPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = arcColor
-        style = Paint.Style.STROKE
-        strokeCap = Paint.Cap.ROUND
-    }
-    private val circleBounds = RectF()
-    private val logoBounds = RectF()
+    private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val imageBounds = RectF()
 
     init {
         isClickable = true
@@ -248,27 +261,17 @@ private class StartupSplashView(context: android.content.Context) : View(context
 
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        val diameter = minOf(width * 0.46f, 260f * resources.displayMetrics.density)
-        val stroke = diameter * 0.065f
-        val radius = (diameter - stroke) / 2f
+        val imageSize = minOf(width * 0.8f, 288f * resources.displayMetrics.density)
         val centerX = width / 2f
         val centerY = height / 2f
-        circleBounds.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius)
-        trackPaint.strokeWidth = stroke
-        arcPaint.strokeWidth = stroke
-        canvas.drawCircle(centerX, centerY, radius, trackPaint)
-
-        val progress = (SystemClock.uptimeMillis() % 1100L) / 1100f
-        canvas.drawArc(circleBounds, 50f + progress * 360f, 72f, false, arcPaint)
-
-        val logoSize = diameter * 0.55f
-        logoBounds.set(
-            centerX - logoSize / 2f,
-            centerY - logoSize / 2f,
-            centerX + logoSize / 2f,
-            centerY + logoSize / 2f
+        imageBounds.set(
+            centerX - imageSize / 2f,
+            centerY - imageSize / 2f,
+            centerX + imageSize / 2f,
+            centerY + imageSize / 2f
         )
-        canvas.drawBitmap(logo, null, logoBounds, logoPaint)
-        if (isAttachedToWindow) postInvalidateOnAnimation()
+        val frame = ((SystemClock.uptimeMillis() / 80L) % frames.size).toInt()
+        canvas.drawBitmap(frames[frame], null, imageBounds, imagePaint)
+        if (isAttachedToWindow) postInvalidateDelayed(80L)
     }
 }
