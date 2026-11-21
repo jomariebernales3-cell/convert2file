@@ -39,6 +39,7 @@ jobs:
         run: flutter pub get
 
       - name: Validate release version
+        id: release_version
         env:
           RELEASE_VERSION: ${{ inputs.release_version }}
         run: |
@@ -46,9 +47,11 @@ jobs:
             echo "Use a four-part numeric version such as 3.0.2.31"
             exit 1
           fi
-          echo "VERSION_NAME=${RELEASE_VERSION%.*}" >> "$GITHUB_ENV"
-          echo "VERSION_CODE=${RELEASE_VERSION##*.}" >> "$GITHUB_ENV"
-          echo "RELEASE_TAG=v${RELEASE_VERSION}" >> "$GITHUB_ENV"
+          {
+            echo "version_name=${RELEASE_VERSION%.*}"
+            echo "version_code=${RELEASE_VERSION##*.}"
+            echo "release_tag=v${RELEASE_VERSION}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Check release configuration
         env:
@@ -77,6 +80,9 @@ jobs:
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
 
       - name: Build release APK
+        env:
+          VERSION_NAME: ${{ steps.release_version.outputs.version_name }}
+          VERSION_CODE: ${{ steps.release_version.outputs.version_code }}
         run: flutter build apk --release --build-name="$VERSION_NAME" --build-number="$VERSION_CODE"
 
       - name: Prepare APK for release
@@ -85,7 +91,12 @@ jobs:
       - name: Create or update draft GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_version.outputs.release_tag }}
         run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: '$RELEASE_TAG'"
+            exit 1
+          fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
             IS_DRAFT="$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')"
             if [[ "$IS_DRAFT" != "true" ]]; then
@@ -106,10 +117,15 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           GH_TOKEN: ${{ github.token }}
           RELEASE_VERSION: ${{ inputs.release_version }}
+          RELEASE_TAG: ${{ steps.release_version.outputs.release_tag }}
           ENFORCE_MINIMUM: ${{ inputs.enforce_minimum }}
         run: |
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid release tag: '$RELEASE_TAG'"
+            exit 1
+          fi
           APK_DOWNLOAD_URL="$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG" --jq '.assets[] | select(.name == "Convert2File.apk") | .browser_download_url' | head -n 1)"
-          if [[ -z "$APK_DOWNLOAD_URL" ]]; then
+          if [[ ! "$APK_DOWNLOAD_URL" =~ ^https://[^[:space:]]+$ ]]; then
             echo "Could not find the APK asset URL on release $RELEASE_TAG."
             exit 1
           fi
@@ -129,6 +145,7 @@ jobs:
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release_version.outputs.release_tag }}
         run: gh release edit "$RELEASE_TAG" --draft=false --prerelease=false --latest
 
       - name: Upload APK artifact
