@@ -31,6 +31,9 @@ let editingAnnouncementId = null;
 let appSettings = null;
 let appInfoContent = null;
 let currentPage = 'dashboard';
+let appInfoActiveTab = 'sections';
+let appInfoOpenSectionIndex = null;
+let appInfoOpenReleaseIndex = null;
 let reportRealtimeChannel = null;
 let reportRefreshTimer = null;
 const featureDefinitions = [
@@ -462,29 +465,95 @@ function drawAppControl() {
 function drawAppInfo() {
   const unavailable = !appInfoContent;
   $('#app-info-unavailable').hidden = !unavailable;
-  $('#app-info-releases-empty').hidden = unavailable || appInfoContent.release_notes.length > 0;
   $('#save-app-info').disabled = unavailable;
   $('#add-info-section').disabled = unavailable;
   $('#add-info-release').disabled = unavailable;
+  $('#app-info-sections-count').textContent = unavailable ? '0' : String(appInfoContent.sections.length);
+  $('#app-info-history-count').textContent = unavailable ? '0' : String(appInfoContent.release_notes.length);
+  setAppInfoTab(appInfoActiveTab, false);
   if (unavailable) {
     $('#app-info-sections').innerHTML = '';
     $('#app-info-releases').innerHTML = '';
+    $('#app-info-releases-empty').hidden = true;
     return;
   }
   $('#app-info-sections').innerHTML = appInfoContent.sections.map((section, index) => `
-    <article class="card info-editor info-editor-section" data-info-section="${index}">
-      <div class="info-editor-heading"><div class="info-editor-title"><span class="info-editor-index" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><span class="eyebrow">APP INFORMATION</span><h3>Section ${index + 1}</h3></div></div><button class="button danger" data-remove-info-section="${index}" aria-label="Remove section ${index + 1}">Remove</button></div>
-      <label>Section title<input data-info-title maxlength="80" value="${esc(section.title)}" required></label>
-      <label>Details <small>Put each paragraph on its own line.</small><textarea data-info-details rows="5" required>${esc((section.details ?? []).join('\n'))}</textarea></label>
+    <article class="app-info-accordion info-editor info-editor-section${appInfoOpenSectionIndex === index ? ' is-open' : ''}" data-info-section="${index}">
+      <button class="app-info-accordion-header" id="app-info-section-heading-${index}" type="button" data-app-info-toggle="sections" data-index="${index}" aria-expanded="${appInfoOpenSectionIndex === index}" aria-controls="app-info-section-panel-${index}"><span class="app-info-accordion-number">${index + 1}</span><span class="app-info-accordion-summary" data-section-summary>${esc(section.title || 'Untitled section')}</span><svg class="app-info-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="app-info-accordion-panel" id="app-info-section-panel-${index}" role="region" aria-labelledby="app-info-section-heading-${index}" aria-hidden="${appInfoOpenSectionIndex !== index}" ${appInfoOpenSectionIndex === index ? '' : 'inert'}><div class="app-info-accordion-inner"><div class="app-info-fields">
+        <label>Section title<input data-info-title maxlength="80" value="${esc(section.title)}" required></label>
+        <label>Details <small>Put each paragraph on its own line.</small><textarea data-info-details rows="5" required>${esc((section.details ?? []).join('\n'))}</textarea></label>
+        <div class="app-info-item-actions"><button class="button danger" type="button" data-remove-info-section="${index}">Remove section</button></div>
+      </div></div></div>
     </article>`).join('');
   $('#app-info-releases').innerHTML = appInfoContent.release_notes.map((release, index) => `
-    <article class="card info-editor info-editor-release" data-info-release="${index}">
-      <div class="info-editor-heading"><div class="info-editor-title"><span class="info-editor-index" aria-hidden="true">${String(index + 1).padStart(2, '0')}</span><div><span class="eyebrow">UPDATE HISTORY</span><h3>${release.version ? `Version ${esc(release.version)}` : `New update entry ${index + 1}`}</h3></div></div><button class="button danger" data-remove-info-release="${index}" aria-label="Remove update history entry ${index + 1}">Remove</button></div>
-      <div class="version-fields"><label>Version<input data-release-version maxlength="32" value="${esc(release.version)}" required></label><label>Date or label<input data-release-date maxlength="64" value="${esc(release.date)}" required></label></div>
-      <div class="info-editor-text-grid"><label>Features <small>One item per line.</small><textarea data-release-features rows="4">${esc((release.features ?? []).join('\n'))}</textarea></label>
-      <label>Fixes and updates <small>One item per line.</small><textarea data-release-fixes rows="4">${esc((release.fixes ?? []).join('\n'))}</textarea></label></div>
-      <label class="info-current-version"><input data-release-latest type="checkbox" ${release.is_latest ? 'checked' : ''}><span><b>Mark as current version</b><small>This entry gets the latest badge in the app.</small></span></label>
+    <article class="app-info-accordion info-editor info-editor-release${appInfoOpenReleaseIndex === index ? ' is-open' : ''}" data-info-release="${index}">
+      <button class="app-info-accordion-header" id="app-info-release-heading-${index}" type="button" data-app-info-toggle="history" data-index="${index}" aria-expanded="${appInfoOpenReleaseIndex === index}" aria-controls="app-info-release-panel-${index}"><span class="app-info-accordion-number">${index + 1}</span><span class="app-info-accordion-summary"><span data-release-summary-version>${esc(release.version || 'Untitled version')}</span><span class="app-info-accordion-meta" data-release-summary-date>${esc(release.date || 'Date not set')}</span></span><span class="app-info-latest-badge" data-release-summary-latest ${release.is_latest ? '' : 'hidden'}>Latest</span><svg class="app-info-chevron" viewBox="0 0 20 20" aria-hidden="true"><path d="m5 7.5 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <div class="app-info-accordion-panel" id="app-info-release-panel-${index}" role="region" aria-labelledby="app-info-release-heading-${index}" aria-hidden="${appInfoOpenReleaseIndex !== index}" ${appInfoOpenReleaseIndex === index ? '' : 'inert'}><div class="app-info-accordion-inner"><div class="app-info-fields">
+        <div class="version-fields"><label>Version<input data-release-version maxlength="32" value="${esc(release.version)}" required></label><label>Date or label<input data-release-date maxlength="64" value="${esc(release.date)}" required></label></div>
+        <div class="info-editor-text-grid"><label>Features <small>One item per line.</small><textarea data-release-features rows="4">${esc((release.features ?? []).join('\n'))}</textarea></label>
+        <label>Fixes and updates <small>One item per line.</small><textarea data-release-fixes rows="4">${esc((release.fixes ?? []).join('\n'))}</textarea></label></div>
+        <label class="info-current-version"><input data-release-latest type="checkbox" ${release.is_latest ? 'checked' : ''}><span><b>Mark as current version</b><small>This entry gets the latest badge in the app.</small></span></label>
+        <div class="app-info-item-actions"><button class="button danger" type="button" data-remove-info-release="${index}">Remove update history</button></div>
+      </div></div></div>
     </article>`).join('');
+  $('#app-info-releases-empty').hidden = appInfoContent.release_notes.length > 0;
+  filterAppInfoReleases();
+}
+
+function setAppInfoTab(tab, remember = true, focus = false) {
+  appInfoActiveTab = tab === 'history' ? 'history' : 'sections';
+  const isHistory = appInfoActiveTab === 'history';
+  const sectionTab = $('#app-info-tab-sections');
+  const historyTab = $('#app-info-tab-history');
+  sectionTab.setAttribute('aria-selected', String(!isHistory));
+  historyTab.setAttribute('aria-selected', String(isHistory));
+  sectionTab.tabIndex = isHistory ? -1 : 0;
+  historyTab.tabIndex = isHistory ? 0 : -1;
+  $('#app-info-panel-sections').hidden = isHistory;
+  $('#app-info-panel-history').hidden = !isHistory;
+  if (remember) {
+    try { localStorage.setItem('c2f-admin-app-info-tab', appInfoActiveTab); } catch (_) {}
+  }
+  if (focus) (isHistory ? historyTab : sectionTab).focus();
+}
+
+function filterAppInfoReleases() {
+  const query = $('#app-info-history-search').value.trim().toLocaleLowerCase();
+  let visible = 0;
+  $('#app-info-releases').querySelectorAll('[data-info-release]').forEach((row) => {
+    const version = row.querySelector('[data-release-version]').value;
+    const date = row.querySelector('[data-release-date]').value;
+    const matches = `${version} ${date}`.toLocaleLowerCase().includes(query);
+    row.hidden = !matches;
+    if (matches) visible++;
+  });
+  $('#app-info-history-no-results').hidden = !appInfoContent || appInfoContent.release_notes.length === 0 || visible > 0;
+}
+
+function captureAppInfoEditors() {
+  if (!appInfoContent) return;
+  const edited = readAppInfoEditors();
+  appInfoContent.sections = edited.sections;
+  appInfoContent.release_notes = edited.releaseNotes;
+}
+
+function updateAppInfoHeader(input) {
+  const section = input.closest('[data-info-section]');
+  if (section && input.matches('[data-info-title]')) {
+    section.querySelector('[data-section-summary]').textContent = input.value.trim() || 'Untitled section';
+  }
+  const release = input.closest('[data-info-release]');
+  if (release) {
+    if (input.matches('[data-release-version]')) release.querySelector('[data-release-summary-version]').textContent = input.value.trim() || 'Untitled version';
+    if (input.matches('[data-release-date]')) release.querySelector('[data-release-summary-date]').textContent = input.value.trim() || 'Date not set';
+  }
+}
+
+function updateAppInfoLatestBadges() {
+  $('#app-info-releases').querySelectorAll('[data-info-release]').forEach((row) => {
+    row.querySelector('[data-release-summary-latest]').hidden = !row.querySelector('[data-release-latest]').checked;
+  });
 }
 
 function editorLines(value) {
@@ -553,6 +622,9 @@ function initTheme() {
 
 async function init() {
   initTheme();
+  try {
+    if (localStorage.getItem('c2f-admin-app-info-tab') === 'history') appInfoActiveTab = 'history';
+  } catch (_) {}
   if (!supabaseConfig?.url || supabaseConfig.url.includes('YOUR_PROJECT') || !supabaseConfig.anonKey || supabaseConfig.anonKey.includes('YOUR_SUPABASE')) {
     showLogin('Set up docs/admin/config.js from config.example.js with the new project URL and anon key.');
     $('#login-form').querySelectorAll('input,button').forEach((node) => { node.disabled = true; });
@@ -574,6 +646,21 @@ async function init() {
   $('#mobile-signout').addEventListener('click', async () => { $('#more-dialog').close(); await $('#signout').click(); });
   $('#audit-open-filters').addEventListener('click', () => $('#audit-filter-dialog').showModal());
   $('#audit-filter-apply').addEventListener('click', () => $('#audit-filter-dialog').close());
+  $('#app-info-tab-sections').addEventListener('click', () => setAppInfoTab('sections'));
+  $('#app-info-tab-history').addEventListener('click', () => setAppInfoTab('history'));
+  $('.app-info-tabs').addEventListener('keydown', (event) => {
+    const tabs = [$('#app-info-tab-sections'), $('#app-info-tab-history')];
+    const currentIndex = tabs.indexOf(event.target.closest('[role="tab"]'));
+    if (currentIndex < 0) return;
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % tabs.length;
+    else if (event.key === 'ArrowLeft') nextIndex = (currentIndex + tabs.length - 1) % tabs.length;
+    else if (event.key === 'Home') nextIndex = 0;
+    else if (event.key === 'End') nextIndex = tabs.length - 1;
+    else return;
+    event.preventDefault();
+    setAppInfoTab(nextIndex === 0 ? 'sections' : 'history', true, true);
+  });
   const auditToolbar = $('.audit-toolbar');
   const auditFilterNodes = ['#audit-action-filter', '#audit-target-filter', '#audit-actor-filter', ...$$('.audit-date-filter'), '#audit-clear-filters'].map((s) => typeof s === 'string' ? $(s) : s);
   const moveAuditFilters = () => {
@@ -582,47 +669,81 @@ async function init() {
   };
   moveAuditFilters();
   window.matchMedia('(max-width: 899px)').addEventListener('change', moveAuditFilters);
+  document.querySelectorAll('[data-app-info-collapse]').forEach((button) => button.addEventListener('click', () => {
+    captureAppInfoEditors();
+    if (button.dataset.appInfoCollapse === 'sections') appInfoOpenSectionIndex = null;
+    else appInfoOpenReleaseIndex = null;
+    drawAppInfo();
+  }));
   $('#add-info-section').addEventListener('click', () => {
     if (!appInfoContent) return;
-    const edited = readAppInfoEditors();
-    appInfoContent.sections = edited.sections;
-    appInfoContent.release_notes = edited.releaseNotes;
+    captureAppInfoEditors();
     appInfoContent.sections.push({ id: `custom_${Date.now()}`, title: '', icon: 'info', details: [''] });
+    const newIndex = appInfoContent.sections.length - 1;
+    appInfoOpenSectionIndex = newIndex;
     drawAppInfo();
+    $(`#app-info-sections [data-info-section="${newIndex}"] [data-info-title]`)?.focus();
   });
   $('#add-info-release').addEventListener('click', () => {
     if (!appInfoContent) return;
-    const edited = readAppInfoEditors();
-    appInfoContent.sections = edited.sections;
-    appInfoContent.release_notes = edited.releaseNotes;
+    captureAppInfoEditors();
     appInfoContent.release_notes.forEach((entry) => { entry.is_latest = false; });
     appInfoContent.release_notes.unshift({ version: '', date: '', is_latest: true, features: [], fixes: [] });
+    appInfoOpenReleaseIndex = 0;
+    $('#app-info-history-search').value = '';
     drawAppInfo();
     $('#app-info-releases [data-release-version]')?.focus();
   });
   $('#app-info-sections').addEventListener('click', (event) => {
-    const button = event.target.closest('[data-remove-info-section]');
-    if (!button || !appInfoContent) return;
-    const edited = readAppInfoEditors();
-    appInfoContent.sections = edited.sections;
-    appInfoContent.release_notes = edited.releaseNotes;
-    appInfoContent.sections.splice(Number(button.dataset.removeInfoSection), 1);
+    const toggle = event.target.closest('[data-app-info-toggle="sections"]');
+    if (toggle) {
+      captureAppInfoEditors();
+      const index = Number(toggle.dataset.index);
+      appInfoOpenSectionIndex = appInfoOpenSectionIndex === index ? null : index;
+      drawAppInfo();
+      return;
+    }
+    const remove = event.target.closest('[data-remove-info-section]');
+    if (!remove || !appInfoContent) return;
+    const index = Number(remove.dataset.removeInfoSection);
+    if (!window.confirm(`Remove information section ${index + 1}? Save App Info to publish this change.`)) return;
+    captureAppInfoEditors();
+    appInfoContent.sections.splice(index, 1);
+    appInfoOpenSectionIndex = null;
     drawAppInfo();
   });
   $('#app-info-releases').addEventListener('click', (event) => {
-    const button = event.target.closest('[data-remove-info-release]');
-    if (!button || !appInfoContent) return;
-    const edited = readAppInfoEditors();
-    appInfoContent.sections = edited.sections;
-    appInfoContent.release_notes = edited.releaseNotes;
-    appInfoContent.release_notes.splice(Number(button.dataset.removeInfoRelease), 1);
+    const toggle = event.target.closest('[data-app-info-toggle="history"]');
+    if (toggle) {
+      captureAppInfoEditors();
+      const index = Number(toggle.dataset.index);
+      appInfoOpenReleaseIndex = appInfoOpenReleaseIndex === index ? null : index;
+      drawAppInfo();
+      return;
+    }
+    const remove = event.target.closest('[data-remove-info-release]');
+    if (!remove || !appInfoContent) return;
+    const index = Number(remove.dataset.removeInfoRelease);
+    if (!window.confirm(`Remove update history entry ${index + 1}? Save App Info to publish this change.`)) return;
+    captureAppInfoEditors();
+    appInfoContent.release_notes.splice(index, 1);
+    appInfoOpenReleaseIndex = null;
     drawAppInfo();
   });
+  $('#app-info-sections').addEventListener('input', (event) => updateAppInfoHeader(event.target));
+  $('#app-info-releases').addEventListener('input', (event) => {
+    updateAppInfoHeader(event.target);
+    if (event.target.matches('[data-release-version], [data-release-date]')) filterAppInfoReleases();
+  });
+  $('#app-info-history-search').addEventListener('input', filterAppInfoReleases);
   $('#app-info-releases').addEventListener('change', (event) => {
-    if (!event.target.matches('[data-release-latest]') || !event.target.checked) return;
-    $('#app-info-releases').querySelectorAll('[data-release-latest]').forEach((checkbox) => {
-      if (checkbox !== event.target) checkbox.checked = false;
-    });
+    if (!event.target.matches('[data-release-latest]')) return;
+    if (event.target.checked) {
+      $('#app-info-releases').querySelectorAll('[data-release-latest]').forEach((checkbox) => {
+        if (checkbox !== event.target) checkbox.checked = false;
+      });
+    }
+    updateAppInfoLatestBadges();
   });
   $('#save-app-info').addEventListener('click', async () => {
     if (!appInfoContent) return;

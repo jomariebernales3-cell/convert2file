@@ -121,14 +121,20 @@
           <div class="app-info-live-badge"><span></span><div><b>Connected content</b><small>Synced from Supabase</small></div></div>
         </div>
         <p id="app-info-unavailable" class="notice" hidden>App Info storage is unavailable. Apply the admin-managed App Info migration in Supabase, then refresh this page.</p>
-        <section class="app-info-content-block" aria-labelledby="app-info-sections-title">
-          <div class="app-info-editor-heading"><div><span class="eyebrow">WHAT USERS SEE</span><h2 id="app-info-sections-title">Information sections</h2></div><button id="add-info-section" class="button">＋ Add section</button></div>
+        <div class="app-info-tabs" role="tablist" aria-label="App Info categories">
+          <button id="app-info-tab-sections" class="app-info-tab" type="button" role="tab" aria-controls="app-info-panel-sections" aria-selected="true" tabindex="0">Information sections <span class="app-info-tab-count" id="app-info-sections-count">0</span></button>
+          <button id="app-info-tab-history" class="app-info-tab" type="button" role="tab" aria-controls="app-info-panel-history" aria-selected="false" tabindex="-1">Update history <span class="app-info-tab-count" id="app-info-history-count">0</span></button>
+        </div>
+        <section id="app-info-panel-sections" class="app-info-category-panel app-info-content-block" role="tabpanel" aria-labelledby="app-info-tab-sections" tabindex="0">
+          <div class="app-info-toolbar"><div><span class="eyebrow">WHAT USERS SEE</span><h2>Information sections</h2></div><div class="app-info-toolbar-actions"><button class="button" type="button" data-app-info-collapse="sections">Collapse all</button><button id="add-info-section" class="button primary" type="button">＋ Add section</button></div></div>
           <div id="app-info-sections" class="app-info-editors"></div>
         </section>
-        <section class="app-info-content-block app-info-history-block" aria-labelledby="app-info-history-title">
-          <div class="app-info-editor-heading"><div><span class="eyebrow">RELEASE DETAILS</span><h2 id="app-info-history-title">Update history</h2><p class="muted">Add a version entry with its features and fixes. Users can browse these entries in the app.</p></div><button id="add-info-release" class="button">＋ Add update history</button></div>
+        <section id="app-info-panel-history" class="app-info-category-panel app-info-content-block app-info-history-block" role="tabpanel" aria-labelledby="app-info-tab-history" tabindex="0" hidden>
+          <div class="app-info-toolbar app-info-history-toolbar"><div><span class="eyebrow">RELEASE DETAILS</span><h2>Update history</h2><p class="muted">Add a version entry with its features and fixes. Users can browse these entries in the app.</p></div><div class="app-info-toolbar-actions"><button class="button" type="button" data-app-info-collapse="history">Collapse all</button><button id="add-info-release" class="button primary" type="button">＋ Add update history</button></div></div>
+          <label class="app-info-history-search">Search update history<input id="app-info-history-search" type="search" placeholder="Search versions or dates" autocomplete="off"></label>
           <div id="app-info-releases" class="app-info-editors"></div>
           <div id="app-info-releases-empty" class="app-info-empty" hidden><span aria-hidden="true">↗</span><div><b>No update history entries yet</b><small>Add an entry to share version details with app users.</small></div></div>
+          <p id="app-info-history-no-results" class="app-info-history-no-results" hidden>No update history entries match your search.</p>
         </section>
         <div class="app-info-save-bar"><div><b>Ready to publish your changes?</b><small>Saving updates the App Info content for users.</small></div><button id="save-app-info" class="button primary">Save App Info</button></div>
       </section>
