@@ -304,16 +304,20 @@ async function openReport(id) {
       }
     } catch (_) {}
   }
-  $('#report-detail').innerHTML = `<div class="report-dialog-scroll"><h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><label class="appearance-label">Reply to user<textarea id="detail-reply" rows="4" maxlength="8000" placeholder="Write a reply to the person who submitted this report">${esc(report.admin_reply)}</textarea></label></div><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button id="close-report" class="button" type="button">Close</button></div>`;
+  const replyHelp = report.user_id
+    ? '<small class="muted">This reply appears only in this reporter’s in-app Announcements.</small>'
+    : '<small class="muted">This guest report has no account recipient, so a private in-app reply cannot be sent.</small>';
+  $('#report-detail').innerHTML = `<div class="report-dialog-scroll"><h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><label class="appearance-label">Reply to user<textarea id="detail-reply" rows="4" maxlength="8000" placeholder="Write a private reply for the reporter" ${report.user_id ? '' : 'disabled'}>${esc(report.admin_reply)}</textarea>${replyHelp}</label></div><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button id="close-report" class="button" type="button">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
   $('#close-report').addEventListener('click', () => $('#report-dialog').close());
   $('#save-report').addEventListener('click', async () => {
-    const { error } = await client.from('problem_reports').update({
-      status: $('#detail-status').value,
-      admin_note: $('#detail-notes').value,
-      admin_reply: $('#detail-reply').value,
-    }).eq('id', report.id);
+    const { error } = await client.rpc('admin_save_problem_report', {
+      p_report_id: report.id,
+      p_status: $('#detail-status').value,
+      p_admin_note: $('#detail-notes').value,
+      p_admin_reply: $('#detail-reply').value,
+    });
     if (error) {
       const errorNode = $('#report-save-error');
       errorNode.textContent = error.message;

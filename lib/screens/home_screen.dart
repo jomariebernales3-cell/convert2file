@@ -327,6 +327,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           callback: (_) =>
               unawaited(_loadUnreadAnnouncementCount(forceRefresh: true)),
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'user_announcements',
+          callback: (_) =>
+              unawaited(_loadUnreadAnnouncementCount(forceRefresh: true)),
+        )
         .subscribe();
   }
 

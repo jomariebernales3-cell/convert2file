@@ -15,8 +15,10 @@ class AnnouncementService {
 
   Future<List<Map<String, dynamic>>> fetchActive({bool forceRefresh = false}) async {
     final prefs = await SharedPreferences.getInstance();
-    final cached = _decodeRows(prefs.getString(_cacheKey));
-    final lastFetch = DateTime.tryParse(prefs.getString(_fetchTimeKey) ?? '');
+    final cacheKey = _scopedKey(_cacheKey);
+    final fetchTimeKey = _scopedKey(_fetchTimeKey);
+    final cached = _decodeRows(prefs.getString(cacheKey));
+    final lastFetch = DateTime.tryParse(prefs.getString(fetchTimeKey) ?? '');
     final stillFresh = lastFetch != null &&
         DateTime.now().difference(lastFetch) < _refreshInterval;
     if ((!forceRefresh && stillFresh) || !SupabaseConfig.isConfigured) {
@@ -45,6 +47,23 @@ class AnnouncementService {
     }
 
     final values = rows.map((row) => Map<String, dynamic>.from(row)).toList();
+    final userId = AuthService().currentUser?.supabaseUserId;
+    if (userId != null) {
+      try {
+        final personalRows = await client
+            .from('user_announcements')
+            .select('id,title,body,created_at')
+            .eq('user_id', userId)
+            .order('created_at', ascending: false)
+            .limit(100);
+        values.addAll(personalRows.map((row) => {
+              ...Map<String, dynamic>.from(row),
+              'kind': 'important',
+            }));
+      } catch (_) {
+        // Keep public announcements available if a private-inbox fetch fails.
+      }
+    }
     values.sort((a, b) {
       final aDate = DateTime.tryParse(a['created_at']?.toString() ?? '') ??
           DateTime.fromMillisecondsSinceEpoch(0);
@@ -52,9 +71,9 @@ class AnnouncementService {
           DateTime.fromMillisecondsSinceEpoch(0);
       return bDate.compareTo(aDate);
     });
-    final active = values.take(10).toList(growable: false);
-    await prefs.setString(_cacheKey, jsonEncode(active));
-    await prefs.setString(_fetchTimeKey, DateTime.now().toIso8601String());
+    final active = values.toList(growable: false);
+    await prefs.setString(cacheKey, jsonEncode(active));
+    await prefs.setString(fetchTimeKey, DateTime.now().toIso8601String());
     return active;
   }
 

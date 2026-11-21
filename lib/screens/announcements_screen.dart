@@ -58,6 +58,12 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           table: 'announcements',
           callback: (_) => _load(),
         )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'user_announcements',
+          callback: (_) => _load(),
+        )
         .subscribe();
   }
 
