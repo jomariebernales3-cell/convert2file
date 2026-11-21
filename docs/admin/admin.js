@@ -307,16 +307,46 @@ async function openReport(id) {
   const replyHelp = report.user_id
     ? '<small class="muted">This reply appears only in this reporter’s in-app Announcements.</small>'
     : '<small class="muted">This guest report has no account recipient, so a private in-app reply cannot be sent.</small>';
-  $('#report-detail').innerHTML = `<div class="report-dialog-scroll"><h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><label class="appearance-label">Reply to user<textarea id="detail-reply" rows="4" maxlength="8000" placeholder="Write a private reply for the reporter" ${report.user_id ? '' : 'disabled'}>${esc(report.admin_reply)}</textarea>${replyHelp}</label></div><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="save-report" class="button primary">Save report</button><button id="delete-report" class="button danger">Delete report</button><button id="close-report" class="button" type="button">Close</button></div>`;
+  $('#report-detail').innerHTML = `<div class="report-dialog-scroll"><h2>${esc(report.area.replaceAll('_', ' '))}</h2><p class="muted">${esc(reporter?.email ?? report.reporter_email ?? 'Guest')} · ${esc(date(report.created_at))}</p><div class="kv"><span>App version</span><b>${esc(report.app_version || 'Unknown')}</b></div><div class="kv"><span>Device</span><b>${esc(report.platform || report.device_info || 'Not provided')}</b></div><p>${esc(report.description)}</p>${screenshotLink}<details><summary>Technical context</summary><pre>${esc(context)}</pre></details><label class="appearance-label">Status<select id="detail-status"><option value="new">New</option><option value="seen">Seen</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option></select></label><label class="appearance-label">Admin notes<textarea id="detail-notes" rows="4" maxlength="8000" placeholder="Internal notes for the admin team">${esc(report.admin_note)}</textarea></label><label class="appearance-label">Reply to user<textarea id="detail-reply" rows="4" maxlength="8000" placeholder="Write a private reply for the reporter" ${report.user_id ? '' : 'disabled'}>${esc(report.admin_reply)}</textarea>${replyHelp}<small id="report-reply-status" class="muted" role="status" hidden></small></label></div><p id="report-save-error" class="error" role="alert" hidden></p><div class="detail-actions"><button id="send-report-reply" class="button primary" type="button" ${report.user_id && String(report.admin_reply ?? '').trim() ? '' : 'disabled'}>Send reply</button><button id="save-report" class="button" type="button">Save report</button><button id="delete-report" class="button danger" type="button">Delete report</button><button id="close-report" class="button" type="button">Close</button></div>`;
   $('#detail-status').value = report.status;
   $('#report-dialog').showModal();
   $('#close-report').addEventListener('click', () => $('#report-dialog').close());
+  $('#detail-reply').addEventListener('input', () => {
+    $('#send-report-reply').disabled = !report.user_id || !$('#detail-reply').value.trim();
+    const statusNode = $('#report-reply-status');
+    statusNode.textContent = 'Reply not sent yet.';
+    statusNode.hidden = !$('#detail-reply').value.trim();
+  });
+  $('#send-report-reply').addEventListener('click', async () => {
+    const reply = $('#detail-reply').value.trim();
+    if (!report.user_id || !reply) return;
+    const button = $('#send-report-reply');
+    button.disabled = true;
+    button.textContent = 'Sending…';
+    const { error } = await client.rpc('admin_send_problem_report_reply', {
+      p_report_id: report.id,
+      p_admin_reply: reply,
+    });
+    if (error) {
+      const errorNode = $('#report-save-error');
+      errorNode.textContent = error.message;
+      errorNode.hidden = false;
+      button.disabled = false;
+      button.textContent = 'Send reply';
+      return;
+    }
+    report.admin_reply = reply;
+    const statusNode = $('#report-reply-status');
+    statusNode.textContent = 'Reply sent to this user’s Announcements.';
+    statusNode.hidden = false;
+    button.textContent = 'Reply sent';
+  });
   $('#save-report').addEventListener('click', async () => {
     const { error } = await client.rpc('admin_save_problem_report', {
       p_report_id: report.id,
       p_status: $('#detail-status').value,
       p_admin_note: $('#detail-notes').value,
-      p_admin_reply: $('#detail-reply').value,
+      p_admin_reply: report.admin_reply ?? '',
     });
     if (error) {
       const errorNode = $('#report-save-error');
