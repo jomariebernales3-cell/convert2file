@@ -19,10 +19,9 @@ For the next Android APK after the current release, **v3.0.2.30**.
 - Updated the website to find the newest published APK asset from GitHub Releases, including releases with versioned APK filenames or prerelease status.
 - Added an admin-managed Android APK download URL. The website reads the URL from Supabase, App control can override it, and a successful GitHub release workflow syncs the newly built APK asset URL automatically.
 - Updated the email confirmation page to use the same Convert2File launcher logo as the main website.
-- Replaced the Flutter startup loading screen with the supplied DBZ logo artwork and a continuously animated arc. The logo, arc, and background match the selected light or dark theme.
-- Replaced the Android native launch-screen hourglass with the corresponding light or dark logo and matching loading ring, so the new logo appears from the first launch frame.
-- The animated startup screen remains visible while Supabase, authentication, theme, Offline AI, and app-lock initialization runs. It offers a retry action if startup initialization fails.
-- Fixed Android 12+ startup to load the DBZ logo directly as the system splash icon instead of falling back to the launcher hourglass; the Flutter DBZ splash continues the same branding with its animated arc.
+- Replaced the Android launch-screen hourglass with one DBZ logo and loading arc screen, themed for light and dark mode. Its arc is static because it is drawn by Android's native launch screen.
+- Kept the native launch screen visible while Supabase, authentication, theme, Offline AI, and app-lock initialization runs, then opens the app directly without a second Flutter loading screen.
+- Startup errors now show a retry screen after the native launch screen is dismissed.
 
 ## Bugs fixed and behavior improved
 

@@ -69,8 +69,6 @@ flutter:
   assets:
     - assets/images/convert2file_logo.png
     - assets/images/convert2file_logo_v2.png
-    - assets/images/dbz_logo_badge.png
-    - assets/images/dbz_logo_badge_light.png
     - assets/programming_reference.md
     - assets/convert2file_guide.md
   fonts:

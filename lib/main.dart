@@ -27,10 +27,9 @@ import 'screens/announcements_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/study_builder_screen.dart';
 import 'screens/text_to_file_screen.dart';
-import 'widgets/animated_startup_splash.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized().deferFirstFrame();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -50,6 +49,7 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
   AuthService? _authService;
   Object? _startupError;
   bool _supabaseInitialized = false;
+  bool _nativeSplashReleased = false;
 
   @override
   void initState() {
@@ -58,9 +58,6 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
   }
 
   Future<void> _initializeApp() async {
-    if (_startupError != null) {
-      setState(() => _startupError = null);
-    }
     try {
       if (SupabaseConfig.isConfigured && !_supabaseInitialized) {
         await Supabase.initialize(
@@ -81,11 +78,22 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
       await AppLockService.instance.initialize();
 
       if (!mounted) return;
-      setState(() => _authService = authService);
+      setState(() {
+        _authService = authService;
+        _startupError = null;
+      });
     } on Object catch (error) {
       if (!mounted) return;
       setState(() => _startupError = error);
+    } finally {
+      _releaseNativeSplash();
     }
+  }
+
+  void _releaseNativeSplash() {
+    if (_nativeSplashReleased) return;
+    _nativeSplashReleased = true;
+    WidgetsBinding.instance.allowFirstFrame();
   }
 
   @override
@@ -103,8 +111,67 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
         themeMode: ThemeService.instance.themeMode,
         theme: _buildAppTheme(AppColors.day, Brightness.light),
         darkTheme: _buildAppTheme(AppColors.night, Brightness.dark),
-        home: AnimatedStartupSplash(
-            error: _startupError, onRetry: _initializeApp),
+        home: _startupError == null
+            ? const SizedBox.expand()
+            : _StartupFailureScreen(onRetry: _initializeApp),
+      ),
+    );
+  }
+}
+
+class _StartupFailureScreen extends StatefulWidget {
+  final Future<void> Function() onRetry;
+
+  const _StartupFailureScreen({required this.onRetry});
+
+  @override
+  State<_StartupFailureScreen> createState() => _StartupFailureScreenState();
+}
+
+class _StartupFailureScreenState extends State<_StartupFailureScreen> {
+  bool _retrying = false;
+
+  Future<void> _retry() async {
+    setState(() => _retrying = true);
+    await widget.onRetry();
+    if (mounted) setState(() => _retrying = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48),
+              const SizedBox(height: 16),
+              Text(
+                'Convert2File could not finish starting.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Please try again. If the problem continues, restart the app.',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              FilledButton.icon(
+                onPressed: _retrying ? null : _retry,
+                icon: _retrying
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh),
+                label: Text(_retrying ? 'Retrying…' : 'Try again'),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
