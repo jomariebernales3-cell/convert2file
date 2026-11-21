@@ -29,7 +29,7 @@ import 'screens/study_builder_screen.dart';
 import 'screens/text_to_file_screen.dart';
 
 void main() {
-  WidgetsFlutterBinding.ensureInitialized().deferFirstFrame();
+  WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -50,6 +50,9 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
   Object? _startupError;
   bool _supabaseInitialized = false;
   bool _nativeSplashReleased = false;
+  static const _startupSplashChannel = MethodChannel(
+    'convert2file/startup_splash',
+  );
 
   @override
   void initState() {
@@ -86,14 +89,18 @@ class _Convert2FileBootstrapState extends State<Convert2FileBootstrap> {
       if (!mounted) return;
       setState(() => _startupError = error);
     } finally {
-      _releaseNativeSplash();
+      await _dismissNativeSplash();
     }
   }
 
-  void _releaseNativeSplash() {
+  Future<void> _dismissNativeSplash() async {
     if (_nativeSplashReleased) return;
     _nativeSplashReleased = true;
-    WidgetsBinding.instance.allowFirstFrame();
+    try {
+      await _startupSplashChannel.invokeMethod<void>('dismiss');
+    } on Object {
+      // The native loading overlay is only installed on Android.
+    }
   }
 
   @override
