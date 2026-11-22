@@ -15,6 +15,7 @@ import '../services/template_engine.dart';
 import '../services/output_generator.dart';
 import '../services/content_safety.dart';
 import '../services/normal/normal_converter.dart';
+import '../services/normal/docx_to_pdf_webview.dart';
 import '../services/normal/pdf_to_docx.dart';
 import '../models/data_model.dart';
 import '../models/generation_options.dart';
@@ -22,6 +23,7 @@ import '../theme/app_colors.dart';
 import '../widgets/figma_app_chrome.dart';
 import 'normal_result_screen.dart';
 import 'preview_screen.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 class DashboardScreen extends StatefulWidget {
   final bool conversionOnly;
@@ -52,6 +54,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   DateTime _lastProgressUpdate = DateTime.now();
   DateTime _conversionStartedAt = DateTime.now();
   Timer? _progressTimer;
+  WebViewController? _docxWebViewController;
 
   @override
   void initState() {
@@ -226,14 +229,33 @@ class _DashboardScreenState extends State<DashboardScreen>
             .trim();
         final outputBaseName =
             cleanedBaseName.isEmpty ? 'converted-file' : cleanedBaseName;
-        final result = await NormalConverter.convert(
-          _dataFile!.path,
-          dataExtension,
-          targetExtension,
-          outputBaseName,
-          onProgress: _updateProgress,
-          isCancelled: () => _cancelRequested,
-        );
+        final useDocxWebView = dataExtension == 'docx' &&
+            targetExtension == 'pdf' &&
+            DocxToPdfWebView.forcedEngine != 'legacy' &&
+            DocxToPdfWebView.isSupportedPlatform;
+        if (useDocxWebView) {
+          setState(() {
+            _docxWebViewController = DocxToPdfWebView.createController();
+          });
+          await WidgetsBinding.instance.endOfFrame;
+        }
+        late final NormalResult result;
+        try {
+          result = await NormalConverter.convert(
+            _dataFile!.path,
+            dataExtension,
+            targetExtension,
+            outputBaseName,
+            onProgress: _updateProgress,
+            isCancelled: () => _cancelRequested,
+            docxWebViewController: _docxWebViewController,
+          );
+        } finally {
+          if (useDocxWebView && mounted) {
+            setState(() => _docxWebViewController = null);
+            await WidgetsBinding.instance.endOfFrame;
+          }
+        }
         if (!hasDetailedPdfProgress) {
           _updateProgress(0.88, 'Saving converted file...');
         }
@@ -671,6 +693,19 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
           if (_isLoading) _buildConversionLoadingOverlay(),
+          // A full-size transparent WebView keeps a platform view attached so
+          // local DOCX rendering can run without changing the visible screen.
+          if (_docxWebViewController != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: 0.001,
+                  child: WebViewWidget(
+                    controller: _docxWebViewController!,
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
     );

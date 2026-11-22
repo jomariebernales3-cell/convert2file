@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:archive/archive.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as sf;
 
 import 'docx_style_reader.dart';
 import 'normal_html_renderer.dart';
@@ -13,7 +16,9 @@ import 'pdf_to_docx.dart';
 import 'pdf_to_html.dart';
 import 'pdf_to_txt.dart';
 import 'docx_to_txt.dart';
+import 'docx_to_pdf_webview.dart';
 import 'styled_document.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 export 'normal_unsupported.dart' show NormalUnsupported;
 
@@ -29,18 +34,29 @@ class NormalConverter {
     String sourcePath,
     String sourceExt,
     String targetExt,
-    String baseName,
-    {void Function(double progress, String message)? onProgress,
-    bool Function()? isCancelled,}
-  ) async {
+    String baseName, {
+    void Function(double progress, String message)? onProgress,
+    bool Function()? isCancelled,
+    WebViewController? docxWebViewController,
+  }) async {
     final source = sourceExt.toLowerCase().replaceFirst('.', '');
     final target = targetExt.toLowerCase().replaceFirst('.', '');
-    final directory = await getTemporaryDirectory();
     final safeBaseName = _safeBaseName(baseName);
-    final outputPath = path.join(
-      directory.path,
-      'normal_${DateTime.now().millisecondsSinceEpoch}_$safeBaseName.$target',
-    );
+    late final String outputPath;
+    try {
+      final directory = await getTemporaryDirectory();
+      outputPath = path.join(
+        directory.path,
+        'normal_${DateTime.now().millisecondsSinceEpoch}_$safeBaseName.$target',
+      );
+    } catch (error) {
+      if (source == 'docx' && target == 'pdf') {
+        debugPrint(
+          'DOCX->PDF engine=legacy reason=setup exception: $error fonts=Noto Sans Symbols 2,Noto Sans Symbols',
+        );
+      }
+      rethrow;
+    }
 
     if (source == target && (source == 'docx' || source == 'pdf')) {
       await File(sourcePath).copy(outputPath);
@@ -121,12 +137,48 @@ class NormalConverter {
       return NormalResult(path: outputPath, notes: notes);
     }
     if (source == 'docx' && target == 'pdf') {
-      final document = await DocxStyleReader.read(sourcePath);
-      final writerNotes = await PdfStyleWriter.write(document, outputPath);
-      return NormalResult(
-        path: outputPath,
-        notes: {...document.notes, ...writerNotes}.toList(),
-      );
+      var engine = 'legacy';
+      var reason = DocxToPdfWebView.forcedEngine == 'legacy'
+          ? 'forcedEngine=legacy'
+          : 'WebView host unavailable';
+      try {
+        if (DocxToPdfWebView.forcedEngine != 'legacy') {
+          if (!DocxToPdfWebView.isSupportedPlatform) {
+            reason = 'unsupported platform=${DocxToPdfWebView.platformName}';
+          } else if (docxWebViewController == null) {
+            reason = 'WebView host unavailable';
+          } else {
+            try {
+              final webViewPdf = await DocxToPdfWebView.convert(
+                await File(sourcePath).readAsBytes(),
+                docxWebViewController,
+              );
+              await File(outputPath).writeAsBytes(webViewPdf, flush: true);
+              engine = 'webview';
+              reason = 'ok';
+              return NormalResult(path: outputPath);
+            } catch (error) {
+              // Preserve the precise WebView failure as the fallback reason.
+              reason = error.toString();
+            }
+          }
+        }
+        final document = await DocxStyleReader.read(sourcePath);
+        final writerNotes = await PdfStyleWriter.write(document, outputPath);
+        final pageCount = await _pdfPageCount(outputPath);
+        developer.log('DOCX legacy PDF pages=${pageCount ?? 'unknown'}');
+        return NormalResult(
+          path: outputPath,
+          notes: {...document.notes, ...writerNotes}.toList(),
+        );
+      } catch (error) {
+        reason = 'legacy exception: $error';
+        rethrow;
+      } finally {
+        debugPrint(
+          'DOCX->PDF engine=$engine reason=$reason fonts=Noto Sans Symbols 2,Noto Sans Symbols',
+        );
+      }
     }
     throw NormalUnsupported(source, target);
   }
@@ -139,20 +191,24 @@ class NormalConverter {
             'w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/>'
             '</w:rPr><w:t xml:space="preserve">${_xmlEscape(line)}</w:t></w:r></w:p>')
         .join();
-    const documentStart = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const documentStart =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
         '<w:body>';
     const section = '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/>'
         '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" '
         'w:left="1440" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>';
-    final documentXml = '$documentStart$paragraphs$section</w:body></w:document>';
-    const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    final documentXml =
+        '$documentStart$paragraphs$section</w:body></w:document>';
+    const contentTypes =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
         '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
         '<Default Extension="xml" ContentType="application/xml"/>'
         '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
         '</Types>';
-    const relationships = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    const relationships =
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
         '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
         '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
         '</Relationships>';
@@ -163,6 +219,18 @@ class NormalConverter {
     _addUtf8File(archive, 'word/document.xml', documentXml);
     final encoded = ZipEncoder().encode(archive);
     await File(outputPath).writeAsBytes(encoded);
+  }
+
+  static Future<int?> _pdfPageCount(String pdfPath) async {
+    try {
+      final pdf = sf.PdfDocument(inputBytes: await File(pdfPath).readAsBytes());
+      final count = pdf.pages.count;
+      pdf.dispose();
+      return count;
+    } catch (error) {
+      developer.log('Unable to read DOCX PDF page count: $error');
+      return null;
+    }
   }
 
   static void _addUtf8File(Archive archive, String name, String content) {

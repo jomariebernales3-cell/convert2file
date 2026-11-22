@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' data:; img-src 'self' data: blob:; font-src 'self' data: blob: file:; connect-src 'none'; media-src data: blob:;">
+<style>
+@font-face{font-family:Arial;src:url('../fonts/LiberationSans-Regular.ttf')}@font-face{font-family:Helvetica;src:url('../fonts/LiberationSans-Regular.ttf')}@font-face{font-family:Calibri;src:url('../fonts/Carlito-Regular.ttf')}@font-face{font-family:Aptos;src:url('../fonts/Carlito-Regular.ttf');font-weight:400}@font-face{font-family:Aptos;src:url('../fonts/Carlito-Bold.ttf');font-weight:700}@font-face{font-family:'Aptos Display';src:url('../fonts/Carlito-Bold.ttf');font-weight:400}@font-face{font-family:Verdana;src:url('../fonts/LiberationSans-Regular.ttf')}@font-face{font-family:Tahoma;src:url('../fonts/LiberationSans-Regular.ttf')}@font-face{font-family:'Segoe UI';src:url('../fonts/LiberationSans-Regular.ttf')}@font-face{font-family:'Trebuchet MS';src:url('../fonts/LiberationSans-Regular.ttf')}
+@font-face{font-family:'Times New Roman';src:url('../fonts/LiberationSerif-Regular.ttf')}@font-face{font-family:Georgia;src:url('../fonts/LiberationSerif-Regular.ttf')}@font-face{font-family:Cambria;src:url('../fonts/LiberationSerif-Regular.ttf')}
+@font-face{font-family:'Courier New';src:url('../fonts/LiberationMono-Regular.ttf')}@font-face{font-family:Consolas;src:url('../fonts/LiberationMono-Regular.ttf')}
+@font-face{font-family:'Noto Sans Symbols 2';src:url('fonts/NotoSansSymbols2-Regular.ttf') format('truetype');font-style:normal;font-weight:400}
+@font-face{font-family:'Noto Sans Symbols';src:url('fonts/NotoSansSymbols-Regular.ttf') format('truetype');font-style:normal;font-weight:400}
+html,body{margin:0;padding:0;background:#fff;color:#000}body{font-family:Arial,Helvetica,Calibri,'Segoe UI','Noto Sans Symbols 2','Noto Sans Symbols',sans-serif}
+@media print{@page{margin:0}html,body{margin:0!important;padding:0!important}*,*::before,*::after{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.docx-wrapper{background:#fff!important;padding:0!important}.docx{margin:0!important;box-shadow:none!important}.docx:last-of-type{page-break-after:auto!important;break-after:auto!important}.docx:not(:last-of-type){page-break-after:always!important;break-after:page!important}}
+</style><script src="jszip.min.js"></script><script src="docx-preview.min.js"></script><script src="chart-renderer.js"></script>
+</head>
+<body><main id="document"></main><script>
+(function(){
+  const channel=m=>{if(window.DocxRender&&window.DocxRender.postMessage)window.DocxRender.postMessage(m)};
+  const describe=value=>value instanceof Error?value.stack||value.message:String(value);
+  const symbolFontNames=['Noto Sans Symbols 2','Noto Sans Symbols'];
+  const legacySymbolMaps={
+    wingdings2:{0xf050:0x1f4cb,0xf052:0x2611,0xf054:0x2612},
+    wingdings3:{0xf021:0x2b60,0xf023:0x2b61,0xf022:0x2b62,0xf024:0x2b63,0xf031:0x2b64,0xf032:0x2b65,0xf025:0x2b66,0xf026:0x2b67,0xf028:0x2b68,0xf027:0x2b69,0xf033:0x2b6a,0xf035:0x2b6b,0xf034:0x2b6c,0xf036:0x2b6d,0xf050:0x2b6e,0xf051:0x2b6f,0xf029:0x2b70,0xf02b:0x2b71,0xf02a:0x2b72,0xf02c:0x2b73},
+    webdings:{0xf061:0x2714,0xf028:0x260e,0xf02a:0x2709},
+    wingdings:{0xf028:0x260e,0xf02a:0x2709,0xf0ab:0x2605,0xf0ef:0x21e6,0xf0f0:0x21e8,0xf0f1:0x21e7,0xf0f2:0x21e9,0xf0f3:0x2b04,0xf0f4:0x21f3,0xf0f5:0x2b00,0xf0f6:0x2b01,0xf0f7:0x2b03,0xf0f8:0x2b02,0xf0f9:0x25ad,0xf0fa:0x25ab,0xf0fb:0x2717,0xf0fc:0x2713,0xf0fd:0x2612,0xf0fe:0x2611},
+    symbol:{0xf041:0x0391,0xf042:0x0392,0xf043:0x03a7,0xf044:0x0394,0xf045:0x0395,0xf046:0x03a6,0xf047:0x0393,0xf048:0x0397,0xf049:0x0399,0xf04a:0x03d1,0xf04b:0x039a,0xf04c:0x039b,0xf04d:0x039c,0xf04e:0x039d,0xf04f:0x039f,0xf050:0x03a0,0xf051:0x0398,0xf052:0x03a1,0xf053:0x03a3,0xf054:0x03a4,0xf055:0x03a5,0xf056:0x03c2,0xf057:0x03a9,0xf058:0x039e,0xf059:0x03a8,0xf05a:0x0396,0xf061:0x03b1,0xf062:0x03b2,0xf063:0x03c7,0xf064:0x03b4,0xf065:0x03b5,0xf066:0x03c6,0xf067:0x03b3,0xf068:0x03b7,0xf069:0x03b9,0xf06a:0x03d5,0xf06b:0x03ba,0xf06c:0x03bb,0xf06d:0x03bc,0xf06e:0x03bd,0xf06f:0x03bf,0xf070:0x03c0,0xf071:0x03b8,0xf072:0x03c1,0xf073:0x03c3,0xf074:0x03c4,0xf075:0x03c5,0xf076:0x03d6,0xf077:0x03c9,0xf078:0x03be,0xf079:0x03c8,0xf07a:0x03b6}
+  };
+  function mapLegacySymbolText(root){
+    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
+    let node;
+    while((node=walker.nextNode())){
+      const family=getComputedStyle(node.parentElement).fontFamily.toLowerCase().split(',')[0].replace(/["']/g,'').trim();
+      const font=(/^wingdings\s*2$/.test(family))?'wingdings2':(/^wingdings\s*3$/.test(family))?'wingdings3':family==='webdings'?'webdings':family==='wingdings'?'wingdings':family==='symbol'?'symbol':'';
+      if(!font)continue;
+      const mapping=legacySymbolMaps[font];
+      node.data=Array.from(node.data,char=>{const cp=char.codePointAt(0);const mapped=mapping&&(mapping[cp]||mapping[cp>=0x20&&cp<=0xff?cp+0xf000:cp]);return mapped?String.fromCodePoint(mapped):char}).join('');
+    }
+  }
+  function appendSymbolFontFallbacks(root){
+    root.querySelectorAll('*').forEach(element=>{
+      const current=getComputedStyle(element).fontFamily;
+      if(!current.toLowerCase().includes('noto sans symbols'))element.style.fontFamily=current+', '+symbolFontNames.map(name=>'"'+name+'"').join(', ');
+    });
+  }
+  const originalConsoleError=console.error.bind(console);
+  console.error=(...args)=>{channel('console-error:'+args.map(describe).join(' '));originalConsoleError(...args)};
+  window.addEventListener('error',event=>channel('console-error:'+String(event.message||event.error||'window error')));
+  window.addEventListener('unhandledrejection',event=>channel('console-error:'+describe(event.reason)));
+  window.getRenderedHtmlBase64=function(){const clone=document.documentElement.cloneNode(true);clone.querySelectorAll('script').forEach(n=>n.remove());return btoa(unescape(encodeURIComponent('<!doctype html>'+clone.outerHTML)))};
+  window.renderDocxFromBase64=async function(base64){try{
+    if(!window.docx||!window.JSZip)throw new Error('Bundled docx-preview or JSZip library is missing');
+    const raw=atob(base64),bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);
+
+    if(!window.DocxChartRenderer)throw new Error('Offline ChartML renderer is missing');
+    const prepared=await window.DocxChartRenderer.prepare(bytes.buffer);
+    await window.docx.renderAsync(prepared.buffer,document.getElementById('document'),null,{breakPages:true,renderHeaders:true,renderFooters:true,renderFootnotes:true,renderEndnotes:true,useBase64URL:true,experimental:true,ignoreLastRenderedPageBreak:false,inWrapper:false});
+    const renderedDocument=document.getElementById('document');
+
+    window.DocxChartRenderer.attach(renderedDocument,prepared.charts);
+    mapLegacySymbolText(renderedDocument);
+    appendSymbolFontFallbacks(renderedDocument);
+    if(document.fonts&&document.fonts.ready)await document.fonts.ready;
+    await Promise.all(Array.from(document.images).map(image=>image.complete?Promise.resolve():new Promise(resolve=>{image.onload=resolve;image.onerror=resolve;setTimeout(resolve,10000)})));
+    let previous='',stable=0;for(let i=0;i<20&&stable<3;i++){await new Promise(resolve=>requestAnimationFrame(resolve));const current=document.getElementById('document').innerHTML+':'+document.getElementById('document').scrollHeight;stable=current===previous?stable+1:0;previous=current}
+    channel('render-complete:'+document.querySelectorAll('.docx').length);
+  }catch(error){channel('render-error:'+(error&&error.stack||error&&error.message||String(error)))}};
+  window.addEventListener('load',()=>channel('page-ready'));
+})();
+</script></body></html>

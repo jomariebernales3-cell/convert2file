@@ -115,8 +115,7 @@ class DocumentParser {
             'text': text,
             'source_order': sourceOrder,
             'source_paragraph_xml': node.toXmlString(),
-            if (type == 'formula')
-              'source_math_xml': _firstDocxMathXml(node),
+            if (type == 'formula') 'source_math_xml': _firstDocxMathXml(node),
           });
         }
 
@@ -132,12 +131,14 @@ class DocumentParser {
 
           var extractedPath = extractedMedia[mediaPath];
           if (extractedPath == null) {
-            if (!await imageDir.exists()) await imageDir.create(recursive: true);
+            if (!await imageDir.exists())
+              await imageDir.create(recursive: true);
             final extension = p.extension(mediaPath).toLowerCase();
             if (!['.png', '.jpg', '.jpeg', '.gif'].contains(extension)) {
               continue;
             }
-            extractedPath = p.join(imageDir.path, 'image_$imageIndex$extension');
+            extractedPath =
+                p.join(imageDir.path, 'image_$imageIndex$extension');
             await File(extractedPath)
                 .writeAsBytes(List<int>.from(mediaFile.content as List));
             extractedMedia[mediaPath] = extractedPath;
@@ -207,8 +208,8 @@ class DocumentParser {
       if (element.name.local != 'blip' && element.name.local != 'imagedata') {
         continue;
       }
-      final id = _attributeValue(element, 'embed') ??
-          _attributeValue(element, 'id');
+      final id =
+          _attributeValue(element, 'embed') ?? _attributeValue(element, 'id');
       if (id != null && id.isNotEmpty && !ids.contains(id)) ids.add(id);
     }
     return ids;
@@ -222,14 +223,12 @@ class DocumentParser {
   }
 
   static String _docxParagraphType(XmlElement paragraph) {
-    final hasMath = paragraph.descendants
-        .whereType<XmlElement>()
-        .any((element) => element.name.local == 'oMath' || element.name.local == 'oMathPara');
+    final hasMath = paragraph.descendants.whereType<XmlElement>().any(
+        (element) =>
+            element.name.local == 'oMath' || element.name.local == 'oMathPara');
     if (hasMath) return 'formula';
 
-    final style = paragraph.descendants
-        .whereType<XmlElement>()
-        .firstWhere(
+    final style = paragraph.descendants.whereType<XmlElement>().firstWhere(
           (element) => element.name.local == 'pStyle',
           orElse: () => XmlElement(XmlName('missing')),
         );
@@ -237,7 +236,9 @@ class DocumentParser {
     final hasOutlineLevel = paragraph.descendants
         .whereType<XmlElement>()
         .any((element) => element.name.local == 'outlineLvl');
-    if (styleValue.contains('heading') || styleValue == 'title' || hasOutlineLevel) {
+    if (styleValue.contains('heading') ||
+        styleValue == 'title' ||
+        hasOutlineLevel) {
       return 'heading';
     }
     return 'paragraph';
@@ -256,14 +257,15 @@ class DocumentParser {
     final bytes = await File(path).readAsBytes();
     final PdfDocument document = PdfDocument(inputBytes: bytes);
     final Map<int, String> pages = {};
-    
+
     for (int i = 0; i < document.pages.count; i++) {
-      final text = PdfTextExtractor(document).extractText(startPageIndex: i, endPageIndex: i);
+      final text = PdfTextExtractor(document)
+          .extractText(startPageIndex: i, endPageIndex: i);
       if (text.trim().isNotEmpty) {
         pages[i + 1] = normalize(text);
       }
     }
-    
+
     document.dispose();
     return pages;
   }
@@ -281,7 +283,8 @@ class DocumentParser {
     document.dispose();
     final analysis = _analyzePdfPageMargins(rawPages);
     final pageCharacterCounts = rawPages
-        .map((page) => _contentLines(page).join(' ').replaceAll(RegExp(r'\s+'), '').length)
+        .map((page) =>
+            _contentLines(page).join(' ').replaceAll(RegExp(r'\s+'), '').length)
         .toList();
     final sparsePages = pageCharacterCounts
         .where((characterCount) => characterCount < 40)
@@ -289,11 +292,12 @@ class DocumentParser {
     // A PDF page with almost no extractable text is commonly a scanned page or
     // a page whose text is baked into an image. We do not pretend OCR happened:
     // this signal is surfaced to the user for an accurate review decision.
-    final likelyScanned = rawPages.isNotEmpty &&
-        sparsePages >= (rawPages.length * 0.6).ceil();
+    final likelyScanned =
+        rawPages.isNotEmpty && sparsePages >= (rawPages.length * 0.6).ceil();
     return {
       'page_count': rawPages.length,
-      'text_characters': pageCharacterCounts.fold<int>(0, (sum, value) => sum + value),
+      'text_characters':
+          pageCharacterCounts.fold<int>(0, (sum, value) => sum + value),
       'sparse_text_pages': sparsePages,
       'likely_scanned': likelyScanned,
       'repeated_header_footer_lines': analysis.removedLines,
@@ -311,7 +315,7 @@ class DocumentParser {
   static Future<String> _fromDocx(String path) async {
     final bytes = await File(path).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
-    
+
     String? documentXml;
     for (final file in archive) {
       if (file.name == 'word/document.xml') {
@@ -319,7 +323,7 @@ class DocumentParser {
         break;
       }
     }
-    
+
     if (documentXml == null) {
       throw Exception('Unable to open DOCX file: document.xml not found');
     }
@@ -430,18 +434,63 @@ class DocumentParser {
     if (!normalizedFont.contains('symbol')) return text;
 
     const symbolAlphabet = <String, String>{
-      'A': 'Α', 'B': 'Β', 'C': 'Χ', 'D': 'Δ', 'E': 'Ε', 'F': 'Φ',
-      'G': 'Γ', 'H': 'Η', 'I': 'Ι', 'J': 'ϑ', 'K': 'Κ', 'L': 'Λ',
-      'M': 'Μ', 'N': 'Ν', 'O': 'Ο', 'P': 'Π', 'Q': 'Θ', 'R': 'Ρ',
-      'S': 'Σ', 'T': 'Τ', 'U': 'Υ', 'V': 'ς', 'W': 'Ω', 'X': 'Ξ',
-      'Y': 'Ψ', 'Z': 'Ζ',
-      'a': 'α', 'b': 'β', 'c': 'χ', 'd': 'δ', 'e': 'ε', 'f': 'φ',
-      'g': 'γ', 'h': 'η', 'i': 'ι', 'j': 'ϕ', 'k': 'κ', 'l': 'λ',
-      'm': 'μ', 'n': 'ν', 'o': 'ο', 'p': 'π', 'q': 'θ', 'r': 'ρ',
-      's': 'σ', 't': 'τ', 'u': 'υ', 'v': 'ϖ', 'w': 'ω', 'x': 'ξ',
-      'y': 'ψ', 'z': 'ζ',
+      'A': 'Α',
+      'B': 'Β',
+      'C': 'Χ',
+      'D': 'Δ',
+      'E': 'Ε',
+      'F': 'Φ',
+      'G': 'Γ',
+      'H': 'Η',
+      'I': 'Ι',
+      'J': 'ϑ',
+      'K': 'Κ',
+      'L': 'Λ',
+      'M': 'Μ',
+      'N': 'Ν',
+      'O': 'Ο',
+      'P': 'Π',
+      'Q': 'Θ',
+      'R': 'Ρ',
+      'S': 'Σ',
+      'T': 'Τ',
+      'U': 'Υ',
+      'V': 'ς',
+      'W': 'Ω',
+      'X': 'Ξ',
+      'Y': 'Ψ',
+      'Z': 'Ζ',
+      'a': 'α',
+      'b': 'β',
+      'c': 'χ',
+      'd': 'δ',
+      'e': 'ε',
+      'f': 'φ',
+      'g': 'γ',
+      'h': 'η',
+      'i': 'ι',
+      'j': 'ϕ',
+      'k': 'κ',
+      'l': 'λ',
+      'm': 'μ',
+      'n': 'ν',
+      'o': 'ο',
+      'p': 'π',
+      'q': 'θ',
+      'r': 'ρ',
+      's': 'σ',
+      't': 'τ',
+      'u': 'υ',
+      'v': 'ϖ',
+      'w': 'ω',
+      'x': 'ξ',
+      'y': 'ψ',
+      'z': 'ζ',
     };
-    return text.split('').map((character) => symbolAlphabet[character] ?? character).join();
+    return text
+        .split('')
+        .map((character) => symbolAlphabet[character] ?? character)
+        .join();
   }
 
   /// Converts Office Math Markup Language (OMML) to a readable linear form
@@ -584,12 +633,16 @@ class DocumentParser {
     // Values in the Unicode range are already safe to emit. Private-use
     // glyphs (common in Wingdings) have no dependable Unicode equivalent, so
     // show a stable placeholder rather than corrupting surrounding text.
-    if (code >= 0x20 && code <= 0x10FFFF &&
+    if (code >= 0x20 &&
+        code <= 0x10FFFF &&
         !(code >= 0xE000 && code <= 0xF8FF)) {
       return String.fromCharCode(code);
     }
     return '□';
   }
+
+  /// Exposes the shared symbol fallback for DOCX-to-PDF text preservation.
+  static String docxSymbolText(XmlElement symbol) => _docxSymbolText(symbol);
 
   static Future<String> _fromPdf(String path) async {
     final bytes = await File(path).readAsBytes();
@@ -658,14 +711,14 @@ class DocumentParser {
   static Future<String> _fromPptx(String path) async {
     final bytes = await File(path).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
-    
+
     final Map<String, String> slideXml = {};
     for (final file in archive) {
       if (RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(file.name)) {
         slideXml[file.name] = utf8.decode(file.content, allowMalformed: true);
       }
     }
-    
+
     final sortedKeys = slideXml.keys.toList()
       ..sort((a, b) {
         final aNumber = int.parse(
@@ -677,7 +730,7 @@ class DocumentParser {
         return aNumber.compareTo(bNumber);
       });
     final slides = <String>[];
-    
+
     for (final key in sortedKeys) {
       final xml = slideXml[key]!;
       final lines = _parsePptxSlideText(xml);
@@ -685,7 +738,7 @@ class DocumentParser {
         slides.add(lines.join('\n'));
       }
     }
-    
+
     return normalize(slides.join('\n\n'));
   }
 
@@ -780,11 +833,10 @@ class DocumentParser {
         final length = (bytes[offset + 2] << 8) + bytes[offset + 3];
         if (length < 2 || offset + length >= bytes.length) break;
 
-        final isStartOfFrame =
-            (marker >= 0xC0 && marker <= 0xC3) ||
-                (marker >= 0xC5 && marker <= 0xC7) ||
-                (marker >= 0xC9 && marker <= 0xCB) ||
-                (marker >= 0xCD && marker <= 0xCF);
+        final isStartOfFrame = (marker >= 0xC0 && marker <= 0xC3) ||
+            (marker >= 0xC5 && marker <= 0xC7) ||
+            (marker >= 0xC9 && marker <= 0xCB) ||
+            (marker >= 0xCD && marker <= 0xCF);
         if (isStartOfFrame) {
           final height = (bytes[offset + 5] << 8) + bytes[offset + 6];
           final width = (bytes[offset + 7] << 8) + bytes[offset + 8];
@@ -802,32 +854,39 @@ class DocumentParser {
     final text = String.fromCharCodes(bytes);
     final matches =
         RegExp(r"[A-Za-z0-9][A-Za-z0-9,.\-()/:;'\s]{4,}").allMatches(text);
-    final chunks = matches.map((m) => m.group(0)!).where((s) => s.trim().length >= 4).toList();
+    final chunks = matches
+        .map((m) => m.group(0)!)
+        .where((s) => s.trim().length >= 4)
+        .toList();
     return normalize(chunks.join('\n'));
   }
 
   static List<String> _parsePptxSlideText(String xml) {
     final document = XmlDocument.parse(xml);
     final texts = <String>[];
-    
+
     for (final element in document.findAllElements('a:t')) {
       final text = element.innerText.trim();
       if (text.isNotEmpty) {
         texts.add(text);
       }
     }
-    
+
     return texts;
   }
 
   static String _stripXmlTags(String xml) {
-    return xml.replaceAll(RegExp(r'<[^>]+>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
+    return xml
+        .replaceAll(RegExp(r'<[^>]+>'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
   }
 
-  static Future<List<Map<String, dynamic>>> extractDocxTables(String path) async {
+  static Future<List<Map<String, dynamic>>> extractDocxTables(
+      String path) async {
     final bytes = await File(path).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
-    
+
     String? documentXml;
     for (final file in archive) {
       if (file.name == 'word/document.xml') {
@@ -835,7 +894,7 @@ class DocumentParser {
         break;
       }
     }
-    
+
     if (documentXml == null) return [];
 
     final document = XmlDocument.parse(_repairControlPunctuation(documentXml));
@@ -853,42 +912,48 @@ class DocumentParser {
         .toList();
   }
 
-  static Future<List<Map<String, dynamic>>> extractPptxTables(String path) async {
+  static Future<List<Map<String, dynamic>>> extractPptxTables(
+      String path) async {
     final bytes = await File(path).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
-    
+
     final tables = <List<List<String>>>[];
-    
+
     for (final file in archive) {
       if (!RegExp(r'^ppt/slides/slide\d+\.xml$').hasMatch(file.name)) continue;
-      
+
       final xml = utf8.decode(file.content, allowMalformed: true);
-      final tableMatches = RegExp(r'<a:tbl\b.*?>(.*?)<\/a:tbl>', dotAll: true).allMatches(xml);
-      
+      final tableMatches =
+          RegExp(r'<a:tbl\b.*?>(.*?)<\/a:tbl>', dotAll: true).allMatches(xml);
+
       for (final tableMatch in tableMatches) {
         final tableXml = tableMatch.group(1)!;
         final rows = <List<String>>[];
-        
-        final rowMatches = RegExp(r'<a:tr\b.*?>(.*?)<\/a:tr>', dotAll: true).allMatches(tableXml);
+
+        final rowMatches = RegExp(r'<a:tr\b.*?>(.*?)<\/a:tr>', dotAll: true)
+            .allMatches(tableXml);
         for (final rowMatch in rowMatches) {
           final rowXml = rowMatch.group(1)!;
           final cells = <String>[];
-          
-          final cellMatches = RegExp(r'<a:tc\b.*?>(.*?)<\/a:tc>', dotAll: true).allMatches(rowXml);
+
+          final cellMatches = RegExp(r'<a:tc\b.*?>(.*?)<\/a:tc>', dotAll: true)
+              .allMatches(rowXml);
           for (final cellMatch in cellMatches) {
             final cellXml = cellMatch.group(1)!;
-            final textMatches = RegExp(r'<a:t>(.*?)<\/a:t>', dotAll: true).allMatches(cellXml);
-            final cellText = textMatches.map((m) => m.group(1)!).join('').trim();
+            final textMatches =
+                RegExp(r'<a:t>(.*?)<\/a:t>', dotAll: true).allMatches(cellXml);
+            final cellText =
+                textMatches.map((m) => m.group(1)!).join('').trim();
             cells.add(cellText);
           }
-          
+
           if (cells.isNotEmpty) rows.add(cells);
         }
-        
+
         if (rows.isNotEmpty) tables.add(rows);
       }
     }
-    
+
     return tables.map((rows) => {'rows': rows}).toList();
   }
 }

@@ -58,6 +58,7 @@ class PdfTableDetector {
     required Uint8List pagePng,
     required double pageWidth,
     required double pageHeight,
+    List<({double left, double top, double width, double height})> textBounds = const [],
   }) async {
     final result = await compute<Map<String, Object?>, List<Map>>(
       _detect,
@@ -65,6 +66,14 @@ class PdfTableDetector {
         'png': pagePng,
         'pageWidth': pageWidth,
         'pageHeight': pageHeight,
+        'textBounds': textBounds
+            .map((bounds) => <double>[
+                  bounds.left,
+                  bounds.top,
+                  bounds.width,
+                  bounds.height,
+                ])
+            .toList(),
       },
     );
     return result.map(PdfDetectedTable.fromMap).toList();
@@ -84,10 +93,33 @@ List<Map> _detect(Map<String, Object?> input) {
   );
   final sx = analysis.width / pageWidth;
   final sy = analysis.height / pageHeight;
-  final minLength = math.max(20.0, 20.0 * math.min(sx, sy)).round();
-  bool dark(int x, int y) {
+  // Exclude extracted text glyphs before scanning rules. Dense text can
+  // otherwise join into false table borders when glyphs align across rows.
+  final textMask = Uint8List(analysis.width * analysis.height);
+  for (final bounds in input['textBounds']! as List) {
+    final rect = bounds as List;
+    final left = ((rect[0] as double) * sx).floor().clamp(0, analysis.width - 1);
+    final top = ((rect[1] as double) * sy).floor().clamp(0, analysis.height - 1);
+    final right = (((rect[0] as double) + (rect[2] as double)) * sx)
+        .ceil()
+        .clamp(0, analysis.width - 1);
+    final bottom = (((rect[1] as double) + (rect[3] as double)) * sy)
+        .ceil()
+        .clamp(0, analysis.height - 1);
+    for (var y = top; y <= bottom; y++) {
+      textMask.fillRange(y * analysis.width + left, y * analysis.width + right + 1, 1);
+    }
+  }
+  // Keep short text strokes from becoming table boundaries; actual cell
+  // rules usually span at least this much of the page at the analysis scale.
+  final minLength = math.max(36.0, 36.0 * math.min(sx, sy)).round();
+  bool ruleInk(int x, int y) {
+    if (textMask[y * analysis.width + x] != 0) return false;
     final p = analysis.getPixel(x, y);
-    return (p.r * 0.299 + p.g * 0.587 + p.b * 0.114) < 205;
+    // PDF table rules are often light gray and antialiased. Use a lighter
+    // threshold than text detection so those rules remain visible after the
+    // page image is downsampled for analysis.
+    return (p.r * 0.299 + p.g * 0.587 + p.b * 0.114) < 225;
   }
 
   List<_Segment> scan({required bool horizontal}) {
@@ -98,7 +130,7 @@ List<Map> _detect(Map<String, Object?> input) {
       var start = -1;
       for (var moving = 0; moving <= inner; moving++) {
         final ink = moving < inner &&
-            (horizontal ? dark(moving, fixed) : dark(fixed, moving));
+            (horizontal ? ruleInk(moving, fixed) : ruleInk(fixed, moving));
         if (ink && start < 0) start = moving;
         if (!ink && start >= 0) {
           if (moving - start >= minLength) {

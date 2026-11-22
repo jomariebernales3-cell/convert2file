@@ -161,6 +161,14 @@ class PdfToDocx {
               pagePng: pagePng!,
               pageWidth: page.width,
               pageHeight: page.height,
+              textBounds: graphicWords
+                  .map((word) => (
+                        left: word.left,
+                        top: word.top,
+                        width: word.width,
+                        height: word.height,
+                      ))
+                  .toList(),
             );
             if (detectedTables.isEmpty) {
               notes.add('No tables detected on page ${page.pageNumber}; using paragraph layout.');
@@ -258,13 +266,14 @@ class PdfToDocx {
           debugPrint('[PdfToDocx] bold/italic page=${page.pageNumber} failed: $error\n$stackTrace');
         }
         final regions = <PdfGraphicRegion>[...imageRegions, ...decorationRegions];
-        final paragraphs = PdfTextReader.groupParagraphs(bodyLines);
+        // A PDF stores positioned lines rather than Word paragraphs. Keeping
+        // each extracted line in its own paragraph preserves its x/y position
+        // and prevents Word from reflowing adjacent PDF lines into a new
+        // paragraph layout.
+        final paragraphs = bodyLines
+            .map((line) => <PdfTextLineData>[line])
+            .toList();
         final pageParagraphXml = <String>[];
-        final orderedBody = List<PdfTextLineData>.from(bodyLines)
-          ..sort((a, b) => a.top.compareTo(b.top));
-        var runningY = orderedBody.isEmpty
-            ? 36.0
-            : math.max(36.0, orderedBody.first.top).toDouble();
         var pageBodyFlushed = false;
         void flushPageBody() {
           if (pageBodyFlushed) return;
@@ -290,40 +299,29 @@ class PdfToDocx {
             paragraphIndex++) {
           final paragraph = paragraphs[paragraphIndex];
           try {
-            final firstText = paragraph.first.text;
-            final list = _detectList(firstText);
-            final spacingBefore = math.max(0.0, paragraph.first.top - runningY).toDouble();
-            final paragraphPitch = paragraph.length > 1
-                ? (paragraph[1].top - paragraph[0].top).abs()
-                : paragraph.first.fontSize * 1.2;
-            final paragraphLineHeight = math.max(
-              paragraph.map((line) => math.max(line.height, line.fontSize))
-                  .reduce((a, b) => a > b ? a : b),
-              paragraphPitch,
-            ).toDouble();
-            final textAreaLines = bodyLines.isEmpty ? page.lines : bodyLines;
-            final leftMargin = textAreaLines.isEmpty
-                ? 0.0
-                : textAreaLines.map((line) => line.left).reduce(
-                    (a, b) => a < b ? a : b,
-                  );
-            final rightEdge = textAreaLines.isEmpty
-                ? page.width
-                : textAreaLines
-                    .map((line) => line.left + line.width)
-                    .reduce((a, b) => a > b ? a : b);
-            pageParagraphXml.add(_paragraphXml(
+            // Keep visible PDF list markers as literal text; generated Word
+            // numbering can restart or duplicate them across positioned lines.
+            const list = null;
+            final line = paragraph.first;
+            final lineParagraph = _paragraphXml(
               paragraph,
               list,
               list?.numId,
               bodySize,
-              spacingBefore: spacingBefore,
-              leftMargin: leftMargin,
-              rightEdge: rightEdge,
+              spacingBefore: 0,
+              leftMargin: line.left,
+              rightEdge: page.width,
               pageWidth: page.width,
               graphics: regions,
+            );
+            pageParagraphXml.add(_anchoredTextLine(
+              lineParagraph,
+              ++imageId,
+              line.left,
+              line.top,
+              math.max(line.width, line.fontSize).toDouble(),
+              math.max(line.height, line.fontSize).toDouble(),
             ));
-            runningY += spacingBefore + paragraphLineHeight * paragraph.length;
             pageContentAdded = true;
           } on Object catch (error, stackTrace) {
             notes.add('Some PDF text paragraphs were skipped.');
@@ -365,24 +363,13 @@ class PdfToDocx {
             } else {
               final relationshipId = 'rId${imageId + 2}';
               imageRelationships.add(_imageRelationship(relationshipId, mediaName));
-              final ownerIndex = _nearestParagraphIndex(paragraphs, region.top);
-              if (ownerIndex >= 0 && ownerIndex < pageParagraphXml.length) {
-                final offset = region.top - paragraphs[ownerIndex].first.top;
-                final anchor = _anchoredGraphic(
+              // PDF graphics use page coordinates. Keep them in independent
+              // page-anchored drawings so adding positioned text boxes cannot
+              // shift an image relative to its owning paragraph.
+              body.write(_anchoredGraphic(
                 relationshipId, imageId, region.left, region.top,
                 region.width, region.height, region.kind,
-                paragraphRelative: true,
-                verticalOffset: offset,
-                embeddedInParagraph: true,
-              );
-                pageParagraphXml[ownerIndex] = pageParagraphXml[ownerIndex]
-                    .replaceFirst('</w:p>', '$anchor</w:p>');
-              } else {
-                body.write(_anchoredGraphic(
-                  relationshipId, imageId, region.left, region.top,
-                  region.width, region.height, region.kind,
-                ));
-              }
+              ));
             }
             pageContentAdded = true;
           }
@@ -491,6 +478,7 @@ class PdfToDocx {
         'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
         'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
         'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+        'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" '
         'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">'
         '<w:body>${body.toString()}$section</w:body></w:document>';
     final contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
@@ -593,7 +581,7 @@ class PdfToDocx {
     }
     final measuredPitch = lines.length > 1
         ? (lines[1].top - lines[0].top).abs()
-        : fontSize * 1.2;
+        : math.max(fontSize, lines.first.height).toDouble();
     final lineTwips = _twips(math.max(fontSize, measuredPitch).toDouble());
     pPr.write('<w:spacing w:before="${_twips(spacingBefore)}" '
         'w:after="0" w:line="$lineTwips" w:lineRule="exact"/>');
@@ -1125,6 +1113,43 @@ class PdfToDocx {
     return embeddedInParagraph
         ? anchorRun
         : '<w:p>$paragraphProperties$anchorRun</w:p>';
+  }
+
+  // Preserve PDF text at its page coordinates inside a no-wrap text box.
+  // The coordinate and extent conversions below use 12,700 EMU per point.
+  static String _anchoredTextLine(
+    String paragraphXml,
+    int shapeId,
+    double left,
+    double top,
+    double width,
+    double height,
+  ) {
+    final cx = (width * 12700).round().clamp(1, 20000000);
+    final cy = (height * 12700).round().clamp(1, 20000000);
+    final x = (left * 12700).round();
+    final y = (top * 12700).round();
+    return '<w:p><w:pPr><w:spacing w:before="0" w:after="0" '
+        'w:line="1" w:lineRule="exact"/></w:pPr><w:r><w:drawing>'
+        '<wp:anchor distT="0" distB="0" distL="0" distR="0" '
+        'simplePos="0" relativeHeight="${251658240 + shapeId}" '
+        'behindDoc="0" locked="0" layoutInCell="1" allowOverlap="1">'
+        '<wp:simplePos x="0" y="0"/>'
+        '<wp:positionH relativeFrom="page"><wp:posOffset>$x</wp:posOffset></wp:positionH>'
+        '<wp:positionV relativeFrom="page"><wp:posOffset>$y</wp:posOffset></wp:positionV>'
+        '<wp:extent cx="$cx" cy="$cy"/><wp:effectExtent l="0" t="0" r="0" b="0"/>'
+        '<wp:wrapNone/><wp:docPr id="$shapeId" name="PDF text line $shapeId"/>'
+        '<wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr>'
+        '<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+        '<wps:wsp><wps:cNvSpPr txBox="1"/><wps:spPr><a:xfrm>'
+        '<a:off x="0" y="0"/><a:ext cx="$cx" cy="$cy"/></a:xfrm>'
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/>'
+        '<a:ln><a:noFill/></a:ln></wps:spPr>'
+        '<wps:txbx><w:txbxContent>$paragraphXml</w:txbxContent></wps:txbx>'
+        '<wps:bodyPr wrap="none" lIns="0" tIns="0" rIns="0" bIns="0" anchor="t">'
+        '<a:normAutofit/></wps:bodyPr>'
+        '</wps:wsp></a:graphicData></a:graphic></wp:anchor>'
+        '</w:drawing></w:r></w:p>';
   }
 
   static _DetectedList? _detectList(String text) {

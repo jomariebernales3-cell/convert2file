@@ -89,6 +89,47 @@ class PdfTextReadResult {
 }
 
 class PdfTextReader {
+  // Some PDFs position each glyph separately. Syncfusion can expose those
+  // glyph advances as spaces (for example, "D a t e  o f"), although the PDF
+  // visibly contains normal words. Only compact runs when a line contains a
+  // clear sequence of at least three single-character tokens; regular text is
+  // left unchanged.
+  static bool _hasCharacterSpacedText(String text) => RegExp(
+        r'(?:^|\s)[A-Za-z0-9](?: [A-Za-z0-9]){2,}(?:\s|$)',
+      ).hasMatch(text);
+
+  static String _normalizeCharacterSpacedText(
+    String text, {
+    bool force = false,
+  }) {
+    if (!force && !_hasCharacterSpacedText(text)) return text;
+
+    // Repeated spaces separate words in this extraction pattern. Treat them
+    // as one word boundary, then compact adjacent single-character tokens.
+    final chunks = text.trim().split(RegExp(r'\s{2,}'));
+    return chunks.map((chunk) {
+      final tokens = chunk.split(' ');
+      final singleCharacter = RegExp(r'^[A-Za-z0-9]$');
+      final normalized = StringBuffer();
+      var index = 0;
+      while (index < tokens.length) {
+        if (singleCharacter.hasMatch(tokens[index])) {
+          var end = index + 1;
+          while (end < tokens.length && singleCharacter.hasMatch(tokens[end])) {
+            end++;
+          }
+          final run = tokens.sublist(index, end);
+          normalized.write(run.length >= 2 ? run.join() : run.single);
+          index = end;
+        } else {
+          normalized.write(tokens[index]);
+          index++;
+        }
+        if (index < tokens.length) normalized.write(' ');
+      }
+      return normalized.toString();
+    }).join(' ');
+  }
   static Future<PdfTextReadResult> read(
     String sourcePath, {
     void Function(double progress, String message)? onProgress,
@@ -122,7 +163,14 @@ class PdfTextReader {
           );
           for (final line in extracted) {
             try {
-              final text = line.text;
+              final characterSpaced = _hasCharacterSpacedText(line.text) ||
+                  line.wordCollection.any(
+                    (word) => _hasCharacterSpacedText(word.text),
+                  );
+              final text = _normalizeCharacterSpacedText(
+                line.text,
+                force: characterSpaced,
+              );
               if (text.isEmpty) continue;
               final lineFont = line.fontName;
               final lineStyle = line.fontStyle.join(',');
@@ -145,7 +193,10 @@ class PdfTextReader {
                     rawFontNames.add(glyph.fontName);
                   }
                   words.add(PdfTextWordData(
-                    text: word.text,
+                    text: _normalizeCharacterSpacedText(
+                      word.text,
+                      force: characterSpaced,
+                    ),
                     left: safe(wordBounds.left),
                     top: safe(wordBounds.top),
                     width: safe(wordBounds.width).clamp(0, width).toDouble(),
