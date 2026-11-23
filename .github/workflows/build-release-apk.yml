@@ -107,7 +107,15 @@ jobs:
             echo "Found:    $CERT_SHA256"
             exit 1
           fi
-          echo "Release keystore fingerprint matches the existing app signing key."
+
+          # Creating a CSR forces keytool to decrypt the private key and validates its password before Gradle runs.
+          CSR_PATH="$RUNNER_TEMP/convert2file-key-validation.csr"
+          if ! keytool -certreq -alias "$ANDROID_KEY_ALIAS" -keystore "$KEYSTORE_PATH" -storetype PKCS12 -storepass:env ANDROID_STORE_PASSWORD -keypass:env ANDROID_KEY_PASSWORD -file "$CSR_PATH" >/dev/null 2>&1; then
+            echo "Could not unlock the release private key. Check ANDROID_KEY_PASSWORD and confirm it matches the keystore key password."
+            exit 1
+          fi
+          rm -f "$CSR_PATH"
+          echo "Release keystore fingerprint and private-key password verified."
 
       - name: Build release APK
         env:
