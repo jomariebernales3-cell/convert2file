@@ -59,11 +59,18 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
           SUPABASE_URL: ${{ vars.SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
           if [[ -z "$KEYSTORE_BASE64" || -z "$KEYSTORE_PASSWORD" || -z "$KEY_ALIAS" || -z "$KEY_PASSWORD" ]]; then
             echo "Set ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, and ANDROID_KEY_PASSWORD repository secrets."
+            exit 1
+          fi
+          NORMALIZED_SHA256="${EXPECTED_SHA256//:/}"
+          NORMALIZED_SHA256="${NORMALIZED_SHA256,,}"
+          if [[ ! "$NORMALIZED_SHA256" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "Set the repository variable ANDROID_SIGNING_CERT_SHA256 to the new key's 64-character SHA-256 fingerprint."
             exit 1
           fi
           if [[ -z "$SUPABASE_URL" || -z "$SUPABASE_SECRET_KEY" ]]; then
@@ -77,6 +84,7 @@ jobs:
           ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          EXPECTED_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           KEYSTORE_PATH="$RUNNER_TEMP/convert2file-release.keystore"
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
@@ -86,7 +94,8 @@ jobs:
             exit 1
           fi
 
-          EXPECTED_SHA256="3ed361dab4f09417da14ae337ab7f9fc789a82b6cc84a1e4b594f336f845f3a2"
+          EXPECTED_SHA256="${EXPECTED_SHA256//:/}"
+          EXPECTED_SHA256="${EXPECTED_SHA256,,}"
           CERT_SHA256="$(keytool -list -v -keystore "$KEYSTORE_PATH" -alias "$ANDROID_KEY_ALIAS" -storepass:env ANDROID_STORE_PASSWORD -keypass:env ANDROID_KEY_PASSWORD | awk -F': ' '/SHA256:/ { gsub(":", "", $2); print tolower($2); exit }')"
           if [[ -z "$CERT_SHA256" ]]; then
             echo "Could not read the SHA-256 certificate for the configured Android key alias."
@@ -111,6 +120,8 @@ jobs:
         run: flutter build apk --release --build-name="$VERSION_NAME" --build-number="$VERSION_CODE"
 
       - name: Verify APK signing certificate
+        env:
+          EXPECTED_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
         run: |
           APK_PATH="build/app/outputs/flutter-apk/app-release.apk"
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
@@ -119,7 +130,8 @@ jobs:
             exit 1
           fi
           CERT_SHA256="$("$APKSIGNER" verify --print-certs "$APK_PATH" | awk -F': ' '/SHA-256 digest:/ { print tolower($NF); exit }')"
-          EXPECTED_SHA256="3ed361dab4f09417da14ae337ab7f9fc789a82b6cc84a1e4b594f336f845f3a2"
+          EXPECTED_SHA256="${EXPECTED_SHA256//:/}"
+          EXPECTED_SHA256="${EXPECTED_SHA256,,}"
           if [[ "$CERT_SHA256" != "$EXPECTED_SHA256" ]]; then
             echo "APK signing certificate changed. Refusing to publish an incompatible update."
             echo "Expected: $EXPECTED_SHA256"
