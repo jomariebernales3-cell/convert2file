@@ -92,10 +92,13 @@ class PdfToDocx {
       final pageStart = 0.15 + 0.70 * (pageIndex / math.max(1, pageCount));
       await report(pageStart, 'Converting page ${pageIndex + 1} of $pageCount');
       var pageContentAdded = false;
-      var headerBandLines = <PdfTextLineData>[];
-      var footerBandLines = <PdfTextLineData>[];
-      final repeatedHeader = _isRepeatedBand(extraction.pages, page, header: true);
-      final repeatedFooter = _isRepeatedBand(extraction.pages, page, header: false);
+      // PDFs do not label text as a header or footer. Keep every extracted
+      // line in the page body so it retains its page coordinates instead of
+      // moving content based on an arbitrary top/bottom page percentage.
+      const headerBandLines = <PdfTextLineData>[];
+      const footerBandLines = <PdfTextLineData>[];
+      const repeatedHeader = false;
+      const repeatedFooter = false;
       if (page.lines.isEmpty) {
         try {
           final raster = await Printing.raster(
@@ -129,16 +132,7 @@ class PdfToDocx {
           debugPrint('[PdfToDocx] scanned-page image page=${page.pageNumber} failed: $error\n$stackTrace');
         }
       } else {
-        headerBandLines = page.lines
-            .where((line) => line.top + line.height <= page.height * 0.2)
-            .toList();
-        footerBandLines = page.lines
-            .where((line) => line.top >= page.height * 0.8)
-            .toList();
-        final allBodyLines = page.lines
-        .where((line) =>
-                !headerBandLines.contains(line) && !footerBandLines.contains(line))
-            .toList();
+        final allBodyLines = page.lines;
         var detectedTables = <PdfDetectedTable>[];
         List<PdfGraphicRegion> imageRegions = const <PdfGraphicRegion>[];
         List<PdfGraphicRegion> decorationRegions = const <PdfGraphicRegion>[];

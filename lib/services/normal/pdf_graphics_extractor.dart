@@ -192,21 +192,6 @@ Map<String, Object?> _findGraphics(Map<String, Object?> input) {
   }
 
   final regions = <Map<String, Object?>>[];
-  final bandHeight = pageHeight * 0.2;
-  void addBand(String kind, double top) {
-    final png = cropPng(0, top, pageWidth, bandHeight, maskText: true);
-    if (hasInk(png)) {
-      regions.add(<String, Object?>{
-        'png': png, 'left': 0.0, 'top': top, 'width': pageWidth,
-        'height': bandHeight, 'kind': kind, 'color': 'FFFFFF',
-      });
-    }
-  }
-  if (includeImages) {
-    addBand('headerBand', 0);
-    addBand('footerBand', pageHeight - bandHeight);
-  }
-
   final styles = <Map<String, bool>>[];
   for (final word in words) {
     var underline = false;
@@ -298,7 +283,7 @@ Map<String, Object?> _findGraphics(Map<String, Object?> input) {
       });
       continue;
     }
-    if (!includeImages || top < bandHeight || top >= pageHeight - bandHeight) continue;
+    if (!includeImages) continue;
     if (w * h > pageWidth * pageHeight * 0.25) continue;
     final overlaps = words.where((word) {
       final ox = math.min(left + w, (word['left'] as double) + (word['width'] as double)) - math.max(left, word['left'] as double);
