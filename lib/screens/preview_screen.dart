@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import '../widgets/report_problem_entry.dart';
 import 'dart:io';
 import 'dart:math' as math;
@@ -205,7 +206,20 @@ class _PreviewScreenState extends State<PreviewScreen> {
   void _showError(String message) {
     final detail = message.length > 500 ? message.substring(0, 500) : message;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message), action: SnackBarAction(label: 'Report this problem', onPressed: () => openReportProblem(context, area: 'conversion', sourceFilePath: widget.sourceFilePath, outputFilePath: _outputPaths[_selectedFormat], contextInfo: {...widget.reportContext, 'error': detail, 'target_ext': _selectedFormat}))),
+      SnackBar(
+          backgroundColor: Theme.of(context).colorScheme.error,
+          content: Text(message),
+          action: SnackBarAction(
+              label: 'Report this problem',
+              onPressed: () => openReportProblem(context,
+                      area: 'conversion',
+                      sourceFilePath: widget.sourceFilePath,
+                      outputFilePath: _outputPaths[_selectedFormat],
+                      contextInfo: {
+                        ...widget.reportContext,
+                        'error': detail,
+                        'target_ext': _selectedFormat
+                      }))),
     );
   }
 
@@ -223,13 +237,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
             const SizedBox(width: 8),
             PopupMenuButton<String>(
               tooltip: 'Output file type',
-              icon: Icon(_formatIcon(_selectedFormat), size: 21),
+              icon: BootstrapIcon.material(_formatIcon(_selectedFormat),
+                  size: 21),
               onSelected: (format) => setState(() => _selectedFormat = format),
               itemBuilder: (context) => _outputPaths.keys
                   .map((format) => PopupMenuItem(
                         value: format,
                         child: Row(children: [
-                          Icon(_formatIcon(format), size: 19),
+                          BootstrapIcon.material(_formatIcon(format), size: 19),
                           const SizedBox(width: 10),
                           Text(format.toUpperCase()),
                         ]),
@@ -240,7 +255,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.copy),
+            icon: const BootstrapIcon.material(Icons.copy),
             onPressed: _copyToClipboard,
             tooltip: 'Copy output text',
           ),
@@ -267,8 +282,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
       };
 
   Widget _buildOriginalCopyNotice() {
-    final isUnchangedSourceCopy =
-        widget.options.preserveSourceLayout &&
+    final isUnchangedSourceCopy = widget.options.preserveSourceLayout &&
         _editableMapping['{{LAYOUT_EDITED}}'] != true &&
         ((_selectedFormat == 'docx' &&
                 _editableMapping['{{PRESERVE_DOCX_LAYOUT}}'] == true) ||
@@ -305,8 +319,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final hasWarnings = warnings.isNotEmpty;
     final preservesOriginalLayout =
         (_editableMapping['{{PRESERVE_DOCX_LAYOUT}}'] == true ||
-            _editableMapping['{{PRESERVE_PDF_LAYOUT}}'] == true) &&
-        _editableMapping['{{LAYOUT_EDITED}}'] != true;
+                _editableMapping['{{PRESERVE_PDF_LAYOUT}}'] == true) &&
+            _editableMapping['{{LAYOUT_EDITED}}'] != true;
     final color = preservesOriginalLayout
         ? Theme.of(context).colorScheme.primary
         : hasWarnings
@@ -335,13 +349,21 @@ class _PreviewScreenState extends State<PreviewScreen> {
         children: [
           Row(
             children: [
-              Icon(hasWarnings ? Icons.warning_amber_rounded : Icons.verified_outlined, color: color),
+              BootstrapIcon.material(
+                  hasWarnings
+                      ? Icons.warning_amber_rounded
+                      : Icons.verified_outlined,
+                  color: color),
               const SizedBox(width: 8),
-              Expanded(child: Text('$label · $statusDetail', style: const TextStyle(fontWeight: FontWeight.w700))),
+              Expanded(
+                  child: Text('$label · $statusDetail',
+                      style: const TextStyle(fontWeight: FontWeight.w700))),
               IconButton(
                 tooltip: 'Close conversion notice',
-                onPressed: () => setState(() => _isQualityNoticeDismissed = true),
-                icon: const Icon(Icons.close_rounded, size: 19),
+                onPressed: () =>
+                    setState(() => _isQualityNoticeDismissed = true),
+                icon:
+                    const BootstrapIcon.material(Icons.close_rounded, size: 19),
                 color: color,
                 visualDensity: VisualDensity.compact,
               ),
@@ -350,9 +372,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
           if (hasWarnings) ...[
             const SizedBox(height: 6),
             ...warnings.map((warning) => Padding(
-              padding: const EdgeInsets.only(top: 3),
-              child: Text('• $warning', style: const TextStyle(fontSize: 12)),
-            )),
+                  padding: const EdgeInsets.only(top: 3),
+                  child:
+                      Text('• $warning', style: const TextStyle(fontSize: 12)),
+                )),
           ],
           if (preservesOriginalLayout) ...[
             const SizedBox(height: 6),
@@ -382,24 +405,39 @@ class _PreviewScreenState extends State<PreviewScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
+        border:
+            Border(bottom: BorderSide(color: Theme.of(context).dividerColor)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           InkWell(
-            onTap: () => setState(() => _isTextToolbarExpanded = !_isTextToolbarExpanded),
+            onTap: () => setState(
+                () => _isTextToolbarExpanded = !_isTextToolbarExpanded),
             child: SizedBox(
               height: 48,
               child: Row(children: [
-                Icon(Icons.edit_outlined, size: 20, color: Theme.of(context).colorScheme.primary),
+                BootstrapIcon.material(Icons.edit_outlined,
+                    size: 20, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 8),
-                Expanded(child: Text('Edit', style: TextStyle(fontWeight: FontWeight.w900, color: Theme.of(context).colorScheme.onSurface))),
-                _editorTool(Icons.tune, 'Apply preview edits', _isApplyingEdits ? null : _applyPreviewEdits),
-                _editorTool(Icons.open_in_new, 'Open actual ${_selectedFormat.toUpperCase()} file', _isOpeningFile ? null : _openGeneratedFile),
-                _editorTool(Icons.download_outlined, 'Download', _isDownloading ? null : _downloadFile),
-                _editorTool(Icons.share_outlined, 'Share', _isSharing ? null : _shareFile),
-                Icon(_isTextToolbarExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down),
+                Expanded(
+                    child: Text('Edit',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            color: Theme.of(context).colorScheme.onSurface))),
+                _editorTool(Icons.tune, 'Apply preview edits',
+                    _isApplyingEdits ? null : _applyPreviewEdits),
+                _editorTool(
+                    Icons.open_in_new,
+                    'Open actual ${_selectedFormat.toUpperCase()} file',
+                    _isOpeningFile ? null : _openGeneratedFile),
+                _editorTool(Icons.download_outlined, 'Download',
+                    _isDownloading ? null : _downloadFile),
+                _editorTool(Icons.share_outlined, 'Share',
+                    _isSharing ? null : _shareFile),
+                BootstrapIcon.material(_isTextToolbarExpanded
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down),
               ]),
             ),
           ),
@@ -409,17 +447,85 @@ class _PreviewScreenState extends State<PreviewScreen> {
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(children: [
-            _editorTool(Icons.select_all, 'Select all editable paragraphs', _selectAllEditableParagraphs, selected: _selectedParagraphKeys.isNotEmpty),
-            _editorTool(Icons.format_bold, 'Bold', hasSelection ? () => _updateTextBlock(index!, {'bold': item['bold'] != true}) : null, selected: item['bold'] == true),
-            _editorTool(Icons.format_italic, 'Italic', hasSelection ? () => _updateTextBlock(index!, {'italic': item['italic'] != true}) : null, selected: item['italic'] == true),
-            _editorTool(Icons.highlight_alt_outlined, 'Highlight', hasSelection ? () => _updateTextBlock(index!, {'highlight': item['highlight'] != true}) : null, selected: item['highlight'] == true),
-            _editorColorTool(Icons.format_color_text, 'Text color', item['textColor'] is String ? _colorFromHex(item['textColor'] as String) : FigmaAppColors.text(context), hasSelection ? (value) => _updateTextBlock(index!, {'textColor': value}) : null),
-            _editorColorTool(Icons.format_color_fill, 'Highlight color', _colorFromHex(item['highlightColor'] as String? ?? 'FFF2A6'), hasSelection ? (value) => _updateTextBlock(index!, {'highlight': true, 'highlightColor': value}) : null),
-            _editorTool(Icons.format_align_left, 'Left', hasSelection ? () => _updateTextBlock(index!, {'align': 'left'}) : null, selected: item['align'] == 'left'),
-            _editorTool(Icons.format_align_center, 'Center', hasSelection ? () => _updateTextBlock(index!, {'align': 'center'}) : null, selected: item['align'] == 'center'),
-            _editorTool(Icons.format_align_right, 'Right', hasSelection ? () => _updateTextBlock(index!, {'align': 'right'}) : null, selected: item['align'] == 'right'),
-            _editorTool(Icons.format_align_justify, 'Justify', hasSelection ? () => _updateTextBlock(index!, {'align': 'justify'}) : null, selected: item['align'] == 'justify'),
-            _editorTool(Icons.delete_outline, 'Delete', hasSelection ? () => _deleteTextBlock(index!) : null, destructive: true),
+                  _editorTool(
+                      Icons.select_all,
+                      'Select all editable paragraphs',
+                      _selectAllEditableParagraphs,
+                      selected: _selectedParagraphKeys.isNotEmpty),
+                  _editorTool(
+                      Icons.format_bold,
+                      'Bold',
+                      hasSelection
+                          ? () => _updateTextBlock(
+                              index!, {'bold': item['bold'] != true})
+                          : null,
+                      selected: item['bold'] == true),
+                  _editorTool(
+                      Icons.format_italic,
+                      'Italic',
+                      hasSelection
+                          ? () => _updateTextBlock(
+                              index!, {'italic': item['italic'] != true})
+                          : null,
+                      selected: item['italic'] == true),
+                  _editorTool(
+                      Icons.highlight_alt_outlined,
+                      'Highlight',
+                      hasSelection
+                          ? () => _updateTextBlock(
+                              index!, {'highlight': item['highlight'] != true})
+                          : null,
+                      selected: item['highlight'] == true),
+                  _editorColorTool(
+                      Icons.format_color_text,
+                      'Text color',
+                      item['textColor'] is String
+                          ? _colorFromHex(item['textColor'] as String)
+                          : FigmaAppColors.text(context),
+                      hasSelection
+                          ? (value) =>
+                              _updateTextBlock(index!, {'textColor': value})
+                          : null),
+                  _editorColorTool(
+                      Icons.format_color_fill,
+                      'Highlight color',
+                      _colorFromHex(
+                          item['highlightColor'] as String? ?? 'FFF2A6'),
+                      hasSelection
+                          ? (value) => _updateTextBlock(index!,
+                              {'highlight': true, 'highlightColor': value})
+                          : null),
+                  _editorTool(
+                      Icons.format_align_left,
+                      'Left',
+                      hasSelection
+                          ? () => _updateTextBlock(index!, {'align': 'left'})
+                          : null,
+                      selected: item['align'] == 'left'),
+                  _editorTool(
+                      Icons.format_align_center,
+                      'Center',
+                      hasSelection
+                          ? () => _updateTextBlock(index!, {'align': 'center'})
+                          : null,
+                      selected: item['align'] == 'center'),
+                  _editorTool(
+                      Icons.format_align_right,
+                      'Right',
+                      hasSelection
+                          ? () => _updateTextBlock(index!, {'align': 'right'})
+                          : null,
+                      selected: item['align'] == 'right'),
+                  _editorTool(
+                      Icons.format_align_justify,
+                      'Justify',
+                      hasSelection
+                          ? () => _updateTextBlock(index!, {'align': 'justify'})
+                          : null,
+                      selected: item['align'] == 'justify'),
+                  _editorTool(Icons.delete_outline, 'Delete',
+                      hasSelection ? () => _deleteTextBlock(index!) : null,
+                      destructive: true),
                 ]),
               ),
             ),
@@ -428,49 +534,79 @@ class _PreviewScreenState extends State<PreviewScreen> {
     );
   }
 
-  Widget _editorTool(IconData icon, String label, VoidCallback? onPressed, {bool selected = false, bool destructive = false}) => Padding(
-    padding: const EdgeInsets.only(right: 6),
-    child: Tooltip(
-      message: label,
-      child: IconButton(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 19),
-        color: destructive ? Theme.of(context).colorScheme.error : selected ? Theme.of(context).colorScheme.primary : null,
-        visualDensity: VisualDensity.compact,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-      ),
-    ),
-  );
+  Widget _editorTool(IconData icon, String label, VoidCallback? onPressed,
+          {bool selected = false, bool destructive = false}) =>
+      Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: Tooltip(
+          message: label,
+          child: IconButton(
+            onPressed: onPressed,
+            icon: BootstrapIcon.material(icon, size: 19),
+            color: destructive
+                ? Theme.of(context).colorScheme.error
+                : selected
+                    ? Theme.of(context).colorScheme.primary
+                    : null,
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+          ),
+        ),
+      );
 
-  Widget _editorColorTool(IconData icon, String label, Color color, ValueChanged<String>? onSelected) => Padding(
-    padding: const EdgeInsets.only(right: 6),
-    child: PopupMenuButton<String>(
-      tooltip: label,
-      enabled: onSelected != null,
-      onSelected: onSelected,
-      itemBuilder: (context) => const [
-        PopupMenuItem(value: '111827', child: _ColorMenuItem('Black', Color(0xFF111827))),
-        PopupMenuItem(value: '2563EB', child: _ColorMenuItem('Blue', Color(0xFF2563EB))),
-        PopupMenuItem(value: 'DC2626', child: _ColorMenuItem('Red', Color(0xFFDC2626))),
-        PopupMenuItem(value: '15803D', child: _ColorMenuItem('Green', Color(0xFF15803D))),
-        PopupMenuItem(value: '7C3AED', child: _ColorMenuItem('Purple', Color(0xFF7C3AED))),
-        PopupMenuItem(value: 'FFF2A6', child: _ColorMenuItem('Yellow', Color(0xFFFFF2A6))),
-        PopupMenuItem(value: 'BBF7D0', child: _ColorMenuItem('Light green', Color(0xFFBBF7D0))),
-        PopupMenuItem(value: 'BFDBFE', child: _ColorMenuItem('Light blue', Color(0xFFBFDBFE))),
-        PopupMenuItem(value: 'FBCFE8', child: _ColorMenuItem('Pink', Color(0xFFFBCFE8))),
-      ],
-      child: IconButton(
-        onPressed: null,
-        padding: EdgeInsets.zero,
-        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-        visualDensity: VisualDensity.compact,
-        icon: Stack(alignment: Alignment.bottomCenter, children: [Icon(icon, size: 19), Container(width: 15, height: 3, color: color)]),
-      ),
-    ),
-  );
+  Widget _editorColorTool(IconData icon, String label, Color color,
+          ValueChanged<String>? onSelected) =>
+      Padding(
+        padding: const EdgeInsets.only(right: 6),
+        child: PopupMenuButton<String>(
+          tooltip: label,
+          enabled: onSelected != null,
+          onSelected: onSelected,
+          itemBuilder: (context) => const [
+            PopupMenuItem(
+                value: '111827',
+                child: _ColorMenuItem('Black', Color(0xFF111827))),
+            PopupMenuItem(
+                value: '2563EB',
+                child: _ColorMenuItem('Blue', Color(0xFF2563EB))),
+            PopupMenuItem(
+                value: 'DC2626',
+                child: _ColorMenuItem('Red', Color(0xFFDC2626))),
+            PopupMenuItem(
+                value: '15803D',
+                child: _ColorMenuItem('Green', Color(0xFF15803D))),
+            PopupMenuItem(
+                value: '7C3AED',
+                child: _ColorMenuItem('Purple', Color(0xFF7C3AED))),
+            PopupMenuItem(
+                value: 'FFF2A6',
+                child: _ColorMenuItem('Yellow', Color(0xFFFFF2A6))),
+            PopupMenuItem(
+                value: 'BBF7D0',
+                child: _ColorMenuItem('Light green', Color(0xFFBBF7D0))),
+            PopupMenuItem(
+                value: 'BFDBFE',
+                child: _ColorMenuItem('Light blue', Color(0xFFBFDBFE))),
+            PopupMenuItem(
+                value: 'FBCFE8',
+                child: _ColorMenuItem('Pink', Color(0xFFFBCFE8))),
+          ],
+          child: IconButton(
+            onPressed: null,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+            visualDensity: VisualDensity.compact,
+            icon: Stack(alignment: Alignment.bottomCenter, children: [
+              BootstrapIcon.material(icon, size: 19),
+              Container(width: 15, height: 3, color: color)
+            ]),
+          ),
+        ),
+      );
 
-  Color _colorFromHex(String hex) => Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
+  Color _colorFromHex(String hex) =>
+      Color(int.parse('FF${hex.replaceAll('#', '')}', radix: 16));
 
   String _paragraphSelectionKey(String contentKey, int index) =>
       '$contentKey::$index';
@@ -507,7 +643,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('${selectedKeys.length} paragraph(s) selected and copied.'),
+        content:
+            Text('${selectedKeys.length} paragraph(s) selected and copied.'),
       ),
     );
   }
@@ -552,18 +689,22 @@ class _PreviewScreenState extends State<PreviewScreen> {
           if (content.isEmpty)
             _buildEmptyTextState()
           else
-            ...content.asMap().entries.where((entry) => entry.value is Map).map((entry) => _buildTextBlock(entry.key, Map<String, dynamic>.from(entry.value as Map))),
+            ...content.asMap().entries.where((entry) => entry.value is Map).map(
+                (entry) => _buildTextBlock(
+                    entry.key, Map<String, dynamic>.from(entry.value as Map))),
         ],
       ),
     );
   }
 
   Widget _buildEmptyTextState() => Container(
-    width: double.infinity,
-    padding: const EdgeInsets.all(18),
-    decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(10)),
-    child: const Text('No text content is available.'),
-  );
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surfaceContainerHighest,
+            borderRadius: BorderRadius.circular(10)),
+        child: const Text('No text content is available.'),
+      );
 
   Widget _buildTextBlock(int index, Map<String, dynamic> item) {
     final selected = _selectedTextBlock == index;
@@ -572,7 +713,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     );
     final isBold = item['bold'] == true;
     final isHighlighted = item['highlight'] == true;
-    final highlightColor = _colorFromHex(item['highlightColor'] as String? ?? 'FFF2A6');
+    final highlightColor =
+        _colorFromHex(item['highlightColor'] as String? ?? 'FFF2A6');
     final rawTextColor = item['textColor'] as String?;
     final textColor = rawTextColor == null
         ? FigmaAppColors.text(context)
@@ -592,9 +734,16 @@ class _PreviewScreenState extends State<PreviewScreen> {
             ? highlightColor.withValues(alpha: 0.42)
             : (selected || selectedBySelectAll)
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.08)
-                : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+                : Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.55),
         border: selectedBySelectAll
-            ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.65))
+            ? Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.65))
             : null,
         borderRadius: BorderRadius.circular(10),
       ),
@@ -606,7 +755,14 @@ class _PreviewScreenState extends State<PreviewScreen> {
             minLines: 2,
             maxLines: null,
             textAlign: textAlign,
-            style: TextStyle(fontSize: 15, height: 1.5, fontWeight: isBold ? FontWeight.w800 : FontWeight.w400, fontStyle: item['italic'] == true ? FontStyle.italic : FontStyle.normal, color: textColor),
+            style: TextStyle(
+                fontSize: 15,
+                height: 1.5,
+                fontWeight: isBold ? FontWeight.w800 : FontWeight.w400,
+                fontStyle: item['italic'] == true
+                    ? FontStyle.italic
+                    : FontStyle.normal,
+                color: textColor),
             decoration: const InputDecoration(
               border: InputBorder.none,
               filled: false,
@@ -630,7 +786,10 @@ class _PreviewScreenState extends State<PreviewScreen> {
     final contentKey = _selectedContentKey ?? '{{CONTENT_TEXT}}';
     final content = _editableMapping[contentKey] as List? ?? [];
     if (index >= content.length || content[index] is! Map) return;
-    setState(() => content[index] = {...Map<String, dynamic>.from(content[index] as Map), ...changes});
+    setState(() => content[index] = {
+          ...Map<String, dynamic>.from(content[index] as Map),
+          ...changes
+        });
   }
 
   void _deleteTextBlock(int index) {
@@ -769,8 +928,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     int itemIndex,
     Map<String, dynamic> item,
   ) {
-    final selected = _selectedContentKey == contentKey &&
-        _selectedTextBlock == itemIndex;
+    final selected =
+        _selectedContentKey == contentKey && _selectedTextBlock == itemIndex;
     final selectedBySelectAll = _selectedParagraphKeys.contains(
       _paragraphSelectionKey(contentKey, itemIndex),
     );
@@ -800,7 +959,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
                     .withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(10),
         border: selectedBySelectAll
-            ? Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.65))
+            ? Border.all(
+                color: Theme.of(context)
+                    .colorScheme
+                    .primary
+                    .withValues(alpha: 0.65))
             : null,
       ),
       child: TextFormField(
@@ -860,7 +1023,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ),
         TextButton.icon(
           onPressed: () => _showTableEditor(contentKey, itemIndex, item),
-          icon: const Icon(Icons.table_chart),
+          icon: const BootstrapIcon.material(Icons.table_chart),
           label: const Text('Edit table'),
         ),
       ],
@@ -913,7 +1076,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
             const SizedBox(height: 8),
             Text(
               error,
-              style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.error, fontSize: 12),
             ),
           ],
         ],
@@ -941,7 +1105,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 cell.toString(),
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
-                  
                 ),
               ),
             );
@@ -989,7 +1152,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         ),
         TextButton.icon(
           onPressed: () => _showImageEditor(contentKey, itemIndex, item),
-          icon: const Icon(Icons.image),
+          icon: const BootstrapIcon.material(Icons.image),
           label: const Text('Edit image'),
         ),
       ],
@@ -1013,7 +1176,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 height: 100,
                 color: Theme.of(context).colorScheme.surfaceContainerHighest,
                 child: Center(
-                    child: Icon(Icons.broken_image, color: Theme.of(context).hintColor)),
+                    child: BootstrapIcon.material(Icons.broken_image,
+                        color: Theme.of(context).hintColor)),
               ),
             ),
           )
@@ -1028,10 +1192,12 @@ class _PreviewScreenState extends State<PreviewScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.image, color: Theme.of(context).hintColor, size: 32),
+                  BootstrapIcon.material(Icons.image,
+                      color: Theme.of(context).hintColor, size: 32),
                   const SizedBox(height: 4),
                   Text(caption,
-                      style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12)),
+                      style: TextStyle(
+                          color: Theme.of(context).hintColor, fontSize: 12)),
                 ],
               ),
             ),
@@ -1041,7 +1207,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
             padding: const EdgeInsets.only(top: 8),
             child: Text(
               caption,
-              style: TextStyle(color: Theme.of(context).hintColor, fontSize: 12),
+              style:
+                  TextStyle(color: Theme.of(context).hintColor, fontSize: 12),
             ),
           ),
       ],
@@ -1073,14 +1240,17 @@ class _PreviewScreenState extends State<PreviewScreen> {
               ),
               const SizedBox(height: 8),
               Text('Path: $path',
-                  style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor)),
+                  style: TextStyle(
+                      fontSize: 12, color: Theme.of(context).hintColor)),
               Text(
                 'Size: ${FileStorage.formatFileSize(snapshot.data!.size)}',
-                style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+                style:
+                    TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
               ),
               Text(
                 'Modified: ${snapshot.data!.modified}',
-                style: TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
+                style:
+                    TextStyle(fontSize: 12, color: Theme.of(context).hintColor),
               ),
             ],
           ),
@@ -1143,110 +1313,125 @@ class _PreviewScreenState extends State<PreviewScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-          SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-            Tooltip(
-              message: 'Apply preview edits',
-              child: SizedBox(
-                width: 52,
-                height: 48,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: _isApplyingEdits ? null : _applyPreviewEdits,
-                  child: _isApplyingEdits
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.tune),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'Open actual ${_selectedFormat.toUpperCase()} file',
-              child: SizedBox(
-                width: 52,
-                height: 48,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: _isOpeningFile ? null : _openGeneratedFile,
-                  child: _isOpeningFile
-                      ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.open_in_new),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'Download',
-              child: SizedBox(
-                width: 52,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  onPressed: _isDownloading ? null : _downloadFile,
-                  child: _isDownloading
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  Tooltip(
+                    message: 'Apply preview edits',
+                    child: SizedBox(
+                      width: 52,
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
                           ),
-                        )
-                      : const Icon(Icons.download),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Tooltip(
-              message: 'Share',
-              child: SizedBox(
-                width: 52,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                        ),
+                        onPressed: _isApplyingEdits ? null : _applyPreviewEdits,
+                        child: _isApplyingEdits
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const BootstrapIcon.material(Icons.tune),
+                      ),
                     ),
                   ),
-                  onPressed: _isSharing ? null : _shareFile,
-                  child: _isSharing
-                      ? const SizedBox(
-                          height: 16,
-                          width: 16,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Icon(Icons.share),
-                ),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message:
+                        'Open actual ${_selectedFormat.toUpperCase()} file',
+                    child: SizedBox(
+                      width: 52,
+                      height: 48,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: _isOpeningFile ? null : _openGeneratedFile,
+                        child: _isOpeningFile
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2))
+                            : const BootstrapIcon.material(Icons.open_in_new),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Download',
+                    child: SizedBox(
+                      width: 52,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: _isDownloading ? null : _downloadFile,
+                        child: _isDownloading
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const BootstrapIcon.material(Icons.download),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message: 'Share',
+                    child: SizedBox(
+                      width: 52,
+                      height: 48,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        onPressed: _isSharing ? null : _shareFile,
+                        child: _isSharing
+                            ? const SizedBox(
+                                height: 16,
+                                width: 16,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const BootstrapIcon.material(Icons.share),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            ],
-          ),
-          ),
-          const SizedBox(height: 4),
-          ReportProblemEntry(area: 'conversion', prompt: 'Something wrong with the result?', sourceFilePath: widget.sourceFilePath, outputFilePath: _outputPaths[_selectedFormat], contextInfo: {...widget.reportContext, 'mode': 'advanced', 'target_ext': _selectedFormat, 'style_profile': widget.options.styleProfile}),
+            const SizedBox(height: 4),
+            ReportProblemEntry(
+                area: 'conversion',
+                prompt: 'Something wrong with the result?',
+                sourceFilePath: widget.sourceFilePath,
+                outputFilePath: _outputPaths[_selectedFormat],
+                contextInfo: {
+                  ...widget.reportContext,
+                  'mode': 'advanced',
+                  'target_ext': _selectedFormat,
+                  'style_profile': widget.options.styleProfile
+                }),
           ],
         ),
       ),
@@ -1258,8 +1443,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
     try {
       final wasPreservingLayout =
           (_editableMapping['{{PRESERVE_DOCX_LAYOUT}}'] == true ||
-              _editableMapping['{{PRESERVE_PDF_LAYOUT}}'] == true) &&
-          _editableMapping['{{LAYOUT_EDITED}}'] != true;
+                  _editableMapping['{{PRESERVE_PDF_LAYOUT}}'] == true) &&
+              _editableMapping['{{LAYOUT_EDITED}}'] != true;
       if (wasPreservingLayout) {
         // A source package cannot remain byte-for-byte layout-preserved after
         // a user changes its extracted preview content. Switch only this
@@ -1389,7 +1574,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
                 ],
                 const SizedBox(height: 12),
                 ListTile(
-                  leading: const Icon(Icons.drive_file_move),
+                  leading: const BootstrapIcon.material(Icons.drive_file_move),
                   title: const Text('Move to another section'),
                   onTap: () {
                     Navigator.pop(context);
@@ -1397,9 +1582,11 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   },
                 ),
                 ListTile(
-                  leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                  leading: BootstrapIcon.material(Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.error),
                   title: Text('Delete from output',
-                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.error)),
                   onTap: () {
                     Navigator.pop(context);
                     _deleteItem(contentKey, itemIndex);
@@ -1480,7 +1667,11 @@ class _ColorMenuItem extends StatelessWidget {
         Container(
           width: 16,
           height: 16,
-          decoration: BoxDecoration(color: color, border: Border.all(color: Theme.of(context).colorScheme.surfaceContainerHighest), borderRadius: BorderRadius.circular(3)),
+          decoration: BoxDecoration(
+              color: color,
+              border: Border.all(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest),
+              borderRadius: BorderRadius.circular(3)),
         ),
         const SizedBox(width: 10),
         Text(label),

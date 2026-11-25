@@ -38,7 +38,7 @@
     .paper h2 { margin:8px 0 18px; font-size:21px; letter-spacing:-.04em; }
     .line { height:8px; margin:10px 0; border-radius:9px; background:rgba(255,255,255,.1); }.line.short { width:63%; }
     .mini-card { display:flex; align-items:center; gap:12px; margin-top:18px; padding:12px; border:1px solid var(--line); border-radius:13px; background:rgba(255,255,255,.035); }
-    .mini-icon { display:grid; place-items:center; width:34px;height:34px;border-radius:11px;background:rgba(131,234,212,.13);color:var(--aqua);font-weight:800; }
+    .mini-icon { display:grid; place-items:center; width:34px;height:34px;border-radius:11px;background:rgba(131,234,212,.13);color:var(--aqua);font-size:16px; }
     .mini-card strong { display:block; font-size:12px; }.mini-card span { color:var(--muted); font-size:11px; }
     .features { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:75px; }
     .feature { padding:21px; border:1px solid var(--line); border-radius:18px; background:var(--panel); }
@@ -55,6 +55,7 @@
     @media (max-width:760px) { main { padding:54px 0; }.hero { grid-template-columns:1fr; gap:34px; }.preview { max-width:520px; }.features { grid-template-columns:1fr; margin-top:48px; } }
     @media (max-width:760px) { .purpose { margin-top:52px; }.purpose-cards { grid-template-columns:1fr; } }
   </style>
+  <link rel="stylesheet" href="assets/bootstrap-icons/font/bootstrap-icons.css">
   <link rel="stylesheet" href="profile.css">
 </head>
 <body>
@@ -83,8 +84,8 @@
             <small>Study guide · Preview</small>
             <h2>Ideas, organized for learning.</h2>
             <div class="line"></div><div class="line"></div><div class="line short"></div>
-            <div class="mini-card"><div class="mini-icon">✦</div><div><strong>Build from your materials</strong><span>PDF · DOCX · PPTX</span></div></div>
-            <div class="mini-card"><div class="mini-icon">✓</div><div><strong>Review before you export</strong><span>Study guides · Quiz drafts</span></div></div>
+            <div class="mini-card"><div class="mini-icon"><i class="bi bi-stars" aria-hidden="true"></i></div><div><strong>Build from your materials</strong><span>PDF · DOCX · PPTX</span></div></div>
+            <div class="mini-card"><div class="mini-icon"><i class="bi bi-clipboard-check" aria-hidden="true"></i></div><div><strong>Review before you export</strong><span>Study guides · Quiz drafts</span></div></div>
           </div>
         </div>
       </section>
@@ -110,9 +111,9 @@
       </section>
       <!-- END DRAFT PURPOSE COPY -->
       <section class="features" aria-label="App features">
-        <article class="feature"><span class="symbol">↗</span><b>Start with your files</b><p>Use supported learning materials such as PDF, DOCX, and PPTX as a starting point.</p></article>
-        <article class="feature"><span class="symbol">✦</span><b>Create study resources</b><p>Prepare structured documents, study guides, or editable quiz drafts.</p></article>
-        <article class="feature"><span class="symbol">▤</span><b>Preview your work</b><p>Review generated sections before saving or sharing your output.</p></article>
+        <article class="feature"><span class="symbol"><i class="bi bi-arrow-up-right-square" aria-hidden="true"></i></span><b>Start with your files</b><p>Use supported learning materials such as PDF, DOCX, and PPTX as a starting point.</p></article>
+        <article class="feature"><span class="symbol"><i class="bi bi-stars" aria-hidden="true"></i></span><b>Create study resources</b><p>Prepare structured documents, study guides, or editable quiz drafts.</p></article>
+        <article class="feature"><span class="symbol"><i class="bi bi-file-earmark-text" aria-hidden="true"></i></span><b>Preview your work</b><p>Review generated sections before saving or sharing your output.</p></article>
       </section>
 
     </main>

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'bootstrap_icon.dart';
 import '../theme/app_colors.dart';
 import 'report_problem_sheet.dart';
 
@@ -43,15 +44,24 @@ class ReportProblemEntry extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (prompt != null) ...[
-          Text(prompt!, textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 13)),
+          Text(prompt!,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: muted, fontSize: 13)),
           const SizedBox(height: 2),
         ],
         SizedBox(
           height: 48,
           child: TextButton.icon(
-            style: TextButton.styleFrom(foregroundColor: muted, minimumSize: const Size(48, 48), tapTargetSize: MaterialTapTargetSize.padded),
-            onPressed: () => openReportProblem(context, area: area, contextInfo: contextInfo, sourceFilePath: sourceFilePath, outputFilePath: outputFilePath),
-            icon: const Icon(Icons.flag_outlined, size: 17),
+            style: TextButton.styleFrom(
+                foregroundColor: muted,
+                minimumSize: const Size(48, 48),
+                tapTargetSize: MaterialTapTargetSize.padded),
+            onPressed: () => openReportProblem(context,
+                area: area,
+                contextInfo: contextInfo,
+                sourceFilePath: sourceFilePath,
+                outputFilePath: outputFilePath),
+            icon: const BootstrapIcon.material(Icons.flag_outlined, size: 17),
             label: Text(label),
           ),
         ),

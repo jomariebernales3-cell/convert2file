@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:io';
 import 'dart:convert';
 
@@ -79,10 +80,15 @@ class _BugReportScreenState extends State<BugReportScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Send report online?'),
-          content: const Text('Your report title, description, app version, and basic device platform information will be sent to the Convert2File team. Files and screenshots stay on this phone and will not be uploaded.'),
+          content: const Text(
+              'Your report title, description, app version, and basic device platform information will be sent to the Convert2File team. Files and screenshots stay on this phone and will not be uploaded.'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Send report')),
+            TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Send report')),
           ],
         ),
       );
@@ -145,7 +151,8 @@ class _BugReportScreenState extends State<BugReportScreen> {
             .eq('id', true)
             .maybeSingle();
         if (onlineSettings?['maintenance_enabled'] == true) {
-          throw const AuthException('Online services are under maintenance. Please try again later.');
+          throw const AuthException(
+              'Online services are under maintenance. Please try again later.');
         }
         await Supabase.instance.client.from('bug_reports').insert({
           'user_id': Supabase.instance.client.auth.currentUser!.id,
@@ -153,7 +160,10 @@ class _BugReportScreenState extends State<BugReportScreen> {
           'description': message,
           'app_version':
               await AppVersionService.loadInstalledVersion() ?? 'Unknown',
-          'device_info': {'platform': Platform.operatingSystem, 'version': Platform.operatingSystemVersion},
+          'device_info': {
+            'platform': Platform.operatingSystem,
+            'version': Platform.operatingSystemVersion
+          },
         });
       }
 
@@ -181,7 +191,10 @@ class _BugReportScreenState extends State<BugReportScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_authService.isLoggedIn ? 'Bug report sent to the team' : 'Bug report saved on this device')),
+          SnackBar(
+              content: Text(_authService.isLoggedIn
+                  ? 'Bug report sent to the team'
+                  : 'Bug report saved on this device')),
         );
         Navigator.pop(context);
       }
@@ -202,7 +215,9 @@ class _BugReportScreenState extends State<BugReportScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text(message)),
+      SnackBar(
+          backgroundColor: Theme.of(context).colorScheme.error,
+          content: Text(message)),
     );
   }
 
@@ -235,7 +250,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
             maxLength: 180,
             decoration: const InputDecoration(
               labelText: 'Subject',
-              prefixIcon: Icon(Icons.subject),
+              prefixIcon: BootstrapIcon.material(Icons.subject),
             ),
           ),
           const SizedBox(height: 12),
@@ -246,7 +261,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
             decoration: const InputDecoration(
               labelText: 'Details',
               alignLabelWithHint: true,
-              prefixIcon: Icon(Icons.notes),
+              prefixIcon: BootstrapIcon.material(Icons.notes),
             ),
           ),
           const SizedBox(height: 16),
@@ -254,7 +269,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _pickScreenshot,
-            icon: const Icon(Icons.image),
+            icon: const BootstrapIcon.material(Icons.image),
             label: Text(
                 _screenshot == null ? 'Attach screenshot' : _screenshot!.name),
           ),
@@ -268,7 +283,7 @@ class _BugReportScreenState extends State<BugReportScreen> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.send),
+                : const BootstrapIcon.material(Icons.send),
             label: const Text('SUBMIT REPORT'),
           ),
         ],
@@ -282,7 +297,8 @@ class _BugReportScreenState extends State<BugReportScreen> {
       padding: const EdgeInsets.only(bottom: 8),
       child: OutlinedButton.icon(
         onPressed: () => _pickAttachment(slot),
-        icon: Icon(file == null ? Icons.attach_file : Icons.check_circle),
+        icon: BootstrapIcon.material(
+            file == null ? Icons.attach_file : Icons.check_circle),
         label: Text(file == null ? _attachmentLabel(slot) : file.name),
       ),
     );

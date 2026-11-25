@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -208,7 +209,7 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
           itemBuilder: (context, index) {
             final file = _materials[index];
             return ListTile(
-              leading: Icon(Icons.description_outlined,
+              leading: BootstrapIcon.material(Icons.description_outlined,
                   color: FigmaAppColors.primary(context)),
               title: Text(
                 file['original_name'] as String? ?? 'Untitled material',
@@ -354,7 +355,11 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
             _buildSuggestions(),
             if (_selectedMaterial != null) _buildAttachmentChip(),
             _buildComposer(),
-            ReportProblemEntry(area: 'offline_ai', contextInfo: {'model_file_name': modelName, 'model_loaded': llama.isLoaded, 'last_error_text': null}),
+            ReportProblemEntry(area: 'offline_ai', contextInfo: {
+              'model_file_name': modelName,
+              'model_loaded': llama.isLoaded,
+              'last_error_text': null
+            }),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
               child: Text(
@@ -433,7 +438,7 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
       child: IconButton.filledTonal(
         tooltip: tooltip,
         onPressed: onPressed,
-        icon: Icon(icon, size: 20),
+        icon: BootstrapIcon.material(icon, size: 20),
         style: IconButton.styleFrom(
           backgroundColor: FigmaAppColors.fill(context),
           foregroundColor: FigmaAppColors.text(context),
@@ -608,7 +613,7 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.description_outlined,
+              BootstrapIcon.material(Icons.description_outlined,
                   size: 17, color: FigmaAppColors.primary(context)),
               const SizedBox(width: 8),
               Flexible(
@@ -621,7 +626,7 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
                   _selectedMaterial = null;
                   _selectedMaterialText = null;
                 }),
-                icon: const Icon(Icons.close, size: 18),
+                icon: const BootstrapIcon.material(Icons.close, size: 18),
               ),
             ],
           ),
@@ -655,7 +660,7 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
                       height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.add, size: 22),
+                  : const BootstrapIcon.material(Icons.add, size: 22),
               style: IconButton.styleFrom(
                 backgroundColor: FigmaAppColors.fill(context),
                 foregroundColor: FigmaAppColors.text(context),
@@ -691,7 +696,8 @@ class _OfflineAiChatScreenState extends State<OfflineAiChatScreen> {
             child: IconButton(
               tooltip: _asking ? 'Stop generation' : 'Send message',
               onPressed: _asking ? _stopGeneration : _sendMessage,
-              icon: Icon(_asking ? Icons.stop_rounded : Icons.arrow_upward),
+              icon: BootstrapIcon.material(
+                  _asking ? Icons.stop_rounded : Icons.arrow_upward),
               style: IconButton.styleFrom(
                 backgroundColor: accent,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,

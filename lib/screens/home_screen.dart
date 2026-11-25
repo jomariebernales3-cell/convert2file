@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -9,6 +10,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/database_helper.dart';
 import 'dashboard_screen.dart';
+import 'document_text_extractor_screen.dart';
 import '../services/auth_service.dart';
 import '../services/announcement_service.dart';
 import '../services/app_remote_config_service.dart';
@@ -181,7 +183,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 19, color: FigmaAppColors.primary(context)),
+          BootstrapIcon.material(icon,
+              size: 19, color: FigmaAppColors.primary(context)),
           const SizedBox(width: 10),
           Expanded(
             child: RichText(
@@ -286,6 +289,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       },
     );
   }
+
   Future<void> _loadUnreadAnnouncementCount({bool forceRefresh = false}) async {
     try {
       final results = await Future.wait([
@@ -352,6 +356,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'Generate quiz' => 'quiz_generator',
       'QR code' => 'qr_code',
       'Text to file' => 'text_to_file',
+      'Text extractor' => 'text_extractor',
       'My materials' => 'my_materials',
       _ => null,
     };
@@ -384,7 +389,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, color: colors.accent),
+        BootstrapIcon.material(icon, color: colors.accent),
         const SizedBox(width: 10),
         Expanded(
             child:
@@ -473,7 +478,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 right: -3,
                 child: IgnorePointer(
                   child: Semantics(
-                    label: 'Unread announcements: ' + _unreadAnnouncementCount.toString(),
+                    label: 'Unread announcements: ' +
+                        _unreadAnnouncementCount.toString(),
                     child: ExcludeSemantics(
                       child: _unreadAnnouncementCount == 1
                           ? Container(
@@ -493,7 +499,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 minWidth: 19,
                                 minHeight: 19,
                               ),
-                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 5),
                               alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.error,
@@ -504,7 +511,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                 ),
                               ),
                               child: Text(
-                                _unreadAnnouncementCount > 99 ? '99+' : _unreadAnnouncementCount.toString(),
+                                _unreadAnnouncementCount > 99
+                                    ? '99+'
+                                    : _unreadAnnouncementCount.toString(),
                                 style: TextStyle(
                                   color: Theme.of(context).colorScheme.onError,
                                   fontSize: 10,
@@ -570,7 +579,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           if (maintenanceEnabled)
             Row(
               children: [
-                Icon(Icons.build_outlined, color: colors.accent, size: 20),
+                BootstrapIcon.material(Icons.build_outlined,
+                    color: colors.accent, size: 20),
                 const SizedBox(width: 8),
                 Text(
                   'Online maintenance',
@@ -609,7 +619,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final actions = [
       _HomeAction(
         'Convert file',
-        Icons.transform_outlined,
+        'arrow-repeat',
         () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => const DashboardScreen(conversionOnly: true),
@@ -618,17 +628,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       _HomeAction(
         'Create study guide',
-        Icons.menu_book_outlined,
+        'book',
         () => Navigator.of(context).pushNamed('/study-builder'),
       ),
       _HomeAction(
         'Generate quiz',
-        Icons.quiz_outlined,
+        'patch-question',
         () => Navigator.of(context).pushNamed('/generate-quiz'),
       ),
       _HomeAction(
         'QR code',
-        Icons.qr_code_scanner_outlined,
+        'qr-code-scan',
         () async {
           await Navigator.of(context).pushNamed('/qr-code');
           if (mounted) await _loadHomeData();
@@ -636,12 +646,21 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       _HomeAction(
         'Text to file',
-        Icons.text_snippet_outlined,
+        'file-earmark-text',
         () => Navigator.of(context).pushNamed('/text-to-file'),
       ),
       _HomeAction(
+        'Text extractor',
+        'file-earmark-search',
+        () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => const DocumentTextExtractorScreen(),
+          ),
+        ),
+      ),
+      _HomeAction(
         'My materials',
-        Icons.folder_copy_outlined,
+        'files',
         () async {
           await Navigator.of(context).pushNamed('/saved-files');
           if (mounted) await _loadHomeData();
@@ -777,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             borderRadius:
                                                 BorderRadius.circular(14),
                                           ),
-                                          child: Icon(
+                                          child: BootstrapIcon(
                                             action.icon,
                                             color: isFocused
                                                 ? foreground
@@ -804,7 +823,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                               const SizedBox(height: 3),
                                               Row(
                                                 children: [
-                                                  Icon(Icons.lock_outline,
+                                                  BootstrapIcon.material(
+                                                      Icons.lock_outline,
                                                       size: 12,
                                                       color: colors.muted),
                                                   const SizedBox(width: 3),
@@ -896,7 +916,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Icon(Icons.memory_outlined, color: accent),
+                child: BootstrapIcon.material(Icons.memory_outlined,
+                    color: accent),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -925,7 +946,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ],
                 ),
               ),
-              Icon(isEnabled ? Icons.chevron_right : Icons.lock_outline,
+              BootstrapIcon.material(
+                  isEnabled ? Icons.chevron_right : Icons.lock_outline,
                   color: FigmaAppColors.subtext(context)),
             ],
           ),
@@ -935,9 +957,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   }
 
   void _openOfflineAiAssistant() {
-    final route = LocalLlamaService.instance.hasModel
-        ? '/offline-ai'
-        : '/ai-model';
+    final route =
+        LocalLlamaService.instance.hasModel ? '/offline-ai' : '/ai-model';
     Navigator.of(context).pushNamed(route);
   }
 
@@ -1022,7 +1043,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             itemBuilder: (context, index) {
               final file = materials[index];
               return ListTile(
-                leading: const Icon(Icons.description_outlined),
+                leading:
+                    const BootstrapIcon.material(Icons.description_outlined),
                 title: Text(
                   file['original_name'] as String? ?? 'Untitled material',
                   maxLines: 1,
@@ -1163,7 +1185,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    BootstrapIcon.material(
                       Icons.psychology_alt_outlined,
                       color: FigmaAppColors.primary(context),
                       size: 20,
@@ -1210,7 +1232,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   labelText: 'Message Offline AI',
                   hintText:
                       'Ask anything: definitions, code, app help, or your selected file',
-                  prefixIcon: Icon(Icons.chat_bubble_outline),
+                  prefixIcon: BootstrapIcon.material(Icons.chat_bubble_outline),
                 ),
               ),
               const SizedBox(height: 12),
@@ -1225,7 +1247,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   child: Row(
                     children: [
-                      Icon(
+                      BootstrapIcon.material(
                         Icons.check_circle_outline,
                         color: FigmaAppColors.primary(context),
                         size: 18,
@@ -1255,7 +1277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.attach_file),
+                    : const BootstrapIcon.material(Icons.attach_file),
                 label: Text(
                   _selectedMaterial == null
                       ? 'Select From Recent Materials'
@@ -1276,7 +1298,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.send),
+                          : const BootstrapIcon.material(Icons.send),
                       label: Text(_isAskingAi ? 'Thinking...' : 'Ask AI'),
                     ),
                   ),
@@ -1285,7 +1307,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     IconButton(
                       tooltip: 'Stop AI',
                       onPressed: _stopOfflineAi,
-                      icon: const Icon(Icons.stop_circle_outlined),
+                      icon: const BootstrapIcon.material(
+                          Icons.stop_circle_outlined),
                     ),
                   ],
                   if (_chatHistory.isNotEmpty && !_isAskingAi) ...[
@@ -1293,7 +1316,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     IconButton(
                       tooltip: 'Refresh chat history',
                       onPressed: _clearChatHistory,
-                      icon: const Icon(Icons.refresh),
+                      icon: const BootstrapIcon.material(Icons.refresh),
                     ),
                   ],
                 ],
@@ -1329,7 +1352,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           children: [
             Row(
               children: [
-                Icon(
+                BootstrapIcon.material(
                     isUser
                         ? Icons.person_outline
                         : Icons.psychology_alt_outlined,
@@ -1356,7 +1379,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                         );
                       }
                     },
-                    icon: const Icon(Icons.copy_outlined, size: 18),
+                    icon: const BootstrapIcon.material(Icons.copy_outlined,
+                        size: 18),
                   ),
               ],
             ),
@@ -1479,7 +1503,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(14),
       child: Row(
         children: [
-          Icon(Icons.description_outlined,
+          BootstrapIcon.material(Icons.description_outlined,
               color: FigmaAppColors.primary(context)),
           const SizedBox(width: 12),
           Expanded(
@@ -1558,7 +1582,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
 class _HomeAction {
   final String label;
-  final IconData icon;
+  final String icon;
   final VoidCallback onTap;
   const _HomeAction(this.label, this.icon, this.onTap);
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/bootstrap_icon.dart';
 import '../services/auth_service.dart';
 import '../widgets/figma_app_chrome.dart';
 
@@ -151,7 +152,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
-            Icon(valid ? Icons.check_circle : Icons.circle_outlined,
+            BootstrapIcon.material(
+                valid ? Icons.check_circle : Icons.circle_outlined,
                 size: 17,
                 color: valid ? Colors.green : Theme.of(context).hintColor),
             const SizedBox(width: 8),

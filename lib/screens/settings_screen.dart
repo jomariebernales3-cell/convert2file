@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../widgets/bootstrap_icon.dart';
 import '../services/app_share_service.dart';
 import '../services/auth_service.dart';
 import '../services/announcement_service.dart';
@@ -154,19 +155,19 @@ class _SettingsScreenState extends State<SettingsScreen>
               subtitle: Text('Choose how you want to share the app.'),
             ),
             ListTile(
-              leading: const Icon(Icons.android),
+              leading: const BootstrapIcon('android2'),
               title: const Text('Default — share APK'),
               subtitle: const Text('Share the installed app file'),
               onTap: () => Navigator.pop(sheetContext, 'apk'),
             ),
             ListTile(
-              leading: const Icon(Icons.link),
+              leading: const BootstrapIcon('link-45deg'),
               title: const Text('Share website link'),
               subtitle: const Text('Send the Convert2File download page'),
               onTap: () => Navigator.pop(sheetContext, 'link'),
             ),
             ListTile(
-              leading: const Icon(Icons.qr_code_2),
+              leading: const BootstrapIcon('qr-code'),
               title: const Text('Show QR code'),
               subtitle: const Text('Scan to open the download page'),
               onTap: () => Navigator.pop(sheetContext, 'qr'),
@@ -286,7 +287,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                   width: double.infinity,
                   child: TextButton.icon(
                     onPressed: _signOut,
-                    icon: const Icon(Icons.logout),
+                    icon: const BootstrapIcon('box-arrow-right'),
                     label: const Text('Sign out'),
                     style: TextButton.styleFrom(
                       foregroundColor: Theme.of(context).colorScheme.error,
@@ -392,7 +393,7 @@ class _SettingsScreenState extends State<SettingsScreen>
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: () => Navigator.of(context).pushNamed('/profile'),
-              icon: const Icon(Icons.person_outline),
+              icon: const BootstrapIcon('person'),
               label: const Text('View profile'),
             ),
           ),
@@ -502,7 +503,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                               .withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Icon(Icons.memory,
+                        child: BootstrapIcon('cpu',
                             color: Theme.of(context).colorScheme.primary),
                       ),
                       const SizedBox(width: 12),
@@ -597,7 +598,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                               ),
                             ),
                           ),
-                          const Icon(Icons.chevron_right, size: 20),
+                          const BootstrapIcon('chevron-right', size: 20),
                         ],
                       ),
                     ),
@@ -625,19 +626,19 @@ class _SettingsScreenState extends State<SettingsScreen>
           child: Column(
             children: [
               _buildActionTile(
-                icon: Icons.cleaning_services_outlined,
+                icon: 'broom',
                 title: 'Clear cache',
                 subtitle: 'Remove temporary files',
                 onTap: _clearCache,
               ),
               _buildActionTile(
-                icon: Icons.download_outlined,
+                icon: 'download',
                 title: 'Export data',
                 subtitle: 'Back up your data',
                 onTap: _exportData,
               ),
               _buildActionTile(
-                icon: Icons.campaign_outlined,
+                icon: 'megaphone',
                 title: 'Announcements',
                 subtitle: 'View current notices',
                 trailing: _hasUnreadAnnouncements
@@ -659,13 +660,13 @@ class _SettingsScreenState extends State<SettingsScreen>
                 },
               ),
               _buildActionTile(
-                icon: Icons.report_problem_outlined,
+                icon: 'flag',
                 title: 'Report a problem',
                 subtitle: 'Tell us about an issue',
                 onTap: () => showReportProblemSheet(context, area: 'other'),
               ),
               _buildActionTile(
-                icon: Icons.share_outlined,
+                icon: 'share',
                 title: 'Share app',
                 subtitle: 'Send Convert2File to a friend',
                 onTap: _shareApp,
@@ -679,7 +680,7 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   Widget _buildActionTile({
-    required IconData icon,
+    required String icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -705,7 +706,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                         .withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(
+                  child: BootstrapIcon(
                     icon,
                     color: isDestructive
                         ? Theme.of(context).colorScheme.error
@@ -738,8 +739,8 @@ class _SettingsScreenState extends State<SettingsScreen>
                   trailing,
                   const SizedBox(width: 10),
                 ],
-                Icon(Icons.chevron_right,
-                    color: FigmaAppColors.subtext(context)),
+                BootstrapIcon('chevron-right',
+                    size: 20, color: FigmaAppColors.subtext(context)),
               ],
             ),
           ),
@@ -771,7 +772,7 @@ class _SettingsScreenState extends State<SettingsScreen>
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(Icons.description,
+                  BootstrapIcon('file-earmark-text',
                       color: Theme.of(context).colorScheme.primary, size: 32),
                   const SizedBox(width: 12),
                   Expanded(
@@ -812,7 +813,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   onPressed: _openAppInfo,
-                  icon: const Icon(Icons.info_outline),
+                  icon: const BootstrapIcon('info-circle'),
                   label: const Text('APP INFO & UPDATE HISTORY'),
                 ),
               ),

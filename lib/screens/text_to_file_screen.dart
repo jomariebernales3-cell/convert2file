@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../widgets/bootstrap_icon.dart';
 import '../models/generation_options.dart';
 import '../services/math_formula_service.dart';
 import '../services/output_generator.dart';
@@ -51,31 +52,46 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
 
   Future<void> _convert() async {
     final raw = _text.text.trim();
-    if (raw.isEmpty) { _message('Paste or type text first.', error: true); return; }
+    if (raw.isEmpty) {
+      _message('Paste or type text first.', error: true);
+      return;
+    }
     setState(() {
       _isConverting = true;
       _conversionProgress = 0.08;
       _conversionStatus = 'Preparing your text...';
     });
     try {
-      final title = _title.text.trim().isEmpty ? 'Text Document' : _title.text.trim();
-      _updateConversionProgress(0.28, 'Separating paragraphs and detecting formulas...');
+      final title =
+          _title.text.trim().isEmpty ? 'Text Document' : _title.text.trim();
+      _updateConversionProgress(
+          0.28, 'Separating paragraphs and detecting formulas...');
       final mapping = <String, dynamic>{
         '{{TITLE}}': title,
         '{{SECTION_TEXT}}': '',
         '{{CONTENT_TEXT}}': [
-          for (final paragraph in raw.split(RegExp(r'\n\s*\n')).where((item) => item.trim().isNotEmpty))
+          for (final paragraph in raw
+              .split(RegExp(r'\n\s*\n'))
+              .where((item) => item.trim().isNotEmpty))
             _contentBlockForText(paragraph.trim()),
         ],
       };
-      final options = GenerationOptions(selectedFormats: [_format], styleProfile: _style, outputName: title, workspaceMode: 'text');
-      _updateConversionProgress(0.62, 'Formatting your ${_format.toUpperCase()} document...');
+      final options = GenerationOptions(
+          selectedFormats: [_format],
+          styleProfile: _style,
+          outputName: title,
+          workspaceMode: 'text');
+      _updateConversionProgress(
+          0.62, 'Formatting your ${_format.toUpperCase()} document...');
       final files = await OutputGenerator.generate(const {}, mapping, options);
       _updateConversionProgress(0.95, 'Opening the editable preview...');
       if (!mounted) return;
-      await Navigator.of(context).push(MaterialPageRoute(builder: (_) => PreviewScreen(outputPaths: files, mapping: mapping, options: options)));
-    } catch (e) { _message('Could not convert text: $e', error: true); }
-    finally {
+      await Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => PreviewScreen(
+              outputPaths: files, mapping: mapping, options: options)));
+    } catch (e) {
+      _message('Could not convert text: $e', error: true);
+    } finally {
       if (mounted) {
         setState(() {
           _isConverting = false;
@@ -109,11 +125,13 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
   void _message(String text, {bool error = false}) =>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: error ? Theme.of(context).colorScheme.errorContainer : null,
+          backgroundColor:
+              error ? Theme.of(context).colorScheme.errorContainer : null,
           content: Text(
             text,
             style: error
-                ? TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)
+                ? TextStyle(
+                    color: Theme.of(context).colorScheme.onErrorContainer)
                 : null,
           ),
         ),
@@ -138,7 +156,7 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                     controller: _title,
                     decoration: const InputDecoration(
                       hintText: 'File title (optional)',
-                      prefixIcon: Icon(Icons.title),
+                      prefixIcon: BootstrapIcon.material(Icons.title),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -153,10 +171,22 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                         ),
                       ),
                       const Spacer(),
-                      TextButton(style: TextButton.styleFrom(minimumSize: const Size(0, 40), padding: const EdgeInsets.symmetric(horizontal: 8), tapTargetSize: MaterialTapTargetSize.shrinkWrap), onPressed: _pasteText, child: const Text('Paste')),
                       TextButton(
-                        onPressed: _text.text.isEmpty ? null : () => _text.clear(),
-                        style: TextButton.styleFrom(foregroundColor: Theme.of(context).hintColor, minimumSize: const Size(0, 40), padding: const EdgeInsets.symmetric(horizontal: 8), tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                          style: TextButton.styleFrom(
+                              minimumSize: const Size(0, 40),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                          onPressed: _pasteText,
+                          child: const Text('Paste')),
+                      TextButton(
+                        onPressed:
+                            _text.text.isEmpty ? null : () => _text.clear(),
+                        style: TextButton.styleFrom(
+                            foregroundColor: Theme.of(context).hintColor,
+                            minimumSize: const Size(0, 40),
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                         child: const Text('Clear'),
                       ),
                     ],
@@ -209,7 +239,9 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                     onPressed: _isConverting ? null : _convert,
                   ),
                   const SizedBox(height: 12),
-                  ReportProblemEntry(area: 'text_to_file', contextInfo: {'format': _format, 'style': _style}),
+                  ReportProblemEntry(
+                      area: 'text_to_file',
+                      contextInfo: {'format': _format, 'style': _style}),
                 ],
               ),
             ),
@@ -236,26 +268,45 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                     width: 58,
                     height: 58,
                     decoration: BoxDecoration(
-                      color: FigmaAppColors.primary(context).withValues(alpha: 0.14),
+                      color: FigmaAppColors.primary(context)
+                          .withValues(alpha: 0.14),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(Icons.auto_awesome_rounded, color: FigmaAppColors.primary(context), size: 29),
+                    child: BootstrapIcon.material(Icons.auto_awesome_rounded,
+                        color: FigmaAppColors.primary(context), size: 29),
                   ),
                   const SizedBox(height: 18),
-                  Text('Creating your document', style: TextStyle(color: FigmaAppColors.text(context), fontSize: 18, fontWeight: FontWeight.w800)),
+                  Text('Creating your document',
+                      style: TextStyle(
+                          color: FigmaAppColors.text(context),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
                   const SizedBox(height: 8),
-                  Text(_conversionStatus, textAlign: TextAlign.center, style: TextStyle(color: FigmaAppColors.subtext(context))),
+                  Text(_conversionStatus,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: FigmaAppColors.subtext(context))),
                   const SizedBox(height: 20),
                   Row(children: [
-                    Expanded(child: ClipRRect(
+                    Expanded(
+                        child: ClipRRect(
                       borderRadius: BorderRadius.circular(8),
-                      child: LinearProgressIndicator(value: _conversionProgress, minHeight: 9, backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest),
+                      child: LinearProgressIndicator(
+                          value: _conversionProgress,
+                          minHeight: 9,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest),
                     )),
                     const SizedBox(width: 12),
-                    Text('$percentage%', style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text('$percentage%',
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
                   ]),
                   const SizedBox(height: 14),
-                  Text('Keep the app open while we prepare your file.', textAlign: TextAlign.center, style: TextStyle(fontSize: 12, color: FigmaAppColors.subtext(context))),
+                  Text('Keep the app open while we prepare your file.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: FigmaAppColors.subtext(context))),
                 ],
               ),
             ),
@@ -335,7 +386,7 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                     ),
                   ),
                 ),
-                Icon(
+                BootstrapIcon.material(
                   Icons.expand_more_rounded,
                   color: FigmaAppColors.subtext(context),
                 ),
@@ -376,7 +427,7 @@ class _TextToFileScreenState extends State<TextToFileScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(option.key),
                   trailing: option.value == currentValue
-                      ? Icon(
+                      ? BootstrapIcon.material(
                           Icons.check_rounded,
                           color: FigmaAppColors.primary(sheetContext),
                         )

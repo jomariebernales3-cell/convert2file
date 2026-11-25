@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import '../widgets/report_problem_entry.dart';
 import 'dart:io';
 
@@ -114,7 +115,7 @@ class _NormalResultScreenState extends State<NormalResultScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.check_circle_outline,
+                  BootstrapIcon.material(Icons.check_circle_outline,
                       color: colors.accent, size: 34),
                   const SizedBox(height: 16),
                   Text(
@@ -159,8 +160,8 @@ class _NormalResultScreenState extends State<NormalResultScreen> {
                     for (final note in widget.notes)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(note,
-                            style: TextStyle(color: colors.muted)),
+                        child:
+                            Text(note, style: TextStyle(color: colors.muted)),
                       ),
                   ],
                 ),
@@ -169,19 +170,19 @@ class _NormalResultScreenState extends State<NormalResultScreen> {
             const SizedBox(height: 24),
             FilledButton.icon(
               onPressed: _isBusy || !fileExists ? null : _open,
-              icon: const Icon(Icons.open_in_new),
+              icon: const BootstrapIcon.material(Icons.open_in_new),
               label: const Text('Open'),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: _isBusy || !fileExists ? null : _download,
-              icon: const Icon(Icons.download_outlined),
+              icon: const BootstrapIcon.material(Icons.download_outlined),
               label: const Text('Download'),
             ),
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: _isBusy || !fileExists ? null : _share,
-              icon: const Icon(Icons.share_outlined),
+              icon: const BootstrapIcon.material(Icons.share_outlined),
               label: const Text('Share'),
             ),
             const SizedBox(height: 8),

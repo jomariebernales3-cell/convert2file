@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import '../widgets/report_problem_entry.dart';
 import 'dart:async';
 import 'dart:io';
@@ -86,6 +87,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       },
     );
   }
+
   void _subscribeToAppControlChanges() {
     if (!SupabaseConfig.isConfigured) return;
     _appControlChannel = Supabase.instance.client
@@ -127,7 +129,8 @@ class _DashboardScreenState extends State<DashboardScreen>
     WidgetsBinding.instance.removeObserver(this);
     _connectivitySubscription?.cancel();
     final channel = _appControlChannel;
-    if (channel != null) unawaited(Supabase.instance.client.removeChannel(channel));
+    if (channel != null)
+      unawaited(Supabase.instance.client.removeChannel(channel));
     _progressTimer?.cancel();
     _outputNameController.dispose();
     super.dispose();
@@ -203,7 +206,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       if (!mounted) return;
       setState(() {
         _progressPulse = !_progressPulse;
-        _elapsedSeconds = DateTime.now().difference(_conversionStartedAt).inSeconds;
+        _elapsedSeconds =
+            DateTime.now().difference(_conversionStartedAt).inSeconds;
       });
     });
 
@@ -220,9 +224,8 @@ class _DashboardScreenState extends State<DashboardScreen>
         final sourceName = _dataFileName ?? path.basename(_dataFile!.path);
         final sourceBaseName = path.basenameWithoutExtension(sourceName);
         final requestedName = _outputNameController.text.trim();
-        final requestedBaseName = requestedName.isEmpty
-            ? sourceBaseName
-            : requestedName;
+        final requestedBaseName =
+            requestedName.isEmpty ? sourceBaseName : requestedName;
         final cleanedBaseName = path
             .basenameWithoutExtension(requestedBaseName)
             .replaceAll(RegExp(r'[<>:"/\\|?*\x00-\x1F]'), '')
@@ -282,7 +285,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                 sourceFilePath: _dataFile?.path,
                 reportContext: {
                   'mode': 'normal',
-                  'source_ext': _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
+                  'source_ext':
+                      _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
                   'target_ext': targetExtension,
                   'style_profile': _styleProfile,
                   'selected_options': {
@@ -295,7 +299,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                     'summarize': _summarize,
                     'preserve_layout': _preserveSourceLayout,
                   },
-                  'file_sizes_bytes': {'source': _dataFile?.lengthSync(), 'output': outputSize},
+                  'file_sizes_bytes': {
+                    'source': _dataFile?.lengthSync(),
+                    'output': outputSize
+                  },
                 },
               ),
             ),
@@ -527,7 +534,8 @@ class _DashboardScreenState extends State<DashboardScreen>
               sourceFilePath: _dataFile?.path,
               reportContext: {
                 'mode': 'advanced',
-                'source_ext': _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
+                'source_ext':
+                    _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
                 'style_profile': _styleProfile,
                 'selected_options': {
                   'paper_size': _paperSize,
@@ -617,7 +625,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           backgroundColor: Theme.of(context).colorScheme.errorContainer,
-          content: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onErrorContainer)),
+          content: Text(message,
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.onErrorContainer)),
           behavior: SnackBarBehavior.floating,
           action: SnackBarAction(
             label: 'Report this problem',
@@ -626,12 +636,24 @@ class _DashboardScreenState extends State<DashboardScreen>
               area: 'conversion',
               sourceFilePath: _dataFile?.path,
               contextInfo: {
-                'error': message.length > 500 ? message.substring(0, 500) : message,
+                'error':
+                    message.length > 500 ? message.substring(0, 500) : message,
                 'mode': _conversionMode,
-                'source_ext': _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
-                'target_ext': _selectedFormats.isEmpty ? null : _selectedFormats.first,
+                'source_ext':
+                    _extensionOf(_dataFileName ?? _dataFile?.path ?? ''),
+                'target_ext':
+                    _selectedFormats.isEmpty ? null : _selectedFormats.first,
                 'style_profile': _styleProfile,
-                'selected_options': {'paper_size': _paperSize, 'orientation': 'auto', 'margins': _marginPreset, 'line_spacing': _lineSpacing, 'font': _fontFamily, 'clean_grammar': _warningAction, 'summarize': _summarize, 'preserve_layout': _preserveSourceLayout},
+                'selected_options': {
+                  'paper_size': _paperSize,
+                  'orientation': 'auto',
+                  'margins': _marginPreset,
+                  'line_spacing': _lineSpacing,
+                  'font': _fontFamily,
+                  'clean_grammar': _warningAction,
+                  'summarize': _summarize,
+                  'preserve_layout': _preserveSourceLayout
+                },
               },
             ),
           ),
@@ -716,8 +738,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     final sourceExt = _extensionOf(_dataFileName ?? _dataFile?.path ?? '');
     final targetExt = _selectedFormats.isEmpty ? '' : _selectedFormats.first;
     final canCancel = _conversionMode == 'normal' &&
-        sourceExt == 'pdf' && targetExt == 'docx';
-    final isStalled = DateTime.now().difference(_lastProgressUpdate).inSeconds >= 5;
+        sourceExt == 'pdf' &&
+        targetExt == 'docx';
+    final isStalled =
+        DateTime.now().difference(_lastProgressUpdate).inSeconds >= 5;
     final elapsed = '${(_elapsedSeconds ~/ 60).toString().padLeft(2, '0')}:'
         '${(_elapsedSeconds % 60).toString().padLeft(2, '0')}';
     return ColoredBox(
@@ -740,7 +764,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                           .withValues(alpha: 0.14),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
+                    child: BootstrapIcon.material(
                       Icons.auto_awesome_rounded,
                       color: FigmaAppColors.primary(context),
                       size: 29,
@@ -787,12 +811,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   const SizedBox(height: 14),
                   Text('Elapsed $elapsed',
-                      style: TextStyle(fontSize: 12, color: FigmaAppColors.subtext(context))),
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: FigmaAppColors.subtext(context))),
                   if (canCancel) ...[
                     const SizedBox(height: 8),
                     TextButton.icon(
-                      onPressed: _cancelRequested ? null : _cancelNormalConversion,
-                      icon: const Icon(Icons.close_rounded),
+                      onPressed:
+                          _cancelRequested ? null : _cancelNormalConversion,
+                      icon: const BootstrapIcon.material(Icons.close_rounded),
                       label: Text(_cancelRequested ? 'Canceling...' : 'Cancel'),
                     ),
                   ],
@@ -819,7 +846,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
+          BootstrapIcon.material(
             Icons.auto_awesome,
             color: FigmaAppColors.primary(context),
             size: 20,
@@ -845,7 +872,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final actions = [
       _CreateAction(
         'Convert File',
-        Icons.transform_outlined,
+        'arrow-repeat',
         () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => const DashboardScreen(conversionOnly: true),
@@ -855,31 +882,31 @@ class _DashboardScreenState extends State<DashboardScreen>
       ),
       _CreateAction(
         'Create Study Guide',
-        Icons.menu_book_outlined,
+        'book',
         () => Navigator.of(context).pushNamed('/study-builder'),
         featureFlag: 'study_guides',
       ),
       _CreateAction(
         'Generate Quiz',
-        Icons.quiz_outlined,
+        'patch-question',
         () => Navigator.of(context).pushNamed('/generate-quiz'),
         featureFlag: 'quiz_generator',
       ),
       _CreateAction(
         'QR Code',
-        Icons.qr_code_scanner_outlined,
+        'qr-code-scan',
         () => Navigator.of(context).pushNamed('/qr-code'),
         featureFlag: 'qr_code',
       ),
       _CreateAction(
         'Text to File',
-        Icons.text_snippet_outlined,
+        'file-earmark-text',
         () => Navigator.of(context).pushNamed('/text-to-file'),
         featureFlag: 'text_to_file',
       ),
       _CreateAction(
         'My Materials',
-        Icons.folder_copy_outlined,
+        'files',
         () => Navigator.of(context).pushNamed('/saved-files'),
         featureFlag: 'my_materials',
       ),
@@ -945,7 +972,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: Theme.of(context).shadowColor.withValues(alpha: 0.025),
+                      color: Theme.of(context)
+                          .shadowColor
+                          .withValues(alpha: 0.025),
                       blurRadius: 14,
                       offset: const Offset(0, 8),
                     ),
@@ -953,7 +982,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ),
                 child: Row(
                   children: [
-                    Icon(
+                    BootstrapIcon(
                       action.icon,
                       color: isEnabled
                           ? colors.primary
@@ -1028,7 +1057,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(icon,
+                      BootstrapIcon.material(icon,
                           color: FigmaAppColors.primary(context), size: 34),
                       const SizedBox(height: 12),
                       Text(
@@ -1051,12 +1080,16 @@ class _DashboardScreenState extends State<DashboardScreen>
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.check_circle, color: Theme.of(context).colorScheme.tertiary, size: 20),
+                      BootstrapIcon.material(Icons.check_circle,
+                          color: Theme.of(context).colorScheme.tertiary,
+                          size: 20),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           fileName,
-                          style: TextStyle(color: Theme.of(context).colorScheme.tertiary, fontWeight: FontWeight.w500),
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.tertiary,
+                              fontWeight: FontWeight.w500),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -1119,7 +1152,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                       IconButton(
                         onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(Icons.close),
+                        icon: const BootstrapIcon.material(Icons.close),
                         tooltip: 'Close',
                       ),
                     ],
@@ -1225,7 +1258,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           controller: _outputNameController,
           decoration: const InputDecoration(
             labelText: 'Output name (optional)',
-            prefixIcon: Icon(Icons.drive_file_rename_outline),
+            prefixIcon: BootstrapIcon.material(Icons.drive_file_rename_outline),
           ),
         ),
       ],
@@ -1240,7 +1273,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           controller: _outputNameController,
           decoration: const InputDecoration(
             labelText: 'Custom output name (optional)',
-            prefixIcon: Icon(Icons.drive_file_rename_outline),
+            prefixIcon: BootstrapIcon.material(Icons.drive_file_rename_outline),
           ),
         ),
         const SizedBox(height: 12),
@@ -1407,37 +1440,39 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (_conversionMode == 'advanced') FigmaCard(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Output',
-                style: TextStyle(
-                  color: FigmaAppColors.text(context),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
+        if (_conversionMode == 'advanced')
+          FigmaCard(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Output',
+                  style: TextStyle(
+                    color: FigmaAppColors.text(context),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              _buildFormatChips(),
-              const SizedBox(height: 14),
-              _buildDropdown(
-                label: 'Style profile',
-                value: _styleProfile,
-                items: const [
-                  DropdownMenuItem(value: 'academic', child: Text('Academic')),
-                  DropdownMenuItem(
-                      value: 'module', child: Text('Learning Module')),
-                  DropdownMenuItem(
-                      value: 'clean', child: Text('Clean Handout')),
-                ],
-                onChanged: (val) => setState(() => _styleProfile = val!),
-              ),
-            ],
+                const SizedBox(height: 12),
+                _buildFormatChips(),
+                const SizedBox(height: 14),
+                _buildDropdown(
+                  label: 'Style profile',
+                  value: _styleProfile,
+                  items: const [
+                    DropdownMenuItem(
+                        value: 'academic', child: Text('Academic')),
+                    DropdownMenuItem(
+                        value: 'module', child: Text('Learning Module')),
+                    DropdownMenuItem(
+                        value: 'clean', child: Text('Clean Handout')),
+                  ],
+                  onChanged: (val) => setState(() => _styleProfile = val!),
+                ),
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: 14),
         InkWell(
           onTap: _openMoreOptions,
@@ -1446,7 +1481,7 @@ class _DashboardScreenState extends State<DashboardScreen>
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                Icon(Icons.tune_rounded,
+                BootstrapIcon.material(Icons.tune_rounded,
                     color: FigmaAppColors.primary(context)),
                 const SizedBox(width: 12),
                 Expanded(
@@ -1459,9 +1494,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Text(
                         _conversionMode == 'normal'
                             ? 'Same look, new file type.'
-                            : '${_paperSize.toUpperCase()} · ${_pageOrientation == 'portrait'
-                                ? 'Portrait'
-                                : 'Landscape'} · $_lineSpacing spacing · images${_includeTables ? ', tables' : ''}${_cleanGrammar ? ', grammar' : ''}',
+                            : '${_paperSize.toUpperCase()} · ${_pageOrientation == 'portrait' ? 'Portrait' : 'Landscape'} · $_lineSpacing spacing · images${_includeTables ? ', tables' : ''}${_cleanGrammar ? ', grammar' : ''}',
                         style: TextStyle(
                           color: FigmaAppColors.subtext(context),
                           fontSize: 12,
@@ -1470,7 +1503,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right,
+                BootstrapIcon.material(Icons.chevron_right,
                     color: FigmaAppColors.subtext(context)),
               ],
             ),
@@ -1523,10 +1556,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     String label = 'Format',
   }) {
     final formats = [
-      {'label': 'DOCX', 'value': 'docx', 'icon': Icons.description_outlined},
-      {'label': 'PDF', 'value': 'pdf', 'icon': Icons.picture_as_pdf_outlined},
-      {'label': 'HTML', 'value': 'html', 'icon': Icons.code_outlined},
-      {'label': 'TXT', 'value': 'txt', 'icon': Icons.notes_outlined},
+      {'label': 'DOCX', 'value': 'docx', 'icon': 'file-earmark-word'},
+      {'label': 'PDF', 'value': 'pdf', 'icon': 'file-earmark-pdf'},
+      {'label': 'HTML', 'value': 'html', 'icon': 'file-earmark-code'},
+      {'label': 'TXT', 'value': 'txt', 'icon': 'file-text'},
     ];
     final colors = Theme.of(context).colorScheme;
 
@@ -1549,8 +1582,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             final label = format['label']! as String;
             final isSelected = _selectedFormats.contains(value);
             return ChoiceChip(
-              avatar: Icon(
-                format['icon']! as IconData,
+              avatar: BootstrapIcon(
+                format['icon']! as String,
                 size: 18,
                 color: isSelected ? colors.onPrimary : colors.primary,
               ),
@@ -1579,6 +1612,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ..clear()
                     ..add(value);
                 }
+
                 if (sheetSetState == null) {
                   setState(updateSelection);
                 } else {
@@ -1633,7 +1667,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
 class _CreateAction {
   final String label;
-  final IconData icon;
+  final String icon;
   final VoidCallback onTap;
   final String? featureFlag;
 

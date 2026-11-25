@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'bootstrap_icon.dart';
 import '../services/app_lock_service.dart';
 
 class AppLockGate extends StatefulWidget {
@@ -72,7 +73,8 @@ class _AppLockGateState extends State<AppLockGate> with WidgetsBindingObserver {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.lock_outline, size: 52),
+                              const BootstrapIcon.material(Icons.lock_outline,
+                                  size: 52),
                               const SizedBox(height: 16),
                               const Text('Convert2File is locked',
                                   style: TextStyle(

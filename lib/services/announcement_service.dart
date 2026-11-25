@@ -38,7 +38,7 @@ class AnnouncementService {
 
     // The current admin portal writes to `announcements`. Do not merge the
     // retired `admin_announcements` table, which can keep old notices active.
-    final List<dynamic> rows;
+    List<dynamic> rows;
     try {
       try {
         rows = await client

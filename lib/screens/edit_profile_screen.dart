@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -156,7 +157,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             bottom: 0,
                             child: IconButton.filled(
                               onPressed: _pickPhoto,
-                              icon: const Icon(Icons.camera_alt_outlined),
+                              icon: const BootstrapIcon.material(
+                                  Icons.camera_alt_outlined),
                             ),
                           ),
                         ],

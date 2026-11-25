@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -35,7 +36,8 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
 
   Future<void> _share() async {
     try {
-      await FileShareService.shareFileWithName(sourcePath: _path, fileName: _name);
+      await FileShareService.shareFileWithName(
+          sourcePath: _path, fileName: _name);
     } catch (error) {
       debugPrint('[QR] Share image failed: $error');
       _message('Could not share this image.');
@@ -49,7 +51,8 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
       var allowed = await Gal.hasAccess(toAlbum: true);
       if (!allowed) allowed = await Gal.requestAccess(toAlbum: true);
       if (!allowed) {
-        _message('Photos permission was denied.', action: 'Open settings', onAction: openAppSettings);
+        _message('Photos permission was denied.',
+            action: 'Open settings', onAction: openAppSettings);
         return;
       }
       await Gal.putImage(_path, album: 'Convert2File');
@@ -57,11 +60,14 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
     } on GalException catch (error) {
       debugPrint('[QR] Save image to Photos failed: $error');
       if (error.type == GalExceptionType.accessDenied) {
-        _message('Photos permission was denied.', action: 'Open settings', onAction: openAppSettings);
+        _message('Photos permission was denied.',
+            action: 'Open settings', onAction: openAppSettings);
       } else {
         _message(switch (error.type) {
-          GalExceptionType.notEnoughSpace => 'Not enough space to save this image.',
-          GalExceptionType.notSupportedFormat => 'This image format is not supported.',
+          GalExceptionType.notEnoughSpace =>
+            'Not enough space to save this image.',
+          GalExceptionType.notSupportedFormat =>
+            'This image format is not supported.',
           _ => 'Could not save this image to Photos.',
         });
       }
@@ -72,6 +78,7 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
       if (mounted) setState(() => _isSavingPhotos = false);
     }
   }
+
   Future<void> _delete() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -79,8 +86,12 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
         title: const Text('Delete output?'),
         content: const Text('This removes the image from My materials.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Delete')),
         ],
       ),
     );
@@ -92,7 +103,8 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
   String _dateLabel() {
     final parsed = DateTime.tryParse(_createdAt)?.toLocal();
     if (parsed == null) return _createdAt;
-    final date = '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}';
+    final date =
+        '${parsed.day.toString().padLeft(2, '0')}/${parsed.month.toString().padLeft(2, '0')}';
     return parsed.year == DateTime.now().year ? date : '$date/${parsed.year}';
   }
 
@@ -103,9 +115,23 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
       appBar: AppBar(
         title: Text(_name, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(tooltip: 'Share image', onPressed: _share, icon: const Icon(Icons.share_outlined)),
-          IconButton(tooltip: 'Save to Photos', onPressed: _isSavingPhotos ? null : _saveToPhotos, icon: _isSavingPhotos ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined)),
-          IconButton(tooltip: 'Delete output', onPressed: _delete, icon: const Icon(Icons.delete_outline)),
+          IconButton(
+              tooltip: 'Share image',
+              onPressed: _share,
+              icon: const BootstrapIcon.material(Icons.share_outlined)),
+          IconButton(
+              tooltip: 'Save to Photos',
+              onPressed: _isSavingPhotos ? null : _saveToPhotos,
+              icon: _isSavingPhotos
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const BootstrapIcon.material(Icons.photo_library_outlined)),
+          IconButton(
+              tooltip: 'Delete output',
+              onPressed: _delete,
+              icon: const BootstrapIcon.material(Icons.delete_outline)),
         ],
       ),
       body: SafeArea(
@@ -122,7 +148,8 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
                   child: Column(mainAxisSize: MainAxisSize.min, children: [
                     const Text('This file was moved or deleted'),
                     const SizedBox(height: 12),
-                    OutlinedButton(onPressed: _delete, child: const Text('Remove entry')),
+                    OutlinedButton(
+                        onPressed: _delete, child: const Text('Remove entry')),
                   ]),
                 ),
               );
@@ -133,17 +160,32 @@ class _OutputImageScreenState extends State<OutputImageScreen> {
                   minScale: 1,
                   maxScale: 6,
                   child: Center(
-                    child: Image.file(File(_path), fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Column(mainAxisSize: MainAxisSize.min, children: [const Text('This file was moved or deleted'), TextButton(onPressed: _delete, child: const Text('Remove entry'))])),
+                    child: Image.file(File(_path),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) =>
+                            Column(mainAxisSize: MainAxisSize.min, children: [
+                              const Text('This file was moved or deleted'),
+                              TextButton(
+                                  onPressed: _delete,
+                                  child: const Text('Remove entry'))
+                            ])),
                   ),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
                 child: Row(children: [
-                  Expanded(child: Text(_name, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodyMedium)),
+                  Expanded(
+                      child: Text(_name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium)),
                   const SizedBox(width: 12),
-                  Text('${FileStorage.formatFileSize(_size)} · ${_dateLabel()}', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+                  Text('${FileStorage.formatFileSize(_size)} · ${_dateLabel()}',
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(color: colors.onSurfaceVariant)),
                 ]),
               ),
             ]);

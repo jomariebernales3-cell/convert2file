@@ -44,6 +44,37 @@ class DocumentParser {
     }
   }
 
+  /// Text extractor entry point. Reads only document body/slide content, never
+  /// media or Word header/footer parts. Tables and OMML equations are handled
+  /// as structured DOCX content; PDF uses the existing repeated-margin filter.
+  static Future<String> extractTextForUser(
+    String path,
+    String extension, {
+    bool includeTables = true,
+    bool includeEquations = true,
+  }) async {
+    switch (extension.toLowerCase()) {
+      case 'docx':
+        return _fromDocx(path,
+            includeTables: includeTables, includeEquations: includeEquations);
+      case 'pptx':
+        return _fromPptx(
+          path,
+          includeTables: includeTables,
+          excludeHeaderFooter: true,
+        );
+      case 'pdf':
+      case 'ppt':
+      case 'txt':
+        // PDF text extraction returns the reading order from the PDF text
+        // layer. It cannot reliably distinguish table cells/equations from
+        // surrounding text; avoid silently deleting legitimate content.
+        return extractText(path, extension);
+      default:
+        throw Exception('Unsupported file type: $extension');
+    }
+  }
+
   static Future<List<Map<String, dynamic>>> extractEmbeddedImages(
     String path,
     String extension,
@@ -312,7 +343,11 @@ class DocumentParser {
     return normalize(text);
   }
 
-  static Future<String> _fromDocx(String path) async {
+  static Future<String> _fromDocx(
+    String path, {
+    bool includeTables = true,
+    bool includeEquations = true,
+  }) async {
     final bytes = await File(path).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
 
@@ -328,10 +363,18 @@ class DocumentParser {
       throw Exception('Unable to open DOCX file: document.xml not found');
     }
 
-    return normalize(_parseDocxBodyText(documentXml));
+    return normalize(_parseDocxBodyText(
+      documentXml,
+      includeTables: includeTables,
+      includeEquations: includeEquations,
+    ));
   }
 
-  static String _parseDocxBodyText(String documentXml) {
+  static String _parseDocxBodyText(
+    String documentXml, {
+    bool includeTables = true,
+    bool includeEquations = true,
+  }) {
     final repairedXml = _repairControlPunctuation(documentXml);
     final document = XmlDocument.parse(repairedXml);
     XmlElement? body;
@@ -348,10 +391,14 @@ class DocumentParser {
     final lines = <String>[];
     for (final node in body.children.whereType<XmlElement>()) {
       if (node.name.local == 'p') {
-        final text = _docxNodeText(node).trim();
+        final text =
+            _docxNodeText(node, includeEquations: includeEquations).trim();
         if (text.isNotEmpty) lines.add(text);
-      } else if (node.name.local == 'tbl') {
-        final rows = _docxTableRows(node);
+      } else if (node.name.local == 'tbl' && includeTables) {
+        final rows = _docxTableRows(
+          node,
+          includeEquations: includeEquations,
+        );
         for (final row in rows) {
           if (row.any((cell) => cell.trim().isNotEmpty)) {
             lines.add(row.join('\t'));
@@ -363,7 +410,10 @@ class DocumentParser {
     return lines.join('\n');
   }
 
-  static List<List<String>> _docxTableRows(XmlElement table) {
+  static List<List<String>> _docxTableRows(
+    XmlElement table, {
+    bool includeEquations = true,
+  }) {
     final rows = <List<String>>[];
     for (final row in table.children.whereType<XmlElement>().where(
           (element) => element.name.local == 'tr',
@@ -375,7 +425,10 @@ class DocumentParser {
         final cellParagraphs = cell.children
             .whereType<XmlElement>()
             .where((element) => element.name.local == 'p')
-            .map((paragraph) => _docxNodeText(paragraph).trim())
+            .map((paragraph) => _docxNodeText(
+                  paragraph,
+                  includeEquations: includeEquations,
+                ).trim())
             .where((text) => text.isNotEmpty)
             .toList();
         cells.add(cellParagraphs.join(' '));
@@ -385,18 +438,19 @@ class DocumentParser {
     return rows;
   }
 
-  static String _docxNodeText(XmlNode node) {
+  static String _docxNodeText(XmlNode node, {bool includeEquations = true}) {
     if (node is XmlText) return node.value;
     if (node is! XmlElement) return '';
 
     if (node.name.local == 'oMath' || node.name.local == 'oMathPara') {
-      return _ommlToLinearText(node);
+      return includeEquations ? _ommlToLinearText(node) : '';
     }
     if (node.name.local == 'r') {
       final font = _docxRunFont(node);
       final text = node.children
           .where((child) => child is! XmlElement || child.name.local != 'rPr')
-          .map(_docxNodeText)
+          .map((child) =>
+              _docxNodeText(child, includeEquations: includeEquations))
           .join();
       return _decodeLegacySymbolFont(text, font);
     }
@@ -408,7 +462,7 @@ class DocumentParser {
 
     final buffer = StringBuffer();
     for (final child in node.children) {
-      buffer.write(_docxNodeText(child));
+      buffer.write(_docxNodeText(child, includeEquations: includeEquations));
     }
     return buffer.toString();
   }
@@ -708,7 +762,11 @@ class DocumentParser {
     return line.trim().replaceAll(RegExp(r'\s+'), ' ').toLowerCase();
   }
 
-  static Future<String> _fromPptx(String path) async {
+  static Future<String> _fromPptx(
+    String path, {
+    bool includeTables = true,
+    bool excludeHeaderFooter = false,
+  }) async {
     final bytes = await File(path).readAsBytes();
     final archive = ZipDecoder().decodeBytes(bytes);
 
@@ -733,7 +791,11 @@ class DocumentParser {
 
     for (final key in sortedKeys) {
       final xml = slideXml[key]!;
-      final lines = _parsePptxSlideText(xml);
+      final lines = _parsePptxSlideText(
+        xml,
+        includeTables: includeTables,
+        excludeHeaderFooter: excludeHeaderFooter,
+      );
       if (lines.isNotEmpty) {
         slides.add(lines.join('\n'));
       }
@@ -861,11 +923,17 @@ class DocumentParser {
     return normalize(chunks.join('\n'));
   }
 
-  static List<String> _parsePptxSlideText(String xml) {
+  static List<String> _parsePptxSlideText(
+    String xml, {
+    bool includeTables = true,
+    bool excludeHeaderFooter = false,
+  }) {
     final document = XmlDocument.parse(xml);
     final texts = <String>[];
 
     for (final element in document.findAllElements('a:t')) {
+      if (!includeTables && _isInsidePptxTable(element)) continue;
+      if (excludeHeaderFooter && _isPptxHeaderFooterText(element)) continue;
       final text = element.innerText.trim();
       if (text.isNotEmpty) {
         texts.add(text);
@@ -873,6 +941,33 @@ class DocumentParser {
     }
 
     return texts;
+  }
+
+  static bool _isInsidePptxTable(XmlElement element) {
+    XmlNode? current = element.parent;
+    while (current != null) {
+      if (current is XmlElement) {
+        if (current.name.local == 'tbl') return true;
+      }
+      current = current.parent;
+    }
+    return false;
+  }
+
+  static bool _isPptxHeaderFooterText(XmlElement element) {
+    XmlNode? current = element.parent;
+    while (current != null) {
+      if (current is XmlElement && current.name.local == 'sp') {
+        for (final placeholder in current.descendants.whereType<XmlElement>()) {
+          if (placeholder.name.local != 'ph') continue;
+          final type = _attributeValue(placeholder, 'type')?.toLowerCase();
+          if (const {'hdr', 'ftr', 'sldnum', 'dt'}.contains(type)) return true;
+        }
+        return false;
+      }
+      current = current.parent;
+    }
+    return false;
   }
 
   static String _stripXmlTags(String xml) {

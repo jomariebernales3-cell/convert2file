@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/bootstrap_icon.dart';
 import '../theme/app_colors.dart';
 import '../services/app_info_service.dart';
 import '../services/app_version_service.dart';
@@ -28,7 +29,9 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
 
   Future<void> _loadManagedContent() async {
     final installedVersion = await AppVersionService.loadInstalledVersion();
-    if (mounted && installedVersion != null && _releaseNotes.first.version == 'Unknown') {
+    if (mounted &&
+        installedVersion != null &&
+        _releaseNotes.first.version == 'Unknown') {
       final latest = _defaultReleaseNotes.first;
       setState(() {
         _releaseNotes = [
@@ -491,7 +494,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
           IconButton(
             tooltip: 'Refresh App Info',
             onPressed: _loadManagedContent,
-            icon: const Icon(Icons.refresh),
+            icon: const BootstrapIcon.material(Icons.refresh),
           ),
         ],
       ),
@@ -500,11 +503,13 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
         children: [
           _buildProjectCard(context),
           const SizedBox(height: 24),
-          _buildSectionHeading(context, 'About the app', 'Purpose, formats, data use, and limitations'),
+          _buildSectionHeading(context, 'About the app',
+              'Purpose, formats, data use, and limitations'),
           const SizedBox(height: 12),
           _buildAdditionalInfoSection(context),
           const SizedBox(height: 24),
-          _buildSectionHeading(context, 'Update history', 'What has changed across app versions'),
+          _buildSectionHeading(context, 'Update history',
+              'What has changed across app versions'),
           const SizedBox(height: 12),
           _buildVersionButtons(context),
           const SizedBox(height: 12),
@@ -535,16 +540,22 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                   color: colors.accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(Icons.description_outlined, color: colors.accent, size: 28),
+                child: BootstrapIcon.material(Icons.description_outlined,
+                    color: colors.accent, size: 28),
               ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Convert2File', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                    Text('Convert2File',
+                        style: Theme.of(context)
+                            .textTheme
+                            .headlineSmall
+                            ?.copyWith(fontWeight: FontWeight.w800)),
                     const SizedBox(height: 3),
-                    Text('Documents and study tools for Android', style: TextStyle(color: colors.muted)),
+                    Text('Documents and study tools for Android',
+                        style: TextStyle(color: colors.muted)),
                   ],
                 ),
               ),
@@ -555,7 +566,8 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _metaChip(context, Icons.new_releases_outlined, 'Latest release $_latestVersion'),
+              _metaChip(context, Icons.new_releases_outlined,
+                  'Latest release $_latestVersion'),
               _metaChip(context, Icons.person_outline, 'Despair(0_0)'),
               _metaChip(context, Icons.code, 'Flutter · Dart'),
             ],
@@ -582,20 +594,29 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: colors.accent),
+          BootstrapIcon.material(icon, size: 15, color: colors.accent),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(color: colors.text, fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(text,
+              style: TextStyle(
+                  color: colors.text,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  Widget _buildSectionHeading(BuildContext context, String title, String subtitle) {
+  Widget _buildSectionHeading(
+      BuildContext context, String title, String subtitle) {
     final colors = AppColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
+        Text(title,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.w800)),
         const SizedBox(height: 3),
         Text(subtitle, style: TextStyle(color: colors.muted)),
       ],
@@ -636,7 +657,8 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
     final colors = AppColors.of(context);
 
     return Material(
-      color: isSelected ? colors.accent.withValues(alpha: 0.16) : colors.surface,
+      color:
+          isSelected ? colors.accent.withValues(alpha: 0.16) : colors.surface,
       borderRadius: BorderRadius.circular(999),
       child: InkWell(
         borderRadius: BorderRadius.circular(999),
@@ -651,7 +673,8 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(info.icon, size: 17, color: isSelected ? colors.accent : colors.muted),
+              BootstrapIcon.material(info.icon,
+                  size: 17, color: isSelected ? colors.accent : colors.muted),
               const SizedBox(width: 7),
               Text(
                 info.title,
@@ -685,13 +708,17 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
                   color: colors.accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(info.icon, color: colors.accent, size: 21),
+                child: BootstrapIcon.material(info.icon,
+                    color: colors.accent, size: 21),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   info.title,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -819,7 +846,7 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
               alignment: Alignment.centerLeft,
               child: Row(
                 children: [
-                  Icon(
+                  BootstrapIcon.material(
                     releaseIndex == 0 ? Icons.new_releases : Icons.history,
                     size: 17,
                     color: isSelected ? colors.accent : colors.muted,
@@ -900,7 +927,10 @@ class _AppInfoScreenState extends State<AppInfoScreen> {
               Expanded(
                 child: Text(
                   'Version ${note.version}',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleMedium
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ),
               Text(

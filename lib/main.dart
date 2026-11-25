@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'widgets/bootstrap_icon.dart';
 import 'services/auth_service.dart';
 import 'services/local_llama_service.dart';
 import 'services/supabase_config.dart';
@@ -154,7 +155,7 @@ class _StartupFailureScreenState extends State<_StartupFailureScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48),
+              const BootstrapIcon.material(Icons.error_outline, size: 48),
               const SizedBox(height: 16),
               Text(
                 'Convert2File could not finish starting.',
@@ -174,7 +175,7 @@ class _StartupFailureScreenState extends State<_StartupFailureScreen> {
                         dimension: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.refresh),
+                    : const BootstrapIcon.material(Icons.refresh),
                 label: Text(_retrying ? 'Retrying…' : 'Try again'),
               ),
             ],

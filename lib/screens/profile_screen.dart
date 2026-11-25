@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:io';
 
 import 'package:fl_chart/fl_chart.dart';
@@ -171,7 +172,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 16),
                 OutlinedButton.icon(
                     onPressed: _signOut,
-                    icon: const Icon(Icons.logout),
+                    icon: const BootstrapIcon.material(Icons.logout),
                     label: const Text('Sign out')),
               ],
             ),
@@ -220,7 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     await Navigator.of(context).pushNamed('/edit-profile');
                 if (changed == true && mounted) setState(() {});
               },
-              icon: const Icon(Icons.edit_outlined),
+              icon: const BootstrapIcon.material(Icons.edit_outlined),
               label: const Text('Edit profile')),
           const SizedBox(height: 8),
           Row(
@@ -253,25 +254,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Text('Account and security',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
         ListTile(
-            leading: const Icon(Icons.person_outline),
+            leading: const BootstrapIcon.material(Icons.person_outline),
             title: const Text('Edit profile'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const BootstrapIcon.material(Icons.chevron_right),
             onTap: () => Navigator.of(context).pushNamed('/edit-profile')),
         ListTile(
-            leading: const Icon(Icons.password),
+            leading: const BootstrapIcon.material(Icons.password),
             title: const Text('Change password'),
             subtitle: Text(hasAccount
                 ? 'Update your account password'
                 : 'Sign in to an account to change its password'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const BootstrapIcon.material(Icons.chevron_right),
             onTap: hasAccount
                 ? () => Navigator.of(context).pushNamed('/change-password')
                 : null),
         ListTile(
-            leading: const Icon(Icons.phonelink_lock_outlined),
+            leading:
+                const BootstrapIcon.material(Icons.phonelink_lock_outlined),
             title: const Text('App lock'),
             subtitle: const Text('Protect this device with a six digit PIN'),
-            trailing: const Icon(Icons.chevron_right),
+            trailing: const BootstrapIcon.material(Icons.chevron_right),
             onTap: () => Navigator.of(context).pushNamed('/app-lock')),
       ]),
     );
@@ -355,7 +357,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           for (final log in _recentLogs)
             ListTile(
                 dense: true,
-                leading: const Icon(Icons.history),
+                leading: const BootstrapIcon.material(Icons.history),
                 title: Text(log['message'] as String? ??
                     log['event_type'] as String? ??
                     'Activity'),
@@ -371,18 +373,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Text('Data and sharing',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold))),
           ListTile(
-              leading: const Icon(Icons.delete_outline),
+              leading: const BootstrapIcon.material(Icons.delete_outline),
               title: const Text('Clear history'),
               subtitle: const Text('Remove saved outputs from this device'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: const BootstrapIcon.material(Icons.chevron_right),
               onTap: _clearHistory),
           if (user.supabaseUserId == null &&
               user.email == 'guest@convert2file.local')
             ListTile(
-                leading: const Icon(Icons.restart_alt),
+                leading: const BootstrapIcon.material(Icons.restart_alt),
                 title: const Text('Reset guest profile'),
                 subtitle: const Text('Reset profile details; keep saved files'),
-                trailing: const Icon(Icons.chevron_right),
+                trailing: const BootstrapIcon.material(Icons.chevron_right),
                 onTap: _resetGuestProfile),
         ]),
       );

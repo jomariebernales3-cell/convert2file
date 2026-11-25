@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -47,7 +48,8 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
 
   Future<void> _share() async {
     try {
-      await FileShareService.shareFileWithName(sourcePath: _path, fileName: _name);
+      await FileShareService.shareFileWithName(
+          sourcePath: _path, fileName: _name);
     } catch (e) {
       if (mounted) _message('Could not share QR code: $e', error: true);
     }
@@ -82,19 +84,24 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
       if (mounted) {
         final message = switch (error.type) {
           GalExceptionType.accessDenied => 'Photos permission was denied.',
-          GalExceptionType.notEnoughSpace => 'Not enough space to save the QR image.',
-          GalExceptionType.notSupportedFormat => 'This image format is not supported.',
-          GalExceptionType.unexpected => 'Could not save the QR image to Photos.',
+          GalExceptionType.notEnoughSpace =>
+            'Not enough space to save the QR image.',
+          GalExceptionType.notSupportedFormat =>
+            'This image format is not supported.',
+          GalExceptionType.unexpected =>
+            'Could not save the QR image to Photos.',
         };
         _message(message, error: true);
       }
     } catch (error) {
       debugPrint('[QR] Save to Photos failed: $error');
-      if (mounted) _message('Could not save the QR image to Photos.', error: true);
+      if (mounted)
+        _message('Could not save the QR image to Photos.', error: true);
     } finally {
       if (mounted) setState(() => _isSavingPhotos = false);
     }
   }
+
   Future<void> _copyContent() async {
     final content = _metadata['content'] as String?;
     if (content == null || content.isEmpty) return;
@@ -107,7 +114,8 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete QR code?'),
-        content: const Text('This will remove the saved QR image from My materials.'),
+        content: const Text(
+            'This will remove the saved QR image from My materials.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -133,9 +141,23 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
       appBar: AppBar(
         title: Text(_name, maxLines: 1, overflow: TextOverflow.ellipsis),
         actions: [
-          IconButton(tooltip: 'Share QR image', onPressed: _share, icon: const Icon(Icons.share_outlined)),
-          IconButton(tooltip: 'Save to Photos', onPressed: _isSavingPhotos ? null : _saveToPhotos, icon: _isSavingPhotos ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined)),
-          IconButton(tooltip: 'Delete QR output', onPressed: _delete, icon: const Icon(Icons.delete_outline)),
+          IconButton(
+              tooltip: 'Share QR image',
+              onPressed: _share,
+              icon: const BootstrapIcon.material(Icons.share_outlined)),
+          IconButton(
+              tooltip: 'Save to Photos',
+              onPressed: _isSavingPhotos ? null : _saveToPhotos,
+              icon: _isSavingPhotos
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const BootstrapIcon.material(Icons.photo_library_outlined)),
+          IconButton(
+              tooltip: 'Delete QR output',
+              onPressed: _delete,
+              icon: const BootstrapIcon.material(Icons.delete_outline)),
         ],
       ),
       body: SafeArea(
@@ -160,10 +182,14 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
                     child: Image.file(
                       File(_path),
                       fit: BoxFit.contain,
-                      errorBuilder: (_, __, ___) => Column(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.broken_image_outlined, color: colors.onSurfaceVariant),
+                      errorBuilder: (_, __, ___) =>
+                          Column(mainAxisSize: MainAxisSize.min, children: [
+                        BootstrapIcon.material(Icons.broken_image_outlined,
+                            color: colors.onSurfaceVariant),
                         const Text('This file was moved or deleted'),
-                        TextButton(onPressed: _delete, child: const Text('Remove entry')),
+                        TextButton(
+                            onPressed: _delete,
+                            child: const Text('Remove entry')),
                       ]),
                     ),
                   ),
@@ -174,7 +200,10 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
               const SizedBox(height: 4),
               Text(
                 '${FileStorage.formatFileSize(widget.file['size_bytes'] as int? ?? 0)} · ${widget.file['created_at'] as String? ?? ''}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
               ),
               if (!_isWifi && content != null && content.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -183,39 +212,49 @@ class _QrOutputScreenState extends State<QrOutputScreen> {
               const SizedBox(height: 20),
               OutlinedButton.icon(
                 onPressed: _isSavingPhotos ? null : _saveToPhotos,
-                icon: _isSavingPhotos ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.photo_library_outlined),
+                icon: _isSavingPhotos
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const BootstrapIcon.material(
+                        Icons.photo_library_outlined),
                 label: const Text('Save to Photos'),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
                 onPressed: _share,
-                icon: const Icon(Icons.share_outlined),
+                icon: const BootstrapIcon.material(Icons.share_outlined),
                 label: const Text('Share'),
               ),
               const SizedBox(height: 10),
               OutlinedButton.icon(
                 onPressed: _download,
-                icon: const Icon(Icons.download_outlined),
+                icon: const BootstrapIcon.material(Icons.download_outlined),
                 label: const Text('Download'),
               ),
               if (!_isWifi && content != null && content.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _copyContent,
-                  icon: const Icon(Icons.copy_outlined),
+                  icon: const BootstrapIcon.material(Icons.copy_outlined),
                   label: const Text('Copy content'),
                 ),
               ],
               const SizedBox(height: 10),
               ReportProblemEntry(
                 area: 'qr_code',
-                contextInfo: {'action': 'create', 'qr_type': _metadata['qr_type'] ?? 'unknown'},
+                contextInfo: {
+                  'action': 'create',
+                  'qr_type': _metadata['qr_type'] ?? 'unknown'
+                },
                 outputFilePath: _path,
               ),
               const SizedBox(height: 8),
               OutlinedButton.icon(
                 onPressed: _delete,
-                icon: Icon(Icons.delete_outline, color: colors.error),
+                icon: BootstrapIcon.material(Icons.delete_outline,
+                    color: colors.error),
                 label: Text('Delete', style: TextStyle(color: colors.error)),
               ),
             ],

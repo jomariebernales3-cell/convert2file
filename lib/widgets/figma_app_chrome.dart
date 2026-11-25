@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'bootstrap_icon.dart';
 import '../theme/app_colors.dart';
 
 class FigmaSegmentOption<T> {
@@ -59,7 +60,7 @@ class FigmaSegmentControl<T> extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             if (options[i].icon != null) ...[
-                              Icon(
+                              BootstrapIcon.material(
                                 options[i].icon,
                                 size: 18,
                                 color:
@@ -104,8 +105,10 @@ class FigmaAppColors {
   static Color border(BuildContext context) => AppColors.of(context).line;
   static Color fill(BuildContext context) => AppColors.of(context).surface2;
   static Color primary(BuildContext context) => AppColors.of(context).accent;
-  static Color primaryText(BuildContext context) => AppColors.of(context).accentInk;
+  static Color primaryText(BuildContext context) =>
+      AppColors.of(context).accentInk;
 }
+
 class FigmaAppShell extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -262,9 +265,9 @@ class FigmaBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tabs = [
-      _FigmaTab('Home', Icons.home_outlined, '/home'),
-      _FigmaTab('Create', Icons.add_circle_outline, '/dashboard'),
-      _FigmaTab('Settings', Icons.settings_outlined, '/settings'),
+      _FigmaTab('Home', 'house', '/home'),
+      _FigmaTab('Create', 'plus-circle', '/dashboard'),
+      _FigmaTab('Settings', 'gear', '/settings'),
     ];
 
     return SafeArea(
@@ -290,7 +293,7 @@ class FigmaBottomNav extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      BootstrapIcon(
                         tabs[i].icon,
                         size: 21,
                         color: selectedIndex == i
@@ -321,7 +324,7 @@ class FigmaBottomNav extends StatelessWidget {
 
 class _FigmaTab {
   final String label;
-  final IconData icon;
+  final String icon;
   final String route;
 
   const _FigmaTab(this.label, this.icon, this.route);
@@ -378,7 +381,7 @@ class FigmaIconButton extends StatelessWidget {
       height: 44,
       child: IconButton.filledTonal(
         onPressed: onPressed,
-        icon: Icon(icon, size: 21),
+        icon: BootstrapIcon.material(icon, size: 21),
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
           backgroundColor: FigmaAppColors.fill(context),
@@ -411,7 +414,7 @@ class FigmaPrimaryButton extends StatelessWidget {
         : Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 18),
+              BootstrapIcon.material(icon, size: 18),
               const SizedBox(width: 8),
               Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
             ],

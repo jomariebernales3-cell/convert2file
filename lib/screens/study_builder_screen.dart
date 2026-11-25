@@ -1,3 +1,4 @@
+import '../widgets/bootstrap_icon.dart';
 import 'dart:convert';
 import 'dart:async';
 import 'dart:ui' show FontFeature;
@@ -70,7 +71,8 @@ class StudyBuilderScreen extends StatefulWidget {
   State<StudyBuilderScreen> createState() => _StudyBuilderScreenState();
 }
 
-class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBindingObserver {
+class _StudyBuilderScreenState extends State<StudyBuilderScreen>
+    with WidgetsBindingObserver {
   final _authService = AuthService();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -285,7 +287,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
 
     setState(() => _isPreparingStudyGuide = true);
     try {
-      final text = await DocumentParser.extractText(path, _extensionOf(file.name));
+      final text =
+          await DocumentParser.extractText(path, _extensionOf(file.name));
       final data = DataExtractor.extract(text);
       final termScores = <String, int>{};
       void scoreTerms(Iterable<String> values, int weight) {
@@ -334,7 +337,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
         _studyGuideText = text;
         _studyGuideSentences = sentences;
         _studyGuidePages = pages;
-        _studyGuideTerms = sortedTerms.map((entry) => entry.key).take(28).toSet();
+        _studyGuideTerms =
+            sortedTerms.map((entry) => entry.key).take(28).toSet();
         _disabledStudyTerms = {};
         _areKeyTermsExpanded = false;
         _studyNoteDensity = _StudyNoteDensity.normal;
@@ -347,10 +351,39 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
   }
 
   static const _studyStopWords = {
-    'about', 'after', 'also', 'been', 'between', 'could', 'does', 'each',
-    'from', 'have', 'into', 'more', 'most', 'other', 'over', 'same', 'some',
-    'than', 'that', 'their', 'there', 'these', 'they', 'this', 'through',
-    'using', 'were', 'what', 'when', 'which', 'with', 'would', 'your',
+    'about',
+    'after',
+    'also',
+    'been',
+    'between',
+    'could',
+    'does',
+    'each',
+    'from',
+    'have',
+    'into',
+    'more',
+    'most',
+    'other',
+    'over',
+    'same',
+    'some',
+    'than',
+    'that',
+    'their',
+    'there',
+    'these',
+    'they',
+    'this',
+    'through',
+    'using',
+    'were',
+    'what',
+    'when',
+    'which',
+    'with',
+    'would',
+    'your',
   };
 
   List<String> _splitStudySentences(String text) => text
@@ -364,7 +397,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
     if (_studyGuideText.trim().isEmpty) return;
     final llama = LocalLlamaService.instance;
     if (!llama.hasModel) {
-      _showMessage('Import an Offline AI model in Settings first.', isError: true);
+      _showMessage('Import an Offline AI model in Settings first.',
+          isError: true);
       return;
     }
     setState(() {
@@ -619,6 +653,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       ),
     );
   }
+
   Future<void> _improveDraftWithOfflineAi() async {
     final currentQuestions = _questions
         .map((question) => question.toJson())
@@ -810,7 +845,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       _clearEditor();
       setState(() => _editingSet = null);
       await _loadStudySets();
-      _showMessage(widget.generateQuizOnly ? 'Quiz saved.' : 'Study guide saved.');
+      _showMessage(
+          widget.generateQuizOnly ? 'Quiz saved.' : 'Study guide saved.');
     } catch (e) {
       _showMessage('Save failed: $e', isError: true);
     }
@@ -819,7 +855,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: isError ? Theme.of(context).colorScheme.errorContainer : null,
+        backgroundColor:
+            isError ? Theme.of(context).colorScheme.errorContainer : null,
         content: Text(
           message,
           style: isError
@@ -870,10 +907,15 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                   ReportProblemEntry(
                     area: widget.generateQuizOnly ? 'quiz' : 'study_guide',
                     contextInfo: {
-                      'source_type': _autoFile?.name ?? _studyGuideFile?.name ?? 'manual',
+                      'source_type':
+                          _autoFile?.name ?? _studyGuideFile?.name ?? 'manual',
                       'ai_used': _builderMode == _StudyBuilderMode.ai,
-                      'model_name': LocalLlamaService.instance.modelPath?.split(RegExp(r'[\\\\/]')).last,
-                      'step': _aiProgressStatus.isEmpty ? 'builder' : _aiProgressStatus,
+                      'model_name': LocalLlamaService.instance.modelPath
+                          ?.split(RegExp(r'[\\\\/]'))
+                          .last,
+                      'step': _aiProgressStatus.isEmpty
+                          ? 'builder'
+                          : _aiProgressStatus,
                     },
                     sourceFilePath: _autoFile?.path ?? _studyGuideFile?.path,
                   ),
@@ -886,8 +928,14 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
 
   Widget _buildQuizCreationSelector() => FigmaSegmentControl<_StudyBuilderMode>(
         options: const [
-          FigmaSegmentOption(value: _StudyBuilderMode.ai, label: 'AI generate', icon: Icons.auto_awesome_outlined),
-          FigmaSegmentOption(value: _StudyBuilderMode.manual, label: 'Create manually', icon: Icons.edit_note_outlined),
+          FigmaSegmentOption(
+              value: _StudyBuilderMode.ai,
+              label: 'AI generate',
+              icon: Icons.auto_awesome_outlined),
+          FigmaSegmentOption(
+              value: _StudyBuilderMode.manual,
+              label: 'Create manually',
+              icon: Icons.edit_note_outlined),
         ],
         selected: _builderMode,
         onChanged: (value) => setState(() => _builderMode = value),
@@ -922,7 +970,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
         .toList();
     final keyIndexes = <int>[];
     for (var index = 0; index < _studyGuideSentences.length; index++) {
-      if (_containsStudyTerm(_studyGuideSentences[index])) keyIndexes.add(index);
+      if (_containsStudyTerm(_studyGuideSentences[index]))
+        keyIndexes.add(index);
     }
     final preferredIndexes = keyIndexes.isEmpty
         ? List<int>.generate(_studyGuideSentences.length, (index) => index)
@@ -970,7 +1019,9 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
         ),
         const SizedBox(height: 12),
         FigmaPrimaryButton(
-          label: _isPreparingStudyGuide ? 'Preparing guide...' : 'Choose study file',
+          label: _isPreparingStudyGuide
+              ? 'Preparing guide...'
+              : 'Choose study file',
           icon: Icons.upload_file_outlined,
           onPressed: _isPreparingStudyGuide ? null : _createStudyGuide,
         ),
@@ -981,9 +1032,11 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             child: Row(
               children: [
                 CircleAvatar(
-                  backgroundColor:
-                      Theme.of(context).colorScheme.primary.withValues(alpha: 0.12),
-                  child: Icon(Icons.menu_book_outlined,
+                  backgroundColor: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.12),
+                  child: BootstrapIcon.material(Icons.menu_book_outlined,
                       color: Theme.of(context).colorScheme.primary),
                 ),
                 const SizedBox(width: 12),
@@ -996,8 +1049,10 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(fontWeight: FontWeight.w800)),
                       const SizedBox(height: 3),
-                      Text('${_studyGuideSentences.length} study sentences • ${_activeStudyTerms.length} key terms',
-                          style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
+                      Text(
+                          '${_studyGuideSentences.length} study sentences • ${_activeStudyTerms.length} key terms',
+                          style: TextStyle(
+                              color: _mutedTextColor(context), fontSize: 12)),
                     ],
                   ),
                 ),
@@ -1005,12 +1060,20 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             ),
           ),
           const SizedBox(height: 16),
-
           SegmentedButton<_StudyNoteDensity>(
             segments: const [
-              ButtonSegment(value: _StudyNoteDensity.quick, icon: Icon(Icons.bolt_outlined), label: Text('Quick')),
-              ButtonSegment(value: _StudyNoteDensity.normal, icon: Icon(Icons.notes_outlined), label: Text('Notes')),
-              ButtonSegment(value: _StudyNoteDensity.detailed, icon: Icon(Icons.subject_outlined), label: Text('Detailed')),
+              ButtonSegment(
+                  value: _StudyNoteDensity.quick,
+                  icon: BootstrapIcon.material(Icons.bolt_outlined),
+                  label: Text('Quick')),
+              ButtonSegment(
+                  value: _StudyNoteDensity.normal,
+                  icon: BootstrapIcon.material(Icons.notes_outlined),
+                  label: Text('Notes')),
+              ButtonSegment(
+                  value: _StudyNoteDensity.detailed,
+                  icon: BootstrapIcon.material(Icons.subject_outlined),
+                  label: Text('Detailed')),
             ],
             selected: {_studyNoteDensity},
             onSelectionChanged: (selection) =>
@@ -1026,7 +1089,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _openStudySource,
-                  icon: const Icon(Icons.open_in_new),
+                  icon: const BootstrapIcon.material(Icons.open_in_new),
                   label: const Text('Open source'),
                 ),
               ),
@@ -1041,18 +1104,22 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                       ),
                     ),
                   ),
-                  icon: const Icon(Icons.quiz_outlined),
+                  icon: const BootstrapIcon.material(Icons.quiz_outlined),
                   label: const Text('Create Quiz'),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 20),
-          Text('Study Notes', style: TextStyle(
-              color: FigmaAppColors.text(context), fontSize: 18, fontWeight: FontWeight.w900)),
+          Text('Study Notes',
+              style: TextStyle(
+                  color: FigmaAppColors.text(context),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900)),
           const SizedBox(height: 10),
           for (final index in visibleIndexes) ...[
-            _buildStudySentenceCard(index + 1, _studyGuideSentences[index], _studyGuidePages[index]),
+            _buildStudySentenceCard(index + 1, _studyGuideSentences[index],
+                _studyGuidePages[index]),
             const SizedBox(height: 10),
           ],
         ],
@@ -1068,7 +1135,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             IconButton(
               tooltip: 'Refresh saved guides',
               onPressed: _loadStudySets,
-              icon: const Icon(Icons.refresh),
+              icon: const BootstrapIcon.material(Icons.refresh),
             ),
           ],
         ),
@@ -1101,7 +1168,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                     child: Text('Key terms',
                         style: TextStyle(fontWeight: FontWeight.w800)),
                   ),
-                  Icon(_areKeyTermsExpanded
+                  BootstrapIcon.material(_areKeyTermsExpanded
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.keyboard_arrow_down_rounded),
                 ],
@@ -1145,7 +1212,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
     if (!_isGeneratingAiHighlights) {
       return OutlinedButton.icon(
         onPressed: _generateAiHighlights,
-        icon: const Icon(Icons.auto_awesome_outlined),
+        icon: const BootstrapIcon.material(Icons.auto_awesome_outlined),
         label: const Text('Generate AI Highlights'),
       );
     }
@@ -1156,14 +1223,15 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.auto_awesome_outlined,
+            BootstrapIcon.material(Icons.auto_awesome_outlined,
                 color: FigmaAppColors.primary(context)),
             const SizedBox(width: 8),
             const Text('AI Highlighting',
                 style: TextStyle(fontWeight: FontWeight.w800)),
             const Spacer(),
             Text('${(_aiHighlightProgress * 100).round()}%',
-                style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
+                style:
+                    TextStyle(color: _mutedTextColor(context), fontSize: 12)),
           ]),
           const SizedBox(height: 10),
           LinearProgressIndicator(
@@ -1184,12 +1252,16 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
     if (path == null || path.isEmpty) return;
     final result = await OpenFilex.open(path);
     if (result.type != ResultType.done) {
-      _showMessage(result.message.isEmpty ? 'No app can open this file.' : result.message, isError: true);
+      _showMessage(
+          result.message.isEmpty
+              ? 'No app can open this file.'
+              : result.message,
+          isError: true);
     }
   }
 
-  bool _containsStudyTerm(String sentence) => _activeStudyTerms.any(
-      (term) => RegExp('\\b${RegExp.escape(term)}\\b', caseSensitive: false)
+  bool _containsStudyTerm(String sentence) => _activeStudyTerms.any((term) =>
+      RegExp('\\b${RegExp.escape(term)}\\b', caseSensitive: false)
           .hasMatch(sentence));
 
   Widget _buildStudySentenceCard(int index, String sentence, int? page) {
@@ -1204,7 +1276,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
     final spans = <TextSpan>[];
     var cursor = 0;
     for (final match in matches) {
-      if (match.start > cursor) spans.add(TextSpan(text: sentence.substring(cursor, match.start)));
+      if (match.start > cursor)
+        spans.add(TextSpan(text: sentence.substring(cursor, match.start)));
       spans.add(TextSpan(
         text: match.group(0)!,
         style: TextStyle(
@@ -1216,33 +1289,48 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       ));
       cursor = match.end;
     }
-    if (cursor < sentence.length) spans.add(TextSpan(text: sentence.substring(cursor)));
+    if (cursor < sentence.length)
+      spans.add(TextSpan(text: sentence.substring(cursor)));
     return FigmaCard(
       padding: const EdgeInsets.all(20),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(index.toString().padLeft(2, '0'),
-              style: TextStyle(color: FigmaAppColors.primary(context), fontWeight: FontWeight.w900)),
+              style: TextStyle(
+                  color: FigmaAppColors.primary(context),
+                  fontWeight: FontWeight.w900)),
           const SizedBox(width: 12),
-          Expanded(child: Column(
+          Expanded(
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              RichText(text: TextSpan(
-                  style: TextStyle(color: FigmaAppColors.text(context), fontSize: 15, height: 1.55), children: spans)),
+              RichText(
+                  text: TextSpan(
+                      style: TextStyle(
+                          color: FigmaAppColors.text(context),
+                          fontSize: 15,
+                          height: 1.55),
+                      children: spans)),
               const SizedBox(height: 8),
               Row(
                 children: [
                   Text(page == null ? 'Source file' : 'PDF page $page',
-                      style: TextStyle(color: _mutedTextColor(context), fontSize: 11)),
+                      style: TextStyle(
+                          color: _mutedTextColor(context), fontSize: 11)),
                   const Spacer(),
                   TextButton.icon(
                     onPressed: _explainingStudySentence == index
                         ? null
                         : () => _explainStudySentence(index, sentence),
                     icon: _explainingStudySentence == index
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.auto_awesome_outlined, size: 16),
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2))
+                        : const BootstrapIcon.material(
+                            Icons.auto_awesome_outlined,
+                            size: 16),
                     label: const Text('Explain'),
                   ),
                 ],
@@ -1257,7 +1345,8 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
   Future<void> _explainStudySentence(int index, String sentence) async {
     final llama = LocalLlamaService.instance;
     if (!llama.hasModel) {
-      _showMessage('Import an Offline AI model in Settings first.', isError: true);
+      _showMessage('Import an Offline AI model in Settings first.',
+          isError: true);
       return;
     }
     setState(() => _explainingStudySentence = index);
@@ -1275,11 +1364,15 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
             child: SingleChildScrollView(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Simple explanation', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 12),
-                Text(answer, style: const TextStyle(height: 1.5)),
-              ]),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Simple explanation',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 12),
+                    Text(answer, style: const TextStyle(height: 1.5)),
+                  ]),
             ),
           ),
         ),
@@ -1296,9 +1389,12 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Quiz source & settings', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
+          const Text('Quiz source & settings',
+              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          Text('Offline AI can be slow on phones. Start with 3 to 5 questions. You can pick each question type while reviewing the draft.', style: TextStyle(color: _mutedTextColor(context), height: 1.5)),
+          Text(
+              'Offline AI can be slow on phones. Start with 3 to 5 questions. You can pick each question type while reviewing the draft.',
+              style: TextStyle(color: _mutedTextColor(context), height: 1.5)),
           const SizedBox(height: 14),
           AbsorbPointer(
             absorbing: _isAiGenerating,
@@ -1306,28 +1402,34 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
               options: const [
                 FigmaSegmentOption(value: _AutoStudySource.file, label: 'File'),
                 FigmaSegmentOption(value: _AutoStudySource.link, label: 'Link'),
-                FigmaSegmentOption(value: _AutoStudySource.topic, label: 'Topic'),
+                FigmaSegmentOption(
+                    value: _AutoStudySource.topic, label: 'Topic'),
               ],
               selected: _autoSource,
               onChanged: (value) => setState(() => _autoSource = value),
             ),
           ),
           const SizedBox(height: 12),
-          AbsorbPointer(absorbing: _isAiGenerating, child: _buildAutoSourceInput()),
+          AbsorbPointer(
+              absorbing: _isAiGenerating, child: _buildAutoSourceInput()),
           const SizedBox(height: 12),
-          Text('Number of questions', style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
+          Text('Number of questions',
+              style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
           const SizedBox(height: 6),
           AbsorbPointer(
             absorbing: _isAiGenerating,
             child: TextField(
               controller: _totalQuestionsController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(prefixIcon: Icon(Icons.format_list_numbered)),
+              decoration: const InputDecoration(
+                  prefixIcon:
+                      BootstrapIcon.material(Icons.format_list_numbered)),
             ),
           ),
           const SizedBox(height: 14),
           FigmaPrimaryButton(
-            label: _isAiGenerating ? 'Offline AI is working...' : 'Generate quiz',
+            label:
+                _isAiGenerating ? 'Offline AI is working...' : 'Generate quiz',
             onPressed: _isAiGenerating ? null : _generateWithOfflineAi,
           ),
           if (_isAiGenerating) ...[
@@ -1342,6 +1444,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       ),
     );
   }
+
   Widget _buildAiGenerationProgress() {
     final minutes = _aiElapsed.inMinutes.toString().padLeft(2, '0');
     final seconds = (_aiElapsed.inSeconds % 60).toString().padLeft(2, '0');
@@ -1388,7 +1491,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: _stopOfflineAi,
-              icon: const Icon(Icons.close_rounded),
+              icon: const BootstrapIcon.material(Icons.close_rounded),
               label: const Text('Cancel'),
             ),
           ),
@@ -1419,7 +1522,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             alignment: Alignment.centerRight,
             child: TextButton.icon(
               onPressed: _isAiGenerating ? null : _generateWithOfflineAi,
-              icon: const Icon(Icons.refresh_rounded),
+              icon: const BootstrapIcon.material(Icons.refresh_rounded),
               label: const Text('Retry'),
             ),
           ),
@@ -1427,24 +1530,38 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
       ),
     );
   }
+
   Widget _buildAutoSourceInput() {
     return switch (_autoSource) {
       _AutoStudySource.file => InkWell(
           onTap: _pickAutoFile,
           borderRadius: BorderRadius.circular(18),
           child: CustomPaint(
-            foregroundPainter: _QuizDropBorderPainter(color: Theme.of(context).dividerColor),
+            foregroundPainter:
+                _QuizDropBorderPainter(color: Theme.of(context).dividerColor),
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 18),
-              decoration: BoxDecoration(color: FigmaAppColors.card(context), borderRadius: BorderRadius.circular(18)),
+              decoration: BoxDecoration(
+                  color: FigmaAppColors.card(context),
+                  borderRadius: BorderRadius.circular(18)),
               child: Column(
                 children: [
-                  Icon(Icons.attach_file_rounded, color: FigmaAppColors.primary(context), size: 26),
+                  BootstrapIcon.material(Icons.attach_file_rounded,
+                      color: FigmaAppColors.primary(context), size: 26),
                   const SizedBox(height: 8),
-                  Text(_autoFile?.name ?? 'Choose a file', textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text(_autoFile?.name ?? 'Choose a file',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
                   const SizedBox(height: 3),
-                  Text(_autoFile == null ? 'PDF, DOCX, TXT or PPTX' : 'Tap to choose a different file', style: TextStyle(color: _mutedTextColor(context), fontSize: 12)),
+                  Text(
+                      _autoFile == null
+                          ? 'PDF, DOCX, TXT or PPTX'
+                          : 'Tap to choose a different file',
+                      style: TextStyle(
+                          color: _mutedTextColor(context), fontSize: 12)),
                 ],
               ),
             ),
@@ -1455,18 +1572,19 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
           keyboardType: TextInputType.url,
           decoration: const InputDecoration(
             labelText: 'Paste webpage link',
-            prefixIcon: Icon(Icons.link),
+            prefixIcon: BootstrapIcon.material(Icons.link),
           ),
         ),
       _AutoStudySource.topic => TextField(
           controller: _topicController,
           decoration: const InputDecoration(
             labelText: 'Topic',
-            prefixIcon: Icon(Icons.search),
+            prefixIcon: BootstrapIcon.material(Icons.search),
           ),
         ),
     };
   }
+
   Widget _buildEditor() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -1502,11 +1620,11 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.auto_fix_high),
+                    : const BootstrapIcon.material(Icons.auto_fix_high),
               ),
               TextButton.icon(
                 onPressed: _saveStudySet,
-                icon: const Icon(Icons.save),
+                icon: const BootstrapIcon.material(Icons.save),
                 label: const Text('Save'),
               ),
             ],
@@ -1516,7 +1634,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             controller: _titleController,
             decoration: const InputDecoration(
               labelText: 'Title',
-              prefixIcon: Icon(Icons.title),
+              prefixIcon: BootstrapIcon.material(Icons.title),
             ),
           ),
           const SizedBox(height: 10),
@@ -1526,7 +1644,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             maxLines: 3,
             decoration: const InputDecoration(
               labelText: 'Description / Subject',
-              prefixIcon: Icon(Icons.notes),
+              prefixIcon: BootstrapIcon.material(Icons.notes),
             ),
           ),
           const SizedBox(height: 14),
@@ -1541,7 +1659,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                   onPressed: () {
                     setState(() => _questions.add(_EditableQuestion()));
                   },
-                  icon: const Icon(Icons.add_circle_outline),
+                  icon: const BootstrapIcon.material(Icons.add_circle_outline),
                   label: const Text('Add Question'),
                 ),
               ),
@@ -1549,8 +1667,10 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: _saveStudySet,
-                  icon: const Icon(Icons.save),
-                  label: Text(widget.generateQuizOnly ? 'Save Quiz' : 'Save Study Guide'),
+                  icon: const BootstrapIcon.material(Icons.save),
+                  label: Text(widget.generateQuizOnly
+                      ? 'Save Quiz'
+                      : 'Save Study Guide'),
                 ),
               ),
             ],
@@ -1591,7 +1711,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                           _questions.removeAt(index).dispose();
                         });
                       },
-                icon: const Icon(Icons.delete_outline),
+                icon: const BootstrapIcon.material(Icons.delete_outline),
               ),
             ],
           ),
@@ -1726,7 +1846,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
                     .colorScheme
                     .primary
                     .withValues(alpha: 0.16),
-                child: const Icon(Icons.school_outlined),
+                child: const BootstrapIcon.material(Icons.school_outlined),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1775,7 +1895,7 @@ class _StudyBuilderScreenState extends State<StudyBuilderScreen> with WidgetsBin
             width: double.infinity,
             child: ElevatedButton.icon(
               onPressed: questions.isEmpty ? null : () => _startQuiz(set),
-              icon: const Icon(Icons.play_arrow),
+              icon: const BootstrapIcon.material(Icons.play_arrow),
               label: const Text('Start Answering'),
             ),
           ),
@@ -2084,7 +2204,7 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: _hasAnswer() ? _submit : null,
-                  icon: const Icon(Icons.check),
+                  icon: const BootstrapIcon.material(Icons.check),
                   label: Text(
                     _index == _activeQuestions.length - 1
                         ? 'Finish Quiz'
@@ -2106,7 +2226,7 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
         onChanged: (_) => setState(() {}),
         decoration: const InputDecoration(
           labelText: 'Type your answer',
-          prefixIcon: Icon(Icons.edit),
+          prefixIcon: BootstrapIcon.material(Icons.edit),
         ),
       );
     }
@@ -2142,7 +2262,7 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
         final isSelected = _selected == choice;
         return ListTile(
           onTap: () => setState(() => _selected = choice),
-          leading: Icon(
+          leading: BootstrapIcon.material(
             isSelected
                 ? Icons.radio_button_checked
                 : Icons.radio_button_unchecked,
@@ -2164,7 +2284,8 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
         FigmaCard(
           child: Column(
             children: [
-              const Icon(Icons.workspace_premium_outlined, size: 44),
+              const BootstrapIcon.material(Icons.workspace_premium_outlined,
+                  size: 44),
               const SizedBox(height: 10),
               Text(
                 '$_score / $_total',
@@ -2181,7 +2302,7 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _mistakes.isEmpty ? null : _practiceMistakes,
-                      icon: const Icon(Icons.replay),
+                      icon: const BootstrapIcon.material(Icons.replay),
                       label: const Text('Practice Mistakes'),
                     ),
                   ),
@@ -2189,7 +2310,7 @@ class _StudyQuizScreenState extends State<_StudyQuizScreen> {
                   Expanded(
                     child: ElevatedButton.icon(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.done),
+                      icon: const BootstrapIcon.material(Icons.done),
                       label: const Text('Done'),
                     ),
                   ),
@@ -2262,15 +2383,24 @@ class _QuizDropBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()..addRRect(RRect.fromRectAndRadius(Offset.zero & size, const Radius.circular(18)));
-    final paint = Paint()..color = color..style = PaintingStyle.stroke..strokeWidth = 1.5;
+    final path = Path()
+      ..addRRect(RRect.fromRectAndRadius(
+          Offset.zero & size, const Radius.circular(18)));
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
     for (final metric in path.computeMetrics()) {
       for (var distance = 0.0; distance < metric.length; distance += 10) {
-        canvas.drawPath(metric.extractPath(distance, (distance + 5).clamp(0.0, metric.length).toDouble()), paint);
+        canvas.drawPath(
+            metric.extractPath(
+                distance, (distance + 5).clamp(0.0, metric.length).toDouble()),
+            paint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _QuizDropBorderPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _QuizDropBorderPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

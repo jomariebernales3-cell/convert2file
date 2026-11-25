@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/bootstrap_icon.dart';
 import '../services/local_llama_service.dart';
 import '../widgets/report_problem_entry.dart';
 import '../widgets/figma_app_chrome.dart';
@@ -27,7 +28,9 @@ class _AiModelScreenState extends State<AiModelScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(backgroundColor: Theme.of(context).colorScheme.error, content: Text('$e')),
+        SnackBar(
+            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text('$e')),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -84,7 +87,7 @@ class _AiModelScreenState extends State<AiModelScreen> {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
+                          BootstrapIcon.material(
                             _llama.isLoaded
                                 ? Icons.psychology
                                 : Icons.memory_outlined,
@@ -124,7 +127,7 @@ class _AiModelScreenState extends State<AiModelScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(
+                              BootstrapIcon.material(
                                 Icons.memory,
                                 color: Theme.of(context).colorScheme.primary,
                               ),
@@ -155,7 +158,8 @@ class _AiModelScreenState extends State<AiModelScreen> {
                               onPressed: _busy || _llama.isGenerating
                                   ? null
                                   : () => _run(_llama.importModel),
-                              icon: const Icon(Icons.upload_file),
+                              icon: const BootstrapIcon.material(
+                                  Icons.upload_file),
                               label: const Text('Import .gguf Model'),
                             ),
                           ),
@@ -167,7 +171,8 @@ class _AiModelScreenState extends State<AiModelScreen> {
                                   onPressed: _busy || !_llama.hasModel
                                       ? null
                                       : () => _run(_llama.loadModel),
-                                  icon: const Icon(Icons.play_arrow),
+                                  icon: const BootstrapIcon.material(
+                                      Icons.play_arrow),
                                   label: const Text('Load'),
                                 ),
                               ),
@@ -177,7 +182,8 @@ class _AiModelScreenState extends State<AiModelScreen> {
                                   onPressed: _busy || !_llama.hasModel
                                       ? null
                                       : () => _run(_llama.clearModel),
-                                  icon: const Icon(Icons.delete_outline),
+                                  icon: const BootstrapIcon.material(
+                                      Icons.delete_outline),
                                   label: const Text('Disable/Delete'),
                                 ),
                               ),
@@ -283,21 +289,29 @@ class _AiModelScreenState extends State<AiModelScreen> {
                               onPressed: _busy
                                   ? null
                                   : () => _run(_openRecommendedModel),
-                              icon: const Icon(Icons.open_in_new),
+                              icon: const BootstrapIcon.material(
+                                  Icons.open_in_new),
                               label: const Text('Open Download Page'),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    ReportProblemEntry(area: 'offline_ai', contextInfo: {'model_file_name': modelName, 'model_loaded': _llama.isLoaded, 'last_error_text': null}),
+                    ReportProblemEntry(area: 'offline_ai', contextInfo: {
+                      'model_file_name': modelName,
+                      'model_loaded': _llama.isLoaded,
+                      'last_error_text': null
+                    }),
                     const SizedBox(height: 32),
                   ],
                 ),
               ),
               if (_busy || _llama.isLoading)
                 Container(
-                  color: Theme.of(context).colorScheme.scrim.withValues(alpha: 0.45),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .scrim
+                      .withValues(alpha: 0.45),
                   child: const Center(child: CircularProgressIndicator()),
                 ),
             ],
@@ -313,7 +327,7 @@ class _AiModelScreenState extends State<AiModelScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
+          BootstrapIcon.material(
             Icons.check_circle_outline,
             size: 18,
             color: Theme.of(context).colorScheme.primary,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../widgets/bootstrap_icon.dart';
 import '../services/announcement_service.dart';
 import '../services/supabase_config.dart';
 import '../theme/app_colors.dart';
@@ -112,16 +113,25 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     if (difference.inDays == 1) return 'Yesterday';
     if (difference.inDays < 7) return '${difference.inDays}d ago';
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${months[date.month - 1]} ${date.day}';
   }
 
   List<Map<String, dynamic>> get _visibleItems => _items
       .where((item) => !_hiddenIds.contains(_id(item)))
-      .where((item) =>
-          _filter == _AnnouncementFilter.all || !_isRead(item))
+      .where((item) => _filter == _AnnouncementFilter.all || !_isRead(item))
       .toList(growable: false);
 
   Future<void> _markRead(Map<String, dynamic> item) async {
@@ -156,7 +166,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                     fontWeight: FontWeight.w800,
                   )),
               const SizedBox(height: 6),
-              Text('It will be removed from this device only. This can’t be undone.',
+              Text(
+                  'It will be removed from this device only. This can’t be undone.',
                   style: TextStyle(color: colors.muted, height: 1.5)),
               const SizedBox(height: 16),
               Row(children: [
@@ -233,7 +244,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
       if (paragraph.isEmpty) return;
       blocks.add(Padding(
         padding: const EdgeInsets.only(top: 14, bottom: 10),
-        child: Text.rich(_inlineMarkdown(paragraph.join(' '), baseStyle, colors)),
+        child:
+            Text.rich(_inlineMarkdown(paragraph.join(' '), baseStyle, colors)),
       ));
       paragraph = [];
     }
@@ -244,16 +256,23 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         padding: const EdgeInsets.only(top: 2, bottom: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: bullets.map((line) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Padding(
-                padding: const EdgeInsets.only(top: 8, right: 9),
-                child: Icon(Icons.circle, size: 6, color: colors.accent),
-              ),
-              Expanded(child: Text.rich(_inlineMarkdown(line, baseStyle, colors))),
-            ]),
-          )).toList(),
+          children: bullets
+              .map((line) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8, right: 9),
+                            child: BootstrapIcon.material(Icons.circle,
+                                size: 6, color: colors.accent),
+                          ),
+                          Expanded(
+                              child: Text.rich(
+                                  _inlineMarkdown(line, baseStyle, colors))),
+                        ]),
+                  ))
+              .toList(),
         ),
       ));
       bullets = [];
@@ -274,7 +293,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     }
     flushParagraph();
     flushBullets();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: blocks);
+    return Column(
+        crossAxisAlignment: CrossAxisAlignment.start, children: blocks);
   }
 
   Widget _announcementCard(Map<String, dynamic> item) {
@@ -329,150 +349,208 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               Padding(
                 padding: EdgeInsets.only(left: !isRead ? 3 : 0),
                 child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Semantics(
-                        button: true,
-                        expanded: isOpen,
-                        label: '$title, ${_kindLabel(kind)}, ${isRead ? 'read' : 'unread'}, ${_relativeDate(item)}',
-                        hint: isOpen ? 'Collapse announcement' : 'Expand announcement',
-                        child: Material(
-                          color: colors.surface,
-                          child: InkWell(
-                            onTap: isRemoving
-                                ? null
-                                : () => setState(() => _openId = isOpen ? null : id),
-                            focusColor: colors.accent.withValues(alpha: 0.14),
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(minHeight: 72),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                                child: Row(
-                                  children: [
-                                    Container(
-                                      width: 44,
-                                      height: 44,
-                                      decoration: BoxDecoration(
-                                        color: kindColor.withValues(alpha: 0.13),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Icon(_kindIcon(kind), size: 22, color: kindColor),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Semantics(
+                      button: true,
+                      expanded: isOpen,
+                      label:
+                          '$title, ${_kindLabel(kind)}, ${isRead ? 'read' : 'unread'}, ${_relativeDate(item)}',
+                      hint: isOpen
+                          ? 'Collapse announcement'
+                          : 'Expand announcement',
+                      child: Material(
+                        color: colors.surface,
+                        child: InkWell(
+                          onTap: isRemoving
+                              ? null
+                              : () =>
+                                  setState(() => _openId = isOpen ? null : id),
+                          focusColor: colors.accent.withValues(alpha: 0.14),
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(minHeight: 72),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: kindColor.withValues(alpha: 0.13),
+                                      borderRadius: BorderRadius.circular(14),
                                     ),
-                                    const SizedBox(width: 12),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(title,
+                                    alignment: Alignment.center,
+                                    child: BootstrapIcon.material(
+                                        _kindIcon(kind),
+                                        size: 22,
+                                        color: kindColor),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(title,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                              color: isRead ? colors.muted : colors.text,
+                                              color: isRead
+                                                  ? colors.muted
+                                                  : colors.text,
                                               fontSize: 16,
-                                              fontWeight: isRead ? FontWeight.w600 : FontWeight.w800,
+                                              fontWeight: isRead
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w800,
                                             )),
+                                        const SizedBox(height: 2),
+                                        Text.rich(
+                                            TextSpan(children: [
+                                              TextSpan(
+                                                  text: '${_kindLabel(kind)}  ',
+                                                  style: TextStyle(
+                                                      color: kindColor,
+                                                      fontWeight:
+                                                          FontWeight.w700)),
+                                              TextSpan(
+                                                  text: _relativeDate(item),
+                                                  style: TextStyle(
+                                                      color: colors.muted)),
+                                            ]),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style:
+                                                const TextStyle(fontSize: 12)),
+                                        if (!isOpen) ...[
                                           const SizedBox(height: 2),
-                                          Text.rich(TextSpan(children: [
-                                            TextSpan(text: '${_kindLabel(kind)}  ', style: TextStyle(color: kindColor, fontWeight: FontWeight.w700)),
-                                            TextSpan(text: _relativeDate(item), style: TextStyle(color: colors.muted)),
-                                          ]), maxLines: 1, overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontSize: 12)),
-                                          if (!isOpen) ...[
-                                            const SizedBox(height: 2),
-                                            Text(preview,
+                                          Text(preview,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
-                                              style: TextStyle(color: colors.muted, fontSize: 13)),
-                                          ],
+                                              style: TextStyle(
+                                                  color: colors.muted,
+                                                  fontSize: 13)),
                                         ],
-                                      ),
+                                      ],
                                     ),
-                                    const SizedBox(width: 8),
-                                    if (!isRead)
-                                      Semantics(label: 'Unread', child: Container(
-                                        width: 10,
-                                        height: 10,
-                                        decoration: BoxDecoration(color: colors.accent, shape: BoxShape.circle),
-                                      )),
-                                    const SizedBox(width: 8),
-                                    AnimatedRotation(
-                                      turns: isOpen ? 0.5 : 0,
-                                      duration: const Duration(milliseconds: 280),
-                                      child: Icon(Icons.keyboard_arrow_down_rounded, color: colors.muted, size: 24),
-                                    ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  if (!isRead)
+                                    Semantics(
+                                        label: 'Unread',
+                                        child: Container(
+                                          width: 10,
+                                          height: 10,
+                                          decoration: BoxDecoration(
+                                              color: colors.accent,
+                                              shape: BoxShape.circle),
+                                        )),
+                                  const SizedBox(width: 8),
+                                  AnimatedRotation(
+                                    turns: isOpen ? 0.5 : 0,
+                                    duration: const Duration(milliseconds: 280),
+                                    child: BootstrapIcon.material(
+                                        Icons.keyboard_arrow_down_rounded,
+                                        color: colors.muted,
+                                        size: 24),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ),
                       ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 280),
-                        curve: Curves.easeInOut,
-                        alignment: Alignment.topCenter,
-                        clipBehavior: Clip.hardEdge,
-                        child: isOpen
-                            ? Padding(
-                                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                                  children: [
-                                    Divider(height: 1, color: colors.line),
-                                    _formattedMessage(body, colors),
-                                    if (hasSafeLink)
-                                      Align(
-                                        alignment: Alignment.centerLeft,
-                                        child: TextButton.icon(
-                                          onPressed: () => launchUrl(
-                                            link!,
-                                            mode: LaunchMode.externalApplication,
-                                          ),
-                                          style: TextButton.styleFrom(
-                                            minimumSize: const Size(48, 48),
-                                            foregroundColor: colors.accent,
-                                          ),
-                                          icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                                          label: Text(
-                                            item['link_label']?.toString().trim().isNotEmpty == true
-                                                ? item['link_label'].toString()
-                                                : 'Learn more',
-                                          ),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 280),
+                      curve: Curves.easeInOut,
+                      alignment: Alignment.topCenter,
+                      clipBehavior: Clip.hardEdge,
+                      child: isOpen
+                          ? Padding(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Divider(height: 1, color: colors.line),
+                                  _formattedMessage(body, colors),
+                                  if (hasSafeLink)
+                                    Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: TextButton.icon(
+                                        onPressed: () => launchUrl(
+                                          link!,
+                                          mode: LaunchMode.externalApplication,
+                                        ),
+                                        style: TextButton.styleFrom(
+                                          minimumSize: const Size(48, 48),
+                                          foregroundColor: colors.accent,
+                                        ),
+                                        icon: const BootstrapIcon.material(
+                                            Icons.open_in_new_rounded,
+                                            size: 18),
+                                        label: Text(
+                                          item['link_label']
+                                                      ?.toString()
+                                                      .trim()
+                                                      .isNotEmpty ==
+                                                  true
+                                              ? item['link_label'].toString()
+                                              : 'Learn more',
                                         ),
                                       ),
-                                    Row(children: [
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          style: _actionStyle(foreground: isRead ? colors.muted : colors.accent),
-                                          onPressed: isRead || isRemoving ? null : () => _markRead(item),
-                                          icon: Icon(isRead ? Icons.check_rounded : Icons.done_rounded, size: 18),
-                                          label: Text(isRead ? 'Read' : 'Mark as read'),
-                                        ),
+                                    ),
+                                  Row(children: [
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        style: _actionStyle(
+                                            foreground: isRead
+                                                ? colors.muted
+                                                : colors.accent),
+                                        onPressed: isRead || isRemoving
+                                            ? null
+                                            : () => _markRead(item),
+                                        icon: BootstrapIcon.material(
+                                            isRead
+                                                ? Icons.check_rounded
+                                                : Icons.done_rounded,
+                                            size: 18),
+                                        label: Text(
+                                            isRead ? 'Read' : 'Mark as read'),
                                       ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: OutlinedButton.icon(
-                                          style: _actionStyle(foreground: colors.danger),
-                                          onPressed: !isRead || isRemoving ? null : () => _confirmDelete(item),
-                                          icon: const Icon(Icons.delete_outline_rounded, size: 18),
-                                          label: const Text('Delete'),
-                                        ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: OutlinedButton.icon(
+                                        style: _actionStyle(
+                                            foreground: colors.danger),
+                                        onPressed: !isRead || isRemoving
+                                            ? null
+                                            : () => _confirmDelete(item),
+                                        icon: const BootstrapIcon.material(
+                                            Icons.delete_outline_rounded,
+                                            size: 18),
+                                        label: const Text('Delete'),
                                       ),
-                                    ]),
-                                    if (!isRead)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 8),
-                                        child: Text('Mark as read to unlock Delete',
-                                            style: TextStyle(color: colors.muted, fontSize: 12)),
-                                      ),
-                                  ],
-                                ),
-                              )
-                            : const SizedBox(width: double.infinity, height: 0),
-                      ),
-                    ],
+                                    ),
+                                  ]),
+                                  if (!isRead)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 8),
+                                      child: Text(
+                                          'Mark as read to unlock Delete',
+                                          style: TextStyle(
+                                              color: colors.muted,
+                                              fontSize: 12)),
+                                    ),
+                                ],
+                              ),
+                            )
+                          : const SizedBox(width: double.infinity, height: 0),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -495,7 +573,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
         leading: IconButton(
           tooltip: 'Back',
           onPressed: () => Navigator.maybePop(context),
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: const BootstrapIcon.material(Icons.arrow_back_rounded),
         ),
         title: const Text('Announcements'),
         actions: [
@@ -505,14 +583,18 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               child: Semantics(
                 label: unreadCount == 0 ? 'All read' : '$unreadCount unread',
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
                     color: colors.accent.withValues(alpha: 0.13),
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text(
                     unreadCount == 0 ? 'All read' : '$unreadCount unread',
-                    style: TextStyle(color: colors.accent, fontSize: 12, fontWeight: FontWeight.w700),
+                    style: TextStyle(
+                        color: colors.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700),
                   ),
                 ),
               ),
@@ -540,7 +622,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                       : ListView.builder(
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
                           itemCount: visibleItems.length,
-                          itemBuilder: (context, index) => _announcementCard(visibleItems[index]),
+                          itemBuilder: (context, index) =>
+                              _announcementCard(visibleItems[index]),
                         ),
                 ),
               ],
@@ -548,7 +631,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
     );
   }
 
-  Widget _filterChip(String label, _AnnouncementFilter filter, AppColors colors) {
+  Widget _filterChip(
+      String label, _AnnouncementFilter filter, AppColors colors) {
     final selected = _filter == filter;
     return Semantics(
       button: true,
@@ -562,7 +646,8 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               _filter = filter;
               if (filter == _AnnouncementFilter.unread &&
                   _openId != null &&
-                  !_items.any((item) => _id(item) == _openId && !_isRead(item))) {
+                  !_items
+                      .any((item) => _id(item) == _openId && !_isRead(item))) {
                 _openId = null;
               }
             }),
@@ -571,7 +656,13 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               foregroundColor: selected ? colors.accentInk : colors.muted,
               backgroundColor: selected ? colors.accent : colors.surface,
-              side: BorderSide(color: focused ? colors.accent : selected ? colors.accent : colors.line, width: focused ? 2 : 1),
+              side: BorderSide(
+                  color: focused
+                      ? colors.accent
+                      : selected
+                          ? colors.accent
+                          : colors.line,
+                  width: focused ? 2 : 1),
               shape: const StadiumBorder(),
               textStyle: const TextStyle(fontWeight: FontWeight.w700),
             ),
@@ -588,10 +679,14 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.campaign_outlined, size: 48, color: colors.accent),
+              BootstrapIcon.material(Icons.campaign_outlined,
+                  size: 48, color: colors.accent),
               const SizedBox(height: 12),
               Text('No announcements',
-                  style: TextStyle(color: colors.text, fontSize: 17, fontWeight: FontWeight.w800)),
+                  style: TextStyle(
+                      color: colors.text,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               Text('New messages from the admin will show up here.',
                   textAlign: TextAlign.center,
