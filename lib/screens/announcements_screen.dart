@@ -83,18 +83,21 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   Color _kindColor(String kind, AppColors colors) => switch (kind) {
         'important' => colors.warning,
         'maintenance' => colors.muted,
+        'update' => colors.accent,
         _ => colors.accent,
       };
 
   IconData _kindIcon(String kind) => switch (kind) {
         'important' => Icons.priority_high_rounded,
         'maintenance' => Icons.build_circle_outlined,
+        'update' => Icons.system_update_alt_rounded,
         _ => Icons.campaign_outlined,
       };
 
   String _kindLabel(String kind) => switch (kind) {
         'important' => 'Important',
         'maintenance' => 'Maintenance',
+        'update' => 'Update',
         _ => 'News',
       };
 
