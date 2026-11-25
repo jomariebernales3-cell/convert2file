@@ -651,7 +651,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
       _HomeAction(
         'Text extractor',
-        'file-earmark-search',
+        'file-earmark-code',
         () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => const DocumentTextExtractorScreen(),

@@ -626,7 +626,7 @@ class _SettingsScreenState extends State<SettingsScreen>
           child: Column(
             children: [
               _buildActionTile(
-                icon: 'broom',
+                icon: 'trash',
                 title: 'Clear cache',
                 subtitle: 'Remove temporary files',
                 onTap: _clearCache,

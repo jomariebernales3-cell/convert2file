@@ -181,17 +181,23 @@ class BootstrapIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final iconName =
         name ?? _materialNames[materialIcon?.codePoint] ?? 'file-earmark-text';
-    final icon = SvgPicture.asset(
-      'assets/bootstrap_icons/$iconName.svg',
-      width: size ?? 24,
-      height: size ?? 24,
-      colorFilter: ColorFilter.mode(
-        color ??
-            IconTheme.of(context).color ??
-            Theme.of(context).colorScheme.onSurface,
-        BlendMode.srcIn,
+    final icon = Center(
+      widthFactor: 1,
+      heightFactor: 1,
+      child: SizedBox.square(
+        dimension: size ?? 24,
+        child: SvgPicture.asset(
+          'assets/bootstrap_icons/$iconName.svg',
+          fit: BoxFit.contain,
+          colorFilter: ColorFilter.mode(
+            color ??
+                IconTheme.of(context).color ??
+                Theme.of(context).colorScheme.onSurface,
+            BlendMode.srcIn,
+          ),
+          excludeFromSemantics: semanticLabel == null,
+        ),
       ),
-      excludeFromSemantics: semanticLabel == null,
     );
     return semanticLabel == null
         ? icon

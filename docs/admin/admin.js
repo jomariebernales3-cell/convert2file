@@ -1102,6 +1102,7 @@ async function init() {
     if (rawHideAfterVersion && !/^\d+(?:\.\d+)*$/.test(rawHideAfterVersion)) {
       notice('Enter the installed app version as numbers separated by dots, such as 3.0.3.35.', true); return;
     }
+    const savedAt = new Date().toISOString();
     const values = {
       title: $('#announcement-title').value.trim(),
       body: $('#announcement-message').value.trim(),
@@ -1112,10 +1113,18 @@ async function init() {
       link_url: linkUrl || null,
       link_label: $('#announcement-link-label').value.trim() || null,
       hide_after_version: rawHideAfterVersion || null,
-      updated_at: new Date().toISOString(),
+      updated_at: savedAt,
     };
+    // Announcement reads/dismissals are stored on-device by row ID. Rotate
+    // the ID when an admin edits a notice so every app version treats the
+    // revised message or link as a new unread announcement. Refresh created_at
+    // too so it appears near the top of clients' recent-announcement query.
     const result = editingAnnouncementId
-      ? await client.from('announcements').update(values).eq('id', editingAnnouncementId)
+      ? await client.from('announcements').update({
+          ...values,
+          id: crypto.randomUUID(),
+          created_at: savedAt,
+        }).eq('id', editingAnnouncementId)
       : await client.from('announcements').insert(values);
     if (result.error) { notice(result.error.message, true); return; }
     resetAnnouncementForm(); await refreshData();
