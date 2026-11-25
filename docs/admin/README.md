@@ -20,9 +20,10 @@ Use a **new Supabase project** so existing app accounts and data remain untouche
 
 6. Run `supabase/migrations/202611210002_admin_report_realtime_replies.sql` to enable live report change events and add the report reply field.
 7. Run `supabase/migrations/202611210003_private_report_reply_announcements.sql`, then `supabase/migrations/202611210004_separate_report_reply_send.sql`, to deliver admin replies privately to the reporting account's in-app Announcements. The portal's **Send reply** button sends the message; **Save report** only saves status and internal notes.
+8. Run `supabase/migrations/202611250001_announcement_version_retirement.sql` to enable the optional announcement **Hide at installed app version** field. Set it to the release version (for example, `3.0.3.35`) so the notice is hidden after a device installs that version.
 
-8. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
-9. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
+9. Set the new project's Project URL and **publishable key** in `config.js`. This key is designed for browser use; the database RLS policies are the security boundary. Never place a secret key in this website, the Flutter app, or GitHub.
+10. Serve `docs/` locally with VS Code Live Server and open `/admin/`. The page must be served over HTTP/HTTPS; opening the HTML as `file://` will prevent its ES module imports from loading.
 10. For GitHub Pages, this portal is available at `https://jomariebernales3-cell.github.io/convert2file/admin/` after the `docs/admin` files and public `config.js` are pushed to `main`. Because the URL and publishable key are public client settings, protect the data with the included RLS and RPC authorization.
 
 ## Publishing an Android release

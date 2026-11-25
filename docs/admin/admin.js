@@ -185,7 +185,7 @@ async function refreshData() {
       queryRows('admin_audit_log', 'id,actor_id,action,target_type,target_id,details,created_at'),
     ]);
     [announcements, appSettings, appInfoContent] = await Promise.all([
-      queryRows('announcements', 'id,title,body,kind,starts_at,ends_at,is_active,link_url,link_label,created_at,updated_at'),
+      queryRows('announcements', 'id,title,body,kind,starts_at,ends_at,is_active,link_url,link_label,hide_after_version,created_at,updated_at'),
       (async () => {
         const { data, error } = await client.from('app_control_settings').select('*').eq('id', true).single();
         if (error) throw error;
@@ -453,7 +453,7 @@ function populateAuditFilters() {
 }
 
 function drawAnnouncements() {
-  $('#announcement-history').innerHTML = announcements.map((item) => `<div class="row"><div><b>${esc(item.title)}</b><small>${esc(item.kind)} · ${item.is_active ? 'Active' : 'Inactive'} · Starts ${esc(date(item.starts_at))} · Ends ${esc(date(item.ends_at))}</small><small>${esc(item.body)}</small></div><div class="announcement-actions"><button class="button" data-edit-announcement="${esc(item.id)}">Edit</button><button class="button danger" data-delete-announcement="${esc(item.id)}">Delete</button></div></div>`).join('') || '<p class="empty">No announcements yet.</p>';
+  $('#announcement-history').innerHTML = announcements.map((item) => `<div class="row"><div><b>${esc(item.title)}</b><small>${esc(item.kind)} · ${item.is_active ? 'Active' : 'Inactive'} · Starts ${esc(date(item.starts_at))} · Ends ${esc(date(item.ends_at))}</small>${item.hide_after_version ? `<small>Hidden at app version ${esc(item.hide_after_version)} and newer</small>` : ''}<small>${esc(item.body)}</small></div><div class="announcement-actions"><button class="button" data-edit-announcement="${esc(item.id)}">Edit</button><button class="button danger" data-delete-announcement="${esc(item.id)}">Delete</button></div></div>`).join('') || '<p class="empty">No announcements yet.</p>';
 }
 
 function announcementDateInput(value) {
@@ -488,6 +488,7 @@ function editAnnouncement(id) {
   $('#announcement-active').checked = item.is_active;
   $('#announcement-link-url').value = item.link_url ?? '';
   $('#announcement-link-label').value = item.link_label ?? '';
+  $('#announcement-hide-after-version').value = item.hide_after_version ?? '';
   $('#announcement-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
@@ -1025,6 +1026,10 @@ async function init() {
     if (linkUrl && new URL(linkUrl).protocol !== 'https:') {
       notice('Announcement links must use https.', true); return;
     }
+    const rawHideAfterVersion = $('#announcement-hide-after-version').value.trim().replace(/^v/i, '');
+    if (rawHideAfterVersion && !/^\d+(?:\.\d+)*$/.test(rawHideAfterVersion)) {
+      notice('Enter the installed app version as numbers separated by dots, such as 3.0.3.35.', true); return;
+    }
     const values = {
       title: $('#announcement-title').value.trim(),
       body: $('#announcement-message').value.trim(),
@@ -1034,6 +1039,7 @@ async function init() {
       is_active: $('#announcement-active').checked,
       link_url: linkUrl || null,
       link_label: $('#announcement-link-label').value.trim() || null,
+      hide_after_version: rawHideAfterVersion || null,
       updated_at: new Date().toISOString(),
     };
     const result = editingAnnouncementId

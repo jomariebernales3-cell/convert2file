@@ -21,21 +21,29 @@ class AppVersionService {
   }
 
   static bool isBelowMinimum(String installed, String minimum) {
-    final currentParts = _numericParts(installed);
-    final minimumParts = _numericParts(minimum);
+    return compare(installed, minimum) < 0;
+  }
+
+  static bool isAtLeast(String installed, String minimum) {
+    return compare(installed, minimum) >= 0;
+  }
+
+  static int compare(String left, String right) {
+    final currentParts = _numericParts(left);
+    final minimumParts = _numericParts(right);
     final length = currentParts.length > minimumParts.length
         ? currentParts.length
         : minimumParts.length;
     for (var index = 0; index < length; index++) {
       final current = index < currentParts.length ? currentParts[index] : 0;
       final required = index < minimumParts.length ? minimumParts[index] : 0;
-      if (current != required) return current < required;
+      if (current != required) return current.compareTo(required);
     }
-    return false;
+    return 0;
   }
 
-  static List<int> _numericParts(String version) => version
-      .split('.')
-      .map((part) => int.tryParse(part) ?? 0)
+  static List<int> _numericParts(String version) => RegExp(r'\d+')
+      .allMatches(version)
+      .map((match) => int.tryParse(match.group(0)!) ?? 0)
       .toList(growable: false);
 }

@@ -81,7 +81,7 @@
       </section>
 
       <section id="page-announcements" class="page" hidden>
-        <p class="muted">Notices users can see in the app after the app is connected to this project.</p>
+        <p class="muted">Notices users can see in the app after it is connected to this project. Deactivate or delete demo notices in History. For a release notice, set Hide at installed app version to the release version so updated devices stop seeing it.</p>
         <form id="announcement-form" class="card announcement-form">
           <h2 id="announcement-form-title">New announcement</h2>
           <label>Title<input id="announcement-title" maxlength="80" required></label>
@@ -91,6 +91,7 @@
           <label class="control-row">Active <input id="announcement-active" type="checkbox" checked></label>
           <label>Link URL (optional)<input id="announcement-link-url" type="url" placeholder="https://example.com"></label>
           <label>Link label (optional)<input id="announcement-link-label" maxlength="60"></label>
+          <label>Hide at installed app version (optional)<input id="announcement-hide-after-version" inputmode="decimal" placeholder="3.0.3.35"><small class="muted">The notice stops appearing on devices once they have this version or newer.</small></label>
           <div class="detail-actions"><button id="announcement-submit" class="button primary" type="submit">Publish</button><button id="announcement-cancel" class="button" type="button" hidden>Cancel edit</button></div>
         </form>
         <article class="card"><h2>History</h2><div id="announcement-history"></div></article>
