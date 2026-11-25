@@ -287,4 +287,4 @@ input,select,textarea,button{max-width:100%}
 }
 
 /* Bootstrap Icons are bundled locally for offline admin rendering. */
-.nav-icon{display:inline-block;flex:0 0 18px;width:18px;text-align:center;font-size:17px;line-height:1}.bottom-tabs button>i{font-size:18px;line-height:1.15}.dialog-close{display:grid;place-items:center}.dialog-close .bi{font-size:17px}.app-info-chevron{display:inline-grid;place-items:center;font-size:16px}
+.bi-icon{display:inline-block;width:1em;height:1em;flex:none;fill:currentColor;vertical-align:-.125em}.nav-icon{flex:0 0 18px;width:18px;height:18px}.bottom-tabs button>.bi-icon{width:18px;height:18px}.dialog-close{display:grid;place-items:center}.dialog-close .bi-icon{width:17px;height:17px}.app-info-chevron{display:inline-grid;place-items:center;font-size:16px}
