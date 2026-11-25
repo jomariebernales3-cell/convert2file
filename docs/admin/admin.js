@@ -279,6 +279,12 @@ function drawReports() {
 
 async function deleteProblemReports(reportIds, { all = false, confirmMessage } = {}) {
   if (!window.confirm(confirmMessage)) return false;
+  try {
+    await deleteReportAttachments(reportIds, all);
+  } catch (error) {
+    notice(`Could not delete report attachments. Apply the report attachment cleanup migration, then retry. ${error.message}`, true);
+    return false;
+  }
   const { data, error } = await client.rpc('admin_delete_problem_reports', {
     p_report_ids: all ? null : reportIds,
   });
@@ -288,6 +294,42 @@ async function deleteProblemReports(reportIds, { all = false, confirmMessage } =
   const count = Number(data) || 0;
   notice(`Deleted ${count} report${count === 1 ? '' : 's'}.`);
   return true;
+}
+
+async function deleteReportAttachments(reportIds, all) {
+  const fields = 'source_file_path,output_file_path,screenshot_file_path';
+  const paths = new Set();
+  const addPaths = (rows) => {
+    for (const row of rows ?? []) {
+      for (const value of [row.source_file_path, row.output_file_path, row.screenshot_file_path]) {
+        if (typeof value === 'string' && value.trim()) paths.add(value);
+      }
+    }
+  };
+
+  if (all) {
+    const pageSize = 500;
+    for (let offset = 0; ; offset += pageSize) {
+      const { data, error } = await client.from('problem_reports')
+        .select(fields).order('created_at', { ascending: true })
+        .range(offset, offset + pageSize - 1);
+      if (error) throw error;
+      addPaths(data);
+      if (!data || data.length < pageSize) break;
+    }
+  } else if (reportIds.length) {
+    const { data, error } = await client.from('problem_reports')
+      .select(fields).in('id', reportIds);
+    if (error) throw error;
+    addPaths(data);
+  }
+
+  const attachments = [...paths];
+  for (let offset = 0; offset < attachments.length; offset += 100) {
+    const { error } = await client.storage.from('report-files')
+      .remove(attachments.slice(offset, offset + 100));
+    if (error) throw error;
+  }
 }
 
 async function openReport(id) {
