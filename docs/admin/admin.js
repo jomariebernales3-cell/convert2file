@@ -581,10 +581,28 @@ function appInfoFieldsHTML(kind, item, index, sheet = false) {
   </div>`;
   return `<div class="app-info-fields${sheet ? ' app-info-sheet-fields' : ''}" data-app-info-form data-kind="history" data-index="${index}">
     <div class="version-fields app-info-version-fields"><label>Version<input data-app-info-field="version" maxlength="32" value="${esc(item.version)}" required></label><label>Date or label<input data-app-info-field="date" maxlength="64" value="${esc(item.date)}" required></label></div>
+    <label class="app-info-field-wide">Date and time picker <small>Choose a date and time to fill the Date or label field. You can still type a custom label there.</small><input data-app-info-field="date_time" type="datetime-local" value="${esc(appInfoDateTimeInput(item.date, item.date_time))}"></label>
     <label class="app-info-field-wide">Features <small>One item per line.</small><textarea data-app-info-field="features" rows="4">${esc((item.features ?? []).join('\n'))}</textarea></label>
     <label class="app-info-field-wide">Fixes and updates <small>One item per line.</small><textarea data-app-info-field="fixes" rows="4">${esc((item.fixes ?? []).join('\n'))}</textarea></label>
     <label class="info-current-version"><span><b>Mark as current version</b><small>This entry gets the latest badge in the app.</small></span><input data-app-info-field="is_latest" type="checkbox" ${item.is_latest ? 'checked' : ''}></label>
   </div>`;
+}
+
+function appInfoDateTimeInput(value, dateTime = '') {
+  if (!dateTime && !value) return '';
+  const parsed = new Date(dateTime || value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  const local = new Date(parsed.getTime() - parsed.getTimezoneOffset() * 60000);
+  return local.toISOString().slice(0, 16);
+}
+
+function appInfoDateTimeLabel(value) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  }).format(parsed);
 }
 
 function updateAppInfoField(input) {
@@ -602,15 +620,26 @@ function updateAppInfoField(input) {
       const checkboxForm = checkbox.closest('[data-app-info-form]');
       checkbox.checked = appInfoContent.release_notes[Number(checkboxForm.dataset.index)]?.is_latest === true;
     });
+  } else if (field === 'date_time') {
+    item.date = input.value ? appInfoDateTimeLabel(input.value) : '';
+    item.date_time = input.value ? new Date(input.value).toISOString() : '';
+    const dateLabel = form.querySelector('[data-app-info-field="date"]');
+    if (dateLabel) dateLabel.value = item.date;
   } else if (['details', 'features', 'fixes'].includes(field)) {
     item[field] = input.value.split('\n');
   } else {
     item[field] = input.value;
+    if (field === 'date') {
+      const parsed = new Date(item.date);
+      item.date_time = Number.isNaN(parsed.getTime()) ? '' : parsed.toISOString();
+      const dateTime = form.querySelector('[data-app-info-field="date_time"]');
+      if (dateTime) dateTime.value = appInfoDateTimeInput(item.date, item.date_time);
+    }
   }
   updateAppInfoHeader(input, kind, item);
   if (kind === 'history') {
     if (field === 'is_latest') updateAppInfoLatestBadges();
-    if (field === 'version' || field === 'date') filterAppInfoReleases();
+    if (field === 'version' || field === 'date' || field === 'date_time') filterAppInfoReleases();
   }
 }
 
@@ -718,7 +747,7 @@ function updateAppInfoHeader(input, kind, item) {
   }
   if (kind === 'history') {
     if (row && input.dataset.appInfoField === 'version') row.querySelector('[data-release-summary-version]').textContent = item.version.trim() || 'Untitled version';
-    if (row && input.dataset.appInfoField === 'date') row.querySelector('[data-release-summary-date]').textContent = item.date.trim() || 'Date not set';
+    if (row && ['date', 'date_time'].includes(input.dataset.appInfoField)) row.querySelector('[data-release-summary-date]').textContent = item.date.trim() || 'Date not set';
     if (input.dataset.appInfoField === 'is_latest') {
       document.querySelectorAll(`[data-info-release="${index}"] [data-release-summary-latest]`).forEach((badge) => { badge.hidden = !item.is_latest; });
     }
@@ -894,7 +923,8 @@ async function init() {
   $('#add-info-release').addEventListener('click', () => {
     if (!appInfoContent) return;
     appInfoContent.release_notes.forEach((entry) => { entry.is_latest = false; });
-    appInfoContent.release_notes.unshift({ version: '', date: '', is_latest: true, features: [], fixes: [] });
+    const publishedAt = new Date();
+    appInfoContent.release_notes.unshift({ version: '', date: appInfoDateTimeLabel(publishedAt), date_time: publishedAt.toISOString(), is_latest: true, features: [], fixes: [] });
     appInfoOpenReleaseIndex = 0;
     appInfoReleasePage = 1;
     $('#app-info-history-search').value = '';
